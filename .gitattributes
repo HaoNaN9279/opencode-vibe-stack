@@ -1,0 +1,17 @@
+# Git LFS for binary files
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.exe filter=lfs diff=lfs merge=lfs -text
+*.so filter=lfs diff=lfs merge=lfs -text
+*.dylib filter=lfs diff=lfs merge=lfs -text
+*.pdb filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+*.tar.gz filter=lfs diff=lfs merge=lfs -text
+
+# Text files
+*.opencode.md text diff=markdown
+*.yaml text
+*.yml text
+*.json text
+*.ps1 text
+*.sh text
+*.bat text
