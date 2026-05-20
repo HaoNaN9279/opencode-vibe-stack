@@ -5,7 +5,6 @@ type: "unity-project"
 unity_version: "${UNITY_VERSION}"
 
 imports:
-  - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/csharp-api/module.opencode.md"
   - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/editor/module.opencode.md"
 
 agents:
@@ -15,6 +14,11 @@ mcp_servers:
   - "mcp://unity-editor"
   - "mcp://git"
   - "mcp://filesystem"
+
+skills:
+  paths:
+    - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/csharp-api/skills"
+    - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/editor/skills"
 
 rules:
   - "./local.rules.opencode.md"

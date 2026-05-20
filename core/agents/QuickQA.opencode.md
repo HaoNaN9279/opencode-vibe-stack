@@ -1,14 +1,14 @@
 ---
 version: "2.1"
 agent:
-  id: "core.qa-expert"
+  id: "core.QuickQA"
   name: "快速问答专家"
   type: "qa"
   description: "快速解答各种问题，支持项目内查询和互联网搜索"
 
   a2a:
     enabled: true
-    roles: ["qa-expert"]
+    roles: ["QuickQA"]
     capabilities:
       - "answer-project-questions"
       - "answer-web-questions"

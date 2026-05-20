@@ -22,4 +22,5 @@ imports:
   - "./rules/*.opencode.md"
   - "./templates/*.opencode.md"
   - "./mcp/*.opencode.md"
+  - "./agents/*.opencode.md"
 ---

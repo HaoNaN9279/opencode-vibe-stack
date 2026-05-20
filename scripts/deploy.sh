@@ -26,15 +26,12 @@ mkdir -p "$OPCODE_CONFIG_DIR"
 # 创建符号链接
 ln -sfn "$STACK_ROOT/core" "$OPCODE_CONFIG_DIR/core"
 
-if [ -d "$STACK_ROOT/platforms/linux" ]; then
-    ln -sfn "$STACK_ROOT/platforms/linux" "$OPCODE_CONFIG_DIR/platform"
+# 检查 uv（Python MCP 服务依赖 uvx）
+if ! command -v uv &> /dev/null; then
+    echo "提示: 建议安装 uv (curl -LsSf https://astral.sh/uv/install.sh | sh)"
+    echo "Python MCP 服务依赖 uv/uvx 启动"
 fi
 
-ln -sfn "$STACK_ROOT/domains" "$OPCODE_CONFIG_DIR/domains"
-ln -sfn "$STACK_ROOT/combinations" "$OPCODE_CONFIG_DIR/combinations"
-
-# 配置国内镜像
-npm config set registry https://registry.npmmirror.com 2>/dev/null || true
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple 2>/dev/null || true
-
-echo "部署完成！请重启OpenCode以应用配置。"
+echo "部署完成！"
+echo "core/ 目录已部署到 User/core/（启动时自动发现）"
+echo "domain 模块通过 workspace 文件的 imports 按需加载"

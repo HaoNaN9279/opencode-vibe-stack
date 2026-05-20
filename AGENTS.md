@@ -19,14 +19,22 @@
 - **Everything is in Chinese** — spec, comments, agent personas, skill descriptions.
 - **No external plugins allowed.** This stack is 100% native `*.opencode.md` by design.
 
+## Loading architecture
+
+- **Core (always)** — `~/.config/opencode/User/core/` symlink → `${OPCODE_STACK_ROOT}/core/`. OpenCode auto-discovers all `*.opencode.md` under User/ at startup. All core agents, skills, rules, MCP configs, A2A, and combinator are loaded globally without any workspace file.
+- **Domains (per-project)** — Workspace `.opencode/workspace.opencode.md` imports domain modules via `${OPCODE_STACK_ROOT}/domains/...`. Domain agents, skills, and MCP are loaded only when the workspace is active.
+- **MCP servers** — Core MCP (git, filesystem) defined in `opencode.json` `mcp` field. Domain MCP (e.g., unity-editor) declared in workspace `mcp_servers:`.
+- **Skills** — Core skills registered in `opencode.json` `skills.paths`. Domain skills registered in workspace `skills:` → `paths:` (only available per-project).
+- **Module files** (`module.opencode.md`) MUST import `./agents/*.opencode.md` alongside skills/rules/templates/mcp — otherwise agents won't be loaded even when the module is imported.
+
 ## Directory layout
 
 ```
-core/              Global config, A2A protocol/bus/orchestrator, combinator, rules, skills, MCP
+core/              Always-on: agents, skills, rules, MCP, A2A, combinator
 platforms/         Windows / WSL2 / Linux — env vars, registries
-domains/           Game-engine / DCC / Desktop / Web — each API-layer has module + agents + skills + rules
-combinations/      Pre-built multi-domain bundles with composite orchestrators
-scripts/           deploy.ps1, deploy.sh, update-stack.ps1, new-project.ps1
+domains/           Per-project: game-engine / DCC / Desktop / Web
+combinations/      Pre-built multi-domain bundles
+scripts/           deploy.sh, new-project.ps1, update-stack.ps1
 workspace-templates/  unity-project, multi-domain-project
 ```
 
@@ -34,7 +42,7 @@ workspace-templates/  unity-project, multi-domain-project
 
 ```
 domains/<category>/<tool>/<api-layer>/
-├── module.opencode.md      # declares id, dependencies, provides, imports
+├── module.opencode.md      # imports: agents, skills, rules, templates, mcp
 ├── agents/                 # agent definitions with a2a: blocks
 ├── skills/                 # skill definitions (YAML frontmatter + code body)
 ├── rules/                  # domain-specific coding rules
