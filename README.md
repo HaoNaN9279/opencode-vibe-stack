@@ -53,11 +53,6 @@ chmod +x scripts/deploy.sh
     "git": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-git", "."]
-    },
-    "docsetmcp": {
-      "type": "local",
-      "command": ["uvx", "docsetmcp"],
-      "enabled": true
     }
   },
   "agent": {
@@ -285,21 +280,35 @@ agent:
 
 各 MCP 项目环境隔离：网络 MCP 用 uvx/npx 不存源码，自研 MCP 独立 git 项目 + 自有 venv/node_modules。
 
-#### 网络 MCP（Python，推荐）
+#### 声明式注册（`core/mcp/*.opencode.md`）— 推荐
+
+MCP 服务通过 `core/mcp/<name>.opencode.md` 文件声明，OpenCode 启动时自动发现并加载，无需修改 `opencode.json`：
+
+```yaml
+---
+version: "2.1"
+mcp_server:
+  name: "<name>"
+  type: "local"
+  command: "uvx"
+  args: ["<package>"]
+  env:
+    VAR_NAME: "/path/to/dir"
+  description: "描述"
+  capabilities:
+    - "tool1"
+    - "tool2"
+---
+```
+
+`opencode.json` 中只需保留基础设施类 MCP（filesystem、git），其余 MCP 全部通过此方式注册。
+
+#### 网络 MCP（Python）
 
 直接使用 `uvx`，无需本地维护源码和虚拟环境：
 
-```bash
-# 1. 如有配置文件放入 core/mcp/<name>/
-# 2. 在 opencode.json 注册
-"mcp": {
-  "<name>": {
-    "type": "local",
-    "command": ["uvx", "<name>"],
-    "enabled": true
-  }
-}
-```
+1. 在 `core/mcp/<name>.opencode.md` 中声明（见上方声明式注册）
+2. 如需配置文件，放入 `core/mcp/<name>/`
 
 #### 网络 MCP（Node.js）
 
