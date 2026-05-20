@@ -53,6 +53,14 @@ chmod +x scripts/deploy.sh
     "git": {
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-git", "."]
+    },
+    "docsetmcp": {
+      "type": "local",
+      "command": ["uvx", "docsetmcp"],
+      "env": {
+        "DOCSET_PATH": "/mnt/d/workspace/docsets",
+        "CHEATSHEET_PATH": "/mnt/d/workspace/cheatsheets"
+      }
     }
   },
   "agent": {
