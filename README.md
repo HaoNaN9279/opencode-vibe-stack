@@ -45,24 +45,7 @@ chmod +x scripts/deploy.sh
   "skills": {
     "paths": ["User/core/skills"]
   },
-  "mcp": {
-    "filesystem": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."]
-    },
-    "git": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-git", "."]
-    },
-    "docsetmcp": {
-      "type": "local",
-      "command": ["uvx", "docsetmcp"],
-      "env": {
-        "DOCSET_PATH": "/mnt/d/workspace/docsets",
-        "CHEATSHEET_PATH": "/mnt/d/workspace/cheatsheets"
-      }
-    }
-  },
+  "mcp": "{file:User/core/mcp-config.json}",
   "agent": {
     "QuickQA": {
       "mode": "primary",
@@ -288,44 +271,56 @@ agent:
 
 各 MCP 项目环境隔离：网络 MCP 用 uvx/npx 不存源码，自研 MCP 独立 git 项目 + 自有 venv/node_modules。
 
-#### 声明式注册（`core/mcp/*.opencode.md`）— 推荐
+#### 配置注册（`core/mcp-config.json`）
 
-MCP 服务通过 `core/mcp/<name>.opencode.md` 文件声明，OpenCode 启动时自动发现并加载，无需修改 `opencode.json`：
+所有核心 MCP 的启动配置集中在 `core/mcp-config.json`，`opencode.json` 通过 `{file:User/core/mcp-config.json}` 引用：
 
-```yaml
----
-version: "2.1"
-mcp_server:
-  name: "<name>"
-  type: "local"
-  command: "uvx"
-  args: ["<package>"]
-  env:
-    VAR_NAME: "/path/to/dir"
-  description: "描述"
-  capabilities:
-    - "tool1"
-    - "tool2"
----
+```json
+// core/mcp-config.json
+{
+  "filesystem": {
+    "type": "local",
+    "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."]
+  },
+  "git": {
+    "type": "local",
+    "command": ["npx", "-y", "@modelcontextprotocol/server-git", "."]
+  },
+  "docsetmcp": {
+    "type": "local",
+    "command": ["uvx", "docsetmcp"],
+    "env": { "DOCSET_PATH": "...", "CHEATSHEET_PATH": "..." }
+  }
+}
 ```
 
-`opencode.json` 中只需保留基础设施类 MCP（filesystem、git），其余 MCP 全部通过此方式注册。
+```json
+// opencode.json（一行引用即可）
+"mcp": "{file:User/core/mcp-config.json}",
+```
+
+`core/mcp/<name>.opencode.md` 保留能力声明（description、capabilities），不包含启动配置。添加新 MCP 时只改 `core/mcp-config.json`，无需动 `opencode.json`。
 
 #### 网络 MCP（Python）
 
-直接使用 `uvx`，无需本地维护源码和虚拟环境：
+直接使用 `uvx`，无需本地维护源码和虚拟环境。在 `core/mcp-config.json` 中添加条目：
 
-1. 在 `core/mcp/<name>.opencode.md` 中声明（见上方声明式注册）
-2. 如需配置文件，放入 `core/mcp/<name>/`
+```json
+"<name>": {
+  "type": "local",
+  "command": ["uvx", "<package>"],
+  "env": { "KEY": "value" }
+}
+```
 
 #### 网络 MCP（Node.js）
 
-```bash
-"mcp": {
-  "<name>": {
-    "type": "local",
-    "command": ["npx", "-y", "<name>"]
-  }
+使用 `npx`，在 `core/mcp-config.json` 中添加：
+
+```json
+"<name>": {
+  "type": "local",
+  "command": ["npx", "-y", "<package>"]
 }
 ```
 
@@ -342,7 +337,7 @@ core/mcp/<name>/
 └── README.md
 ```
 
-`opencode.json` 注册（推荐 `bash -c` 包装以展开环境变量）：
+在 `core/mcp-config.json` 中注册：
 
 ```json
 "<name>": {
@@ -351,29 +346,9 @@ core/mcp/<name>/
 }
 ```
 
-或直接用绝对路径：
-
-```json
-"<name>": {
-  "type": "local",
-  "command": ["uv", "run", "--directory", "/abs/path/to/core/mcp/<name>", "<name>"]
-}
-```
-
 #### 自研 MCP（Node.js）
 
-同理，独立 git 项目 + 独立 `node_modules/`：
-
-```
-core/mcp/<name>/
-├── .git/
-├── package.json
-├── src/
-├── node_modules/      ← npm install 生成，已 gitignored
-└── README.md
-```
-
-`opencode.json` 注册：
+同理，独立 git 项目 + 独立 `node_modules/`。在 `core/mcp-config.json` 中注册：
 
 ```json
 "<name>": {
