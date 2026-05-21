@@ -1,4 +1,4 @@
-# OpenCode Vibe Coding 工具链使用指南
+# OpenCode Vibe Coding 工具链
 
 ## 一、部署
 
@@ -29,23 +29,29 @@ chmod +x scripts/deploy.sh
 .\scripts\deploy.ps1
 ```
 
-会做两件事：
-1. 设置环境变量 `OPCODE_STACK_ROOT`
-2. 在 `~/.config/opencode/User/` 下创建 `core` 符号链接
+部署脚本会逐个链接 core 下的内容到 OpenCode 配置目录：
+
+```
+core/agents/*.md           →  ~/.config/opencode/agents/
+core/rules/*.md            →  ~/.config/opencode/rules/
+core/skills/<name>/         →  ~/.config/opencode/skills/<name>/
+core/commands/*.md         →  ~/.config/opencode/commands/
+core/mcp/mcp-config.json    →  ~/.config/opencode/mcp-config.json
+core/domain.config          →  ~/.config/opencode/domain.config
+```
+
+支持重复执行：自动同步新增、修改和删除的文件，清理过期链接。
 
 ### 1.4 配置 opencode.json
 
-将以下内容合并到 `~/.config/opencode/opencode.json`（最小示例）：
+将以下内容合并到 `~/.config/opencode/opencode.json`：
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": { ... },
   "default_agent": "QuickQA",
-  "skills": {
-    "paths": ["User/core/skills"]
-  },
-  "mcp": "{file:User/core/mcp-config.json}",
+  "mcp": "{file:mcp-config.json}",
   "agent": {
     "QuickQA": {
       "mode": "primary",
@@ -58,117 +64,79 @@ chmod +x scripts/deploy.sh
 }
 ```
 
-### 1.5 验证部署
-
-重启 OpenCode 后配置即生效。
+Skills 自动从 `~/.config/opencode/skills/` 发现，无需显式声明 skills.paths。
 
 ---
 
 ## 二、加载架构
 
-### 2.1 Core（常驻）
+### 2.1 Core（常驻，逐个链接）
 
-`User/core/` symlink → `${OPCODE_STACK_ROOT}/core/`。OpenCode 启动时自动发现该目录下所有 `*.opencode.md`：
+Core 下的内容通过部署脚本逐个链接到 `~/.config/opencode/` 的扁平目录，OpenCode 启动时自动发现：
 
-- **agents** — `QuickQA` 等通用 agent
-- **skills** — `code-review`, `code-refactor`, `debugging`
-- **rules** — 全局 vibe coding / security / naming 规则
-- **MCP** — git, filesystem
-- **A2A** — 协议/总线/编排器/注册表
+| 内容 | 位置 | 发现方式 |
+|------|------|----------|
+| agents | `~/.config/opencode/agents/*.md` | OpenCode 自动发现 |
+| rules | `~/.config/opencode/rules/*.md` | OpenCode 自动发现 |
+| skills | `~/.config/opencode/skills/<name>/SKILL.md` | OpenCode 自动发现 |
+| commands | `~/.config/opencode/commands/*.md` | OpenCode 自动发现 |
+| MCP | `~/.config/opencode/mcp-config.json` | opencode.json 引用 |
+| domain 注册表 | `~/.config/opencode/domain.config` | workspace_init 读取 |
 
-无需 workspace 文件即可生效。
+无法直嵌套目录：所有 agent、rule、skill 文件必须直接在对应目录下。
 
-### 2.2 Domains（按需）
+### 2.2 Domains（按项目链接）
 
-只在项目 workspace 文件中通过 `imports:` 按需加载。例如 Unity 项目：
+Domain 模块位于 `domains/` 目录下。在项目目录中通过 OpenCode 运行 `workspace_init` 命令，explore agent 会自动：
+1. 扫描项目文件识别技术栈
+2. 从 `domain.config` 匹配需要的模块
+3. 将模块内容逐个链接到项目 `opencode/agents/`、`opencode/rules/`、`opencode/skills/`
+4. 生成 `opencode/workspace.md`
 
-```yaml
----
-imports:
-  - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/editor/module.opencode.md"
----
+Agent 链接时添加 domain 前缀（如 `unity.csharp.orchestrator.md`）避免不同 module 的同名 agent 冲突。
+
+### 2.3 加载优先级
+
+```
+project (最高) > domains > core (基础)
 ```
 
-`editor/module.opencode.md` 会自动级联加载依赖的 `csharp-api/module.opencode.md`，以及各自的 agents/skills/rules。
-
-MCP 也按 workspace 声明选择性加载，不在启动时全部启动。
-
-### 2.3 快速参考
-
-| 问题 | 答案 |
-|------|------|
-| 不打开项目能用 core 吗？ | 能，启动即加载 |
-| 怎么加载 Unity agent？ | 项目下放 workspace 文件，只 import 一个 editor module |
-| core MCP 何时加载？ | 全局常驻 |
-| domain MCP 何时加载？ | 跟随 workspace 声明 |
+- 项目的 `opencode/` 内容优先级最高
+- 同名 agent/skill/rule 按优先级覆盖
 
 ---
 
 ## 三、在项目中使用
 
-### 3.1 创建新项目
+### 3.1 初始化工作空间
 
-```bash
-# Windows
-.\scripts\new-project.ps1 -ProjectName MyGame -Template unity
-```
+在项目目录中，通过 OpenCode 运行：
 
-或手动在项目根目录创建 `.opencode/workspace.opencode.md`：
+> 初始化工作空间
+
+系统会自动识别项目类型并链接匹配的 domain 模块。
+
+### 3.2 手动配置
+
+也可以直接编辑 `opencode/workspace.md`：
 
 ```yaml
 ---
 version: "2.1"
 name: "MyGame"
-type: "unity-project"
-
-imports:
-  - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/editor/module.opencode.md"
-
-agents:
-  default: "unity.csharp.orchestrator"
-
-mcp_servers:
-  - "mcp://unity-editor"
-
-skills:
-  paths:
-    - "${OPCODE_STACK_ROOT}/domains/game-engine/unity/csharp-api/skills"
----
-```
-
-### 3.2 多领域组合项目
-
-如果项目同时使用 Unity + Blender + Node.js：
-
-```yaml
----
-version: "2.1"
-name: "MyGameToolchain"
-type: "multi-domain"
-
 domains:
   - "game-engine.unity.csharp-api"
-  - "dcc.blender.python-api"
-  - "web.nodejs.express"
-
-# 或直接用预定义的组合包
-imports:
-  - "${OPCODE_STACK_ROOT}/combinations/game-asset-pipeline/combination.opencode.md"
-
-agents:
-  default: "game-asset-pipeline.orchestrator"
+  - "game-engine.unity.editor"
 ---
 ```
 
 ### 3.3 在 Chat 中使用
 
-部署完成后，直接在 OpenCode 对话中使用即可：
+部署完成后，直接在 OpenCode 对话中即可使用：
 
 > "帮我创建一个 Unity 角色控制器组件"
 > "写一个 Blender 插件，批量导出 FBX"
 > "做一个 Express REST API，用户增删改查"
-
-系统会自动加载对应领域的 Agent 和技能来处理。
 
 ---
 
@@ -179,13 +147,12 @@ agents:
 ```bash
 cd $OPCODE_STACK_ROOT
 git pull origin main
+./scripts/deploy.sh    # 重新同步链接 + 更新 domain.config
 ```
 
-### 4.2 只更新特定模块
+### 4.2 更新项目 domain 链接
 
-```powershell
-.\scripts\update-stack.ps1 -Module game-engine.unity.csharp-api
-```
+在项目目录中重新运行 `workspace_init` 自动刷新。
 
 ### 4.3 在另一台机器上部署
 
@@ -194,168 +161,75 @@ git clone <仓库地址>
 ./scripts/deploy.sh    # 或 deploy.ps1
 ```
 
-五分钟内即可恢复完整环境。
-
 ---
 
 ## 五、扩展（添加新模块）
 
-### 5.1 快速添加新 API 层
+### 5.1 添加新 domain 模块
 
-在对应领域目录下创建子目录和 `module.opencode.md`：
+在 `domains/` 下创建目录结构（2-3 层深度）：
 
 ```
-domains/<领域>/<工具>/<API层>/
-├── module.opencode.md
+domains/<领域>/<软件>/<语言或API层>/
 ├── agents/
-├── skills/
+│   └── my-agent.md
+├── commands/
+│   └── my-command.md
 ├── rules/
-├── templates/
-└── mcp/
+│   └── my-standards.md
+└── skills/
+    └── my-pattern/
+        └── SKILL.md
 ```
 
-### 5.2 module.opencode.md 模板
+重新运行 `deploy.sh` 即可更新 `domain.config` 注册。
+
+### 5.2 添加新 Agent
+
+在对应模块的 `agents/` 目录下创建 `*.md`：
 
 ```yaml
 ---
-version: "2.1"
-module:
-  id: "领域.工具.API层"        # 唯一标识
-  name: "显示名称"
-  description: "描述"
+name: domain.tool.agent-name
+description: 简要描述 Agent 的功能和适用场景
+mode: subagent
 
-  dependencies:
-    - "../../../core/config.opencode.md"
-
-  provides:
-    languages: ["语言1"]
-    apis: ["API名称"]
-
-imports:
-  - "./skills/*.opencode.md"
-  - "./rules/*.opencode.md"
-  - "./templates/*.opencode.md"
-  - "./mcp/*.opencode.md"
-  - "./agents/*.opencode.md"
+a2a:
+  enabled: true
+  roles: [角色]
+  capabilities: [能力1, 能力2]
 ---
+
+你是一位怎样的专家。
+具体的行为规则、专业知识、工作流程等。
 ```
 
-### 5.3 添加新 Agent
+### 5.3 添加新 Skill
 
-在对应模块的 `agents/` 目录下创建 `*.opencode.md`：
+在对应模块的 `skills/` 下创建 `<name>/SKILL.md`：
 
 ```yaml
 ---
-version: "2.1"
-agent:
-  id: "领域.工具.API层.agent-name"
-  name: "显示名称"
-
-  a2a:
-    enabled: true
-    roles: ["角色"]
-    capabilities: ["能力1", "能力2"]
-    handles_tasks: ["可处理的任务"]
-    depends_on: ["其他Agent ID"]
-
-  persona: |
-    你是一位怎样的专家。
+name: skill-name
+description: 技能描述（1-1024 字符）
+license: MIT
+compatibility: opencode
+metadata:
+  domain: domain.tool.language
 ---
+
+## What I do
+
+描述该技能。
+
+## When to use me
+
+说明何时使用。
 ```
 
-### 5.4 添加新 Skill
+### 5.4 添加自研 MCP 服务
 
-在对应模块的 `skills/` 目录下创建 `*.opencode.md`，代码模板放在 `---` 下方。
-
-### 5.5 添加新 MCP 服务
-
-各 MCP 项目环境隔离：网络 MCP 用 uvx/npx 不存源码，自研 MCP 独立 git 项目 + 自有 venv/node_modules。
-
-#### 配置注册（`core/mcp-config.json`）
-
-所有核心 MCP 的启动配置集中在 `core/mcp-config.json`，`opencode.json` 通过 `{file:User/core/mcp-config.json}` 引用：
-
-```json
-// core/mcp-config.json
-{
-  "filesystem": {
-    "type": "local",
-    "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."]
-  },
-  "git": {
-    "type": "local",
-    "command": ["npx", "-y", "@modelcontextprotocol/server-git", "."]
-  },
-  "docsetmcp": {
-    "type": "local",
-    "command": ["uvx", "docsetmcp"],
-    "env": { "DOCSET_PATH": "...", "CHEATSHEET_PATH": "..." }
-  }
-}
-```
-
-```json
-// opencode.json（一行引用即可）
-"mcp": "{file:User/core/mcp-config.json}",
-```
-
-`core/mcp/<name>.opencode.md` 保留能力声明（description、capabilities），不包含启动配置。添加新 MCP 时只改 `core/mcp-config.json`，无需动 `opencode.json`。
-
-#### 网络 MCP（Python）
-
-直接使用 `uvx`，无需本地维护源码和虚拟环境。在 `core/mcp-config.json` 中添加条目：
-
-```json
-"<name>": {
-  "type": "local",
-  "command": ["uvx", "<package>"],
-  "env": { "KEY": "value" }
-}
-```
-
-#### 网络 MCP（Node.js）
-
-使用 `npx`，在 `core/mcp-config.json` 中添加：
-
-```json
-"<name>": {
-  "type": "local",
-  "command": ["npx", "-y", "<package>"]
-}
-```
-
-#### 自研 MCP（Python）
-
-作为独立 git 项目放在 `core/mcp/<name>/`，拥有独立的虚拟环境：
-
-```
-core/mcp/<name>/
-├── .git/              ← 独立仓库
-├── pyproject.toml     ← 定义 [project.scripts] 入口
-├── src/
-├── .venv/             ← 部署时 uv sync 生成，已 gitignored
-└── README.md
-```
-
-在 `core/mcp-config.json` 中注册：
-
-```json
-"<name>": {
-  "type": "local",
-  "command": ["bash", "-c", "cd $OPCODE_STACK_ROOT/core/mcp/<name> && uv run <name>"]
-}
-```
-
-#### 自研 MCP（Node.js）
-
-同理，独立 git 项目 + 独立 `node_modules/`。在 `core/mcp-config.json` 中注册：
-
-```json
-"<name>": {
-  "type": "local",
-  "command": ["node", "/abs/path/to/core/mcp/<name>/server.js"]
-}
-```
+在 `core/mcp/` 下创建独立项目目录，在 `core/mcp/mcp-config.json` 中注册。
 
 ---
 
@@ -363,12 +237,11 @@ core/mcp/<name>/
 
 | 路径 | 用途 | 加载方式 |
 |------|------|----------|
-| `core/` | 全局通用配置、agent、skill、rule、MCP、A2A | 启动常驻 |
-| `platforms/` | 平台配置（Windows/Linux/WSL2） | 按平台条件 |
-| `domains/dcc/` | DCC软件（Blender/Houdini/Maya） | 按 workspace |
-| `domains/game-engine/` | 游戏引擎（Unity/Unreal） | 按 workspace |
-| `domains/desktop/` | 桌面开发（C#/C++/Python） | 按 workspace |
-| `domains/web/` | Web开发（Node.js/React/Vue） | 按 workspace |
-| `combinations/` | 预定义的跨领域组合包 | 按 workspace |
-| `scripts/` | 部署和项目初始化脚本 | - |
-| `workspace-templates/` | 项目模板 | - |
+| `core/agents/` | 通用 agent | deploy.sh 链接到 ~/.config/opencode/agents/ |
+| `core/commands/` | 全局命令 | deploy.sh 链接到 ~/.config/opencode/commands/ |
+| `core/rules/` | 全局规则（含 combinator、A2A 协议） | deploy.sh 链接到 ~/.config/opencode/rules/ |
+| `core/skills/` | 通用技能模板 | deploy.sh 链接到 ~/.config/opencode/skills/ |
+| `core/mcp/` | MCP 配置和自研项目 | mcp-config.json 链接到 ~/.config/opencode/ |
+| `core/domain.config` | 领域模块注册表 | 链接到 ~/.config/opencode/，workspace_init 读取 |
+| `domains/` | 领域模块 | workspace_init 按需链接到项目 opencode/ |
+| `scripts/` | 部署脚本 | - |
