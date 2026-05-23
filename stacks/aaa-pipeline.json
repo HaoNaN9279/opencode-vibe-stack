@@ -1,0 +1,9 @@
+{
+  "name": "AAA Pipeline",
+  "description": "Unreal Engine + Maya + Houdini for AAA production",
+  "domains": [
+    "game-dev/unreal",
+    "dcc/maya",
+    "dcc/houdini"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "DCC Tools (Full)",
+  "description": "All DCC tools: Blender, Maya, Houdini",
+  "domains": [
+    "dcc/blender",
+    "dcc/maya",
+    "dcc/houdini"
+  ]
+}

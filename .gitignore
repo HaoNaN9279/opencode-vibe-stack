@@ -2,38 +2,13 @@
 .DS_Store
 Thumbs.db
 
-# OpenCode cache
-.opencode/cache/
-temp/
-
-# Binary artifacts
-bin/
-*.dll
-*.exe
-*.so
-*.dylib
-*.pdb
-
-# Node.js
-node_modules/
-.npm/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# .NET
-bin/
-obj/
-
-# Spec design doc (tracked separately)
-AI给出的方案.md
-
-# IDE
-.vs/
-.vscode/
-.idea/
+# Editor files
 *.swp
 *.swo
+*~
+
+# Deployment artifacts
+deploy.lock
+
+# OMO session artifacts
+.omo/

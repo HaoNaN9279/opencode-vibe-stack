@@ -1,0 +1,8 @@
+{
+  "name": "Game Development (Full)",
+  "description": "All game development domains: Unity, Unreal Engine",
+  "domains": [
+    "game-dev/unity",
+    "game-dev/unreal"
+  ]
+}

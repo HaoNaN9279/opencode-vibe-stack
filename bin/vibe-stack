@@ -1,0 +1,676 @@
+#!/usr/bin/env bash
+# ============================================================================
+# vibe-stack - CLI management tool for OpenCode Vibe Stack
+#
+# Manage domain-specific AI agent configs: activate, deactivate, list, status.
+# Deployed by install.sh to ~/.local/bin/vibe-stack (or $PATH).
+# ============================================================================
+set -euo pipefail
+
+VIBE_STACK_HOME="${VIBE_STACK_HOME:-$HOME/.opencode-vibe-stack}"
+PROJECT_ROOT="${PWD}"
+
+# ---- Colors ----
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ---- Helpers ----
+
+die() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+warn() { echo -e "${YELLOW}[warn]${NC} $*" >&2; }
+info() { echo -e "${CYAN}[i]${NC} $*"; }
+ok() { echo -e "${GREEN}[OK]${NC} $*"; }
+
+# Resolve ~ in path strings
+resolve_path() {
+    local p="$1"
+    if [[ "$p" == "~"* ]]; then
+        echo "${HOME}${p#\~}"
+    else
+        echo "$p"
+    fi
+}
+
+# Detect python3 (for JSONC manipulation)
+PYTHON3=""
+detect_python3() {
+    if command -v python3 &>/dev/null; then
+        PYTHON3="python3"
+    elif command -v python &>/dev/null; then
+        PYTHON3="python"
+    fi
+}
+
+# ---- JSONC Helpers (use python3 for reliability) ----
+
+# Add or remove a skills source entry in a .opencode/oh-my-openagent.jsonc
+# Usage: modify_skills_source <config_path> <action:add|remove> <skills_path>
+modify_skills_source() {
+    local config_path="$1"
+    local action="$2"
+    local skills_path="$3"
+
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found - skipping oh-my-openagent.jsonc update"
+        return 0
+    fi
+
+    $PYTHON3 - "$config_path" "$action" "$skills_path" << 'PYEOF'
+import json, os, sys
+
+config_path = sys.argv[1]
+action = sys.argv[2]
+skills_path = sys.argv[3]
+
+# Read original content to preserve it
+try:
+    with open(config_path, 'r') as f:
+        original = f.read()
+except FileNotFoundError:
+    if action == 'add':
+        original = '{}\n'
+    else:
+        sys.exit(0)
+
+# Parse: strip // comments
+lines = []
+for line in original.split('\n'):
+    # Simple inline comment stripping (not perfect but works for practical cases)
+    stripped = line
+    # Find // outside of strings
+    in_str = False
+    in_quote = False
+    comment_start = -1
+    i = 0
+    while i < len(line):
+        if not in_str and line[i] == '"':
+            in_str = True
+            in_quote = not in_quote
+        elif in_str and line[i] == '\\':
+            i += 1  # skip escaped char
+        elif in_str and line[i] == '"':
+            in_str = False
+            in_quote = not in_quote
+        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+            comment_start = i
+            break
+        i += 1
+
+    if comment_start >= 0:
+        stripped = line[:comment_start]
+    if stripped.strip():
+        lines.append(stripped)
+
+clean_json = '\n'.join(lines)
+
+try:
+    data = json.loads(clean_json)
+except json.JSONDecodeError:
+    # Fallback: try with empty object
+    data = {}
+
+# Ensure skills.sources exists
+if 'skills' not in data:
+    data['skills'] = {}
+if 'sources' not in data['skills']:
+    data['skills']['sources'] = []
+
+sources = data['skills']['sources']
+
+if action == 'add':
+    entry = {'path': skills_path, 'recursive': True}
+    if not any(s.get('path') == skills_path for s in sources):
+        sources.append(entry)
+        print(f'Added skills source: {skills_path}')
+elif action == 'remove':
+    new_sources = [s for s in sources if s.get('path') != skills_path]
+    if len(new_sources) < len(sources):
+        data['skills']['sources'] = new_sources
+        print(f'Removed skills source: {skills_path}')
+
+# Clean up empty arrays/objects
+if 'skills' in data and 'sources' in data['skills'] and not data['skills']['sources']:
+    del data['skills']['sources']
+if 'skills' in data and not data['skills']:
+    del data['skills']
+
+# Write back - $schema is included in json.dumps output
+output = json.dumps(data, indent=2, ensure_ascii=False)
+with open(config_path, 'w') as f:
+    f.write(output + '\n')
+PYEOF
+}
+
+# Add or remove agent_definitions entry
+# Usage: modify_agent_defs <config_path> <action:add|remove> <agents_path>
+modify_agent_defs() {
+    local config_path="$1"
+    local action="$2"
+    local agents_path="$3"
+
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found - skipping oh-my-openagent.jsonc update"
+        return 0
+    fi
+
+    $PYTHON3 - "$config_path" "$action" "$agents_path" << 'PYEOF'
+import json, os, sys
+
+config_path = sys.argv[1]
+action = sys.argv[2]
+agents_path = sys.argv[3]
+
+try:
+    with open(config_path, 'r') as f:
+        original = f.read()
+except FileNotFoundError:
+    if action == 'add':
+        original = '{}\n'
+    else:
+        sys.exit(0)
+
+# Strip // comments
+lines = []
+for line in original.split('\n'):
+    stripped = line
+    in_str = False
+    comment_start = -1
+    i = 0
+    while i < len(line):
+        if not in_str and line[i] == '"':
+            in_str = True
+        elif in_str and line[i] == '\\':
+            i += 1
+        elif in_str and line[i] == '"':
+            in_str = False
+        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+            comment_start = i
+            break
+        i += 1
+    if comment_start >= 0:
+        stripped = line[:comment_start]
+    if stripped.strip():
+        lines.append(stripped)
+
+clean_json = '\n'.join(lines)
+
+try:
+    data = json.loads(clean_json)
+except json.JSONDecodeError:
+    data = {}
+
+if 'agent_definitions' not in data:
+    data['agent_definitions'] = []
+
+defs = data['agent_definitions']
+
+if action == 'add':
+    if agents_path not in defs:
+        defs.append(agents_path)
+        print(f'Added agent_definitions: {agents_path}')
+elif action == 'remove':
+    new_defs = [d for d in defs if d != agents_path]
+    if len(new_defs) < len(defs):
+        data['agent_definitions'] = new_defs
+        print(f'Removed agent_definitions: {agents_path}')
+
+# Clean up
+if 'agent_definitions' in data and not data['agent_definitions']:
+    del data['agent_definitions']
+
+output = json.dumps(data, indent=2, ensure_ascii=False)
+with open(config_path, 'w') as f:
+    f.write(output + '\n')
+PYEOF
+}
+
+# ---- Domain Scanning ----
+
+# List all domains as "category/domain"
+list_all_domains() {
+    local domains_dir="$VIBE_STACK_HOME/domains"
+    if [ ! -d "$domains_dir" ]; then
+        die "VIBE_STACK_HOME not found. Run 'install.sh' first.\n  Expected: $VIBE_STACK_HOME"
+    fi
+
+    for cat_dir in "$domains_dir"/*/; do
+        [ -d "$cat_dir" ] || continue
+        local category
+        category="$(basename "$cat_dir")"
+        for domain_dir in "$cat_dir"*/; do
+            [ -d "$domain_dir" ] || continue
+            local domain
+            domain="$(basename "$domain_dir")"
+            # Check if this domain has any actual config dirs
+            local has_configs=false
+            for sub in rules agents commands mcp skills; do
+                if [ -d "$domain_dir/$sub" ]; then
+                    has_configs=true
+                    break
+                fi
+            done
+            if [ "$has_configs" = true ]; then
+                echo "$category/$domain"
+            fi
+        done
+    done
+}
+
+# ---- Commands ----
+
+cmd_list() {
+    echo -e "${BOLD}Available Domains:${NC}"
+    echo ""
+
+    local domains_dir="$VIBE_STACK_HOME/domains"
+    if [ ! -d "$domains_dir" ]; then
+        die "VIBE_STACK_HOME not found: $VIBE_STACK_HOME\nRun install.sh first."
+    fi
+
+    local current_cat=""
+    while IFS= read -r full_domain; do
+        local category="${full_domain%%/*}"
+        local domain="${full_domain#*/}"
+
+        if [ "$category" != "$current_cat" ]; then
+            if [ -n "$current_cat" ]; then echo ""; fi
+            echo -e "  ${BOLD}[$category]${NC}"
+            current_cat="$category"
+        fi
+
+        # Check if active in current project
+        local active_mark="  "
+        if [ -L ".opencode/rules/$domain" ]; then
+            active_mark=" *"
+        fi
+
+        echo -e "  $active_mark $domain"
+    done < <(list_all_domains)
+
+    echo ""
+    echo -e "  ${CYAN}*${NC} = active in current project"
+    echo ""
+    echo "Use 'vibe-stack status' for details on active domains."
+}
+
+cmd_status() {
+    echo -e "${BOLD}Active Domains in $PROJECT_ROOT:${NC}"
+    echo ""
+
+    if [ ! -d ".opencode" ]; then
+        echo "  No .opencode/ directory found. No domains active."
+        return
+    fi
+
+    local found=false
+
+    for type_dir in rules agents commands mcp skills; do
+        local odir=".opencode/$type_dir"
+        if [ ! -d "$odir" ]; then
+            continue
+        fi
+
+        # Glob without trailing slash to detect symlinks correctly
+        shopt -s nullglob
+        for link in "$odir"/*; do
+            [ -L "$link" ] || continue
+            local item
+            item="$(basename "$link")"
+            local target
+            target="$(readlink "$link")"
+
+            if [ "$found" = false ]; then
+                found=true
+            fi
+
+            echo -e "  ${GREEN}●${NC} $item  ($type_dir)"
+            echo -e "    -> $target"
+        done
+        shopt -u nullglob
+    done
+
+    if [ "$found" = false ]; then
+        echo "  No domains active. Use 'vibe-stack activate <category/domain>' to add one."
+    fi
+
+    echo ""
+}
+
+cmd_activate() {
+    if [ $# -eq 0 ]; then
+        die "Usage: vibe-stack activate <category/domain> [<category/domain> ...]"
+    fi
+
+    local domains_dir="$VIBE_STACK_HOME/domains"
+    if [ ! -d "$domains_dir" ]; then
+        die "VIBE_STACK_HOME not found: $VIBE_STACK_HOME"
+    fi
+
+    # Ensure .opencode/ exists
+    mkdir -p .opencode
+
+    local project_config=".opencode/oh-my-openagent.jsonc"
+    # Create minimal config if it doesn't exist
+    if [ ! -f "$project_config" ]; then
+        echo '{' > "$project_config"
+        echo '}' >> "$project_config"
+        info "Created $project_config"
+    fi
+
+    for arg in "$@"; do
+        local category domain
+        category="${arg%%/*}"
+        domain="${arg#*/}"
+
+        if [ -z "$category" ] || [ -z "$domain" ] || [ "$category" = "$domain" ]; then
+            die "Invalid domain format: '$arg'. Use 'category/domain' (e.g., 'game-dev/unity')."
+        fi
+
+        local domain_root="$domains_dir/$category/$domain"
+        if [ ! -d "$domain_root" ]; then
+            die "Domain not found: $category/$domain\n  Expected at: $domain_root\n  Run 'vibe-stack list' to see available domains."
+        fi
+
+        info "Activating $category/$domain ..."
+
+        local activated_types=()
+        local subdirs=("rules" "agents" "commands" "mcp" "skills")
+
+        for sub in "${subdirs[@]}"; do
+            local src="$domain_root/$sub"
+            if [ ! -d "$src" ]; then
+                continue
+            fi
+
+            local dest_dir=".opencode/$sub"
+            mkdir -p "$dest_dir"
+
+            local dest_link="$dest_dir/$domain"
+
+            # Remove existing if it's a symlink or empty dir
+            if [ -L "$dest_link" ] || [ -e "$dest_link" ]; then
+                rm -rf "$dest_link"
+            fi
+
+            ln -sf "$src" "$dest_link"
+            activated_types+=("$sub")
+        done
+
+        # Update JSONC for skills
+        if [[ " ${activated_types[*]} " =~ " skills " ]]; then
+            local skills_path="$domain_root/skills"
+            modify_skills_source ".opencode/oh-my-openagent.jsonc" "add" "$skills_path"
+        fi
+
+        # Update JSONC for agents
+        if [[ " ${activated_types[*]} " =~ " agents " ]]; then
+            local agents_path="$domain_root/agents/"
+            modify_agent_defs ".opencode/oh-my-openagent.jsonc" "add" "$agents_path"
+        fi
+
+        ok "Activated $category/$domain"
+        echo "   Types: ${activated_types[*]}"
+        echo ""
+    done
+}
+
+cmd_deactivate() {
+    if [ $# -eq 0 ]; then
+        die "Usage: vibe-stack deactivate <category/domain> [<category/domain> ...]"
+    fi
+
+    for arg in "$@"; do
+        local category domain
+        category="${arg%%/*}"
+        domain="${arg#*/}"
+
+        if [ -z "$category" ] || [ -z "$domain" ] || [ "$category" = "$domain" ]; then
+            die "Invalid domain format: '$arg'. Use 'category/domain'."
+        fi
+
+        info "Deactivating $category/$domain ..."
+
+        local removed=false
+        local subdirs=("rules" "agents" "commands" "mcp" "skills")
+
+        # Determine the domain root to clean up JSONC references
+        local domain_root="$VIBE_STACK_HOME/domains/$category/$domain"
+
+        for sub in "${subdirs[@]}"; do
+            local dest_link=".opencode/$sub/$domain"
+            if [ -L "$dest_link" ]; then
+                rm -f "$dest_link"
+                removed=true
+            elif [ -d "$dest_link" ]; then
+                rm -rf "$dest_link"
+                removed=true
+            fi
+        done
+
+        # Clean up empty parent directories
+        for sub in "${subdirs[@]}"; do
+            local parent=".opencode/$sub"
+            if [ -d "$parent" ] && [ -z "$(ls -A "$parent" 2>/dev/null)" ]; then
+                rmdir "$parent" 2>/dev/null || true
+            fi
+        done
+
+        # Update JSONC
+        if [ -d "$domain_root/skills" ]; then
+            modify_skills_source ".opencode/oh-my-openagent.jsonc" "remove" "$domain_root/skills"
+        fi
+        if [ -d "$domain_root/agents" ]; then
+            modify_agent_defs ".opencode/oh-my-openagent.jsonc" "remove" "$domain_root/agents/"
+        fi
+
+        if [ "$removed" = true ]; then
+            ok "Deactivated $category/$domain"
+        else
+            warn "No symlinks found for $category/$domain"
+        fi
+    done
+}
+
+cmd_use_stack() {
+    local stack_name="${1:-}"
+
+    if [ -z "$stack_name" ]; then
+        echo "Usage: vibe-stack use-stack <stack-name>"
+        echo ""
+        echo "Available stacks:"
+        if [ -d "$VIBE_STACK_HOME/stacks" ] && [ -n "$(ls -A "$VIBE_STACK_HOME/stacks" 2>/dev/null)" ]; then
+            for stack_file in "$VIBE_STACK_HOME/stacks"/*.json; do
+                [ -f "$stack_file" ] || continue
+                local name
+                name="$(basename "$stack_file" .json)"
+                echo "  $name"
+            done
+        else
+            echo "  (none - stacks/ directory is empty)"
+            echo ""
+            echo "  To create a stack, add a JSON file like:"
+            echo "    $VIBE_STACK_HOME/stacks/game-dev.json"
+            echo '    { "domains": ["game-dev/unity", "game-dev/unreal"] }'
+        fi
+        return 1
+    fi
+
+    local stack_file="$VIBE_STACK_HOME/stacks/$stack_name.json"
+    if [ ! -f "$stack_file" ]; then
+        die "Stack not found: $stack_name\n  Expected: $stack_file\n  Use 'vibe-stack use-stack' to list available stacks."
+    fi
+
+    info "Loading stack: $stack_name"
+
+    # Read domains from JSON - use python3 or simple grep
+    if detect_python3 && [ -n "$PYTHON3" ]; then
+        domains=$($PYTHON3 -c "
+import json
+with open('$stack_file') as f:
+    data = json.load(f)
+for d in data.get('domains', []):
+    print(d)
+")
+    else
+        # Fallback: simple grep extraction
+        domains=$(grep -oE '"[a-z0-9_-]+/[a-z0-9_-]+"' "$stack_file" | tr -d '"' || true)
+    fi
+
+    if [ -z "$domains" ]; then
+        die "No domains found in stack '$stack_name'. Expected 'domains' array in JSON."
+    fi
+
+    echo ""
+    while IFS= read -r domain; do
+        [ -z "$domain" ] && continue
+        cmd_activate "$domain"
+    done <<< "$domains"
+
+    ok "Stack '$stack_name' activated."
+}
+
+cmd_core_update() {
+    echo -e "${BOLD}Re-syncing core symlinks...${NC}"
+    echo ""
+
+    local config_dir="$HOME/.config/opencode"
+    local types=("rules" "agents" "commands" "skills" "mcp")
+    local updated=false
+
+    for type in "${types[@]}"; do
+        local src="$VIBE_STACK_HOME/core/$type"
+        local dest="$config_dir/$type"
+
+        if [ ! -d "$src" ]; then
+            warn "Skipping $type: source not found at $src"
+            continue
+        fi
+
+        mkdir -p "$config_dir"
+
+        if [ -L "$dest" ]; then
+            local current
+            current="$(readlink "$dest")"
+            if [ "$current" = "$src" ]; then
+                ok "$type/ -> already up-to-date"
+                continue
+            fi
+        fi
+
+        # Remove existing and re-link
+        rm -rf "$dest"
+        ln -sf "$src" "$dest"
+        ok "$type/ -> linked"
+        updated=true
+    done
+
+    # Update ~/.config/opencode/oh-my-openagent.jsonc
+    local user_config="$config_dir/oh-my-openagent.jsonc"
+    if [ -f "$user_config" ]; then
+        info "Updating core references in $user_config ..."
+        modify_skills_source "$user_config" "add" "$VIBE_STACK_HOME/core/skills"
+        modify_agent_defs "$user_config" "add" "$VIBE_STACK_HOME/core/agents/"
+    else
+        warn "No ~/.config/opencode/oh-my-openagent.jsonc found. Run install.sh first."
+    fi
+
+    if [ "$updated" = true ]; then
+        ok "Core symlinks updated."
+    fi
+}
+
+cmd_help() {
+    cat << 'EOF'
+
+  ╔══════════════════════════════════════════════════════╗
+  ║           OpenCode Vibe Stack - CLI Tool             ║
+  ╚══════════════════════════════════════════════════════╝
+
+  Manage domain-specific AI agent configurations for your projects.
+
+  USAGE:
+    vibe-stack <command> [options]
+
+  COMMANDS:
+    list                    List all available domains
+    status                  Show active domains in current project
+    activate <domain>...    Activate domain(s) in current project
+    deactivate <domain>...  Remove domain(s) from current project
+    use-stack <name>        Activate all domains from a stack preset
+    core-update             Re-sync core symlinks after updating the repo
+    help                    Show this help message
+
+  DOMAIN FORMAT:
+    <category>/<domain>
+    Examples: game-dev/unity, dcc/blender, dcc/maya
+
+  EXAMPLES:
+    # List available domains
+    vibe-stack list
+
+    # Activate Unity and Blender for current project
+    vibe-stack activate game-dev/unity dcc/blender
+
+    # Check what's active
+    vibe-stack status
+
+    # Deactivate a domain
+    vibe-stack deactivate dcc/blender
+
+    # Use a preset stack
+    vibe-stack use-stack game-dev
+
+    # Update core symlinks after git pull
+    vibe-stack core-update
+
+  ENVIRONMENT:
+    VIBE_STACK_HOME    Override repo location (default: ~/.opencode-vibe-stack)
+
+EOF
+}
+
+# ---- Main ----
+
+main() {
+    local cmd="${1:-help}"
+
+    case "$cmd" in
+        list)
+            cmd_list
+            ;;
+        status)
+            cmd_status
+            ;;
+        activate)
+            shift
+            cmd_activate "$@"
+            ;;
+        deactivate)
+            shift
+            cmd_deactivate "$@"
+            ;;
+        use-stack)
+            cmd_use_stack "${2:-}"
+            ;;
+        core-update)
+            cmd_core_update
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $cmd${NC}" >&2
+            echo "" >&2
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
