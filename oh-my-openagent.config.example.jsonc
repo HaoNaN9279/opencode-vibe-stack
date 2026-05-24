@@ -64,13 +64,15 @@
       "reasoningEffort": "medium"
     },
     "librarian": {
-      "model": "ollama/qwen3.5:9b",
+      "model": "opencode/deepseek-v4-flash-free",
       "temperature": 0.3,
+      "reasoningEffort": "low",
       "maxTokens": 4096
     },
     "explore": {
-      "model": "ollama/qwen3.5:9b",
+      "model": "opencode/deepseek-v4-flash-free",
       "temperature": 0.2,
+      "reasoningEffort": "low",
       "maxTokens": 4096
     },
     "multimodal-looker": {
@@ -99,12 +101,13 @@
       }
     },
     "visual-engineering": {
-      "model": "ollama/qwen3.5:9b",
+      "model": "opencode/nemotron-3-super-free",
       "temperature": 0.7,
+      "reasoningEffort": "medium",
       "prompt_append": "Use shadcn/ui components and Tailwind CSS. Focus on responsive design and accessibility."
     },
     "artistry": {
-      "model": "ollama/qwen3.5:9b",
+      "model": "opencode/big-pickle",
       "temperature": 1.0
     },
     "quick": {
@@ -130,11 +133,15 @@
   "background_task": {
     "providerConcurrency": {
       "deepseek": 5,
+      "opencode": 5,
       "ollama": 2
     },
     "modelConcurrency": {
       "deepseek/deepseek-v4-pro": 2,
       "deepseek/deepseek-v4-flash": 5,
+      "opencode/deepseek-v4-flash-free": 5,
+      "opencode/nemotron-3-super-free": 3,
+      "opencode/big-pickle": 3,
       "ollama/qwen3.5:9b": 2
     }
   },
