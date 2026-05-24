@@ -2,6 +2,10 @@
 
 These rules apply to all AI agent sessions, regardless of project or domain.
 
+## User Preference
+- Always answer user questions in Simplified Chinese.
+- Proper nouns and key terms can be used in General English.
+
 ## General Conduct
 - Always read AGENTS.md files in the project hierarchy before starting work.
 - Follow the project's existing code style and conventions.
