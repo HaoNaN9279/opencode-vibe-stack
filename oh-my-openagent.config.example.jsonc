@@ -1,0 +1,160 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "reasoningEffort": "high",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 32000
+      },
+      "ultrawork": {
+        "model": "deepseek/deepseek-v4-pro",
+        "reasoningEffort": "xhigh",
+        "thinking": {
+          "type": "enabled",
+          "budgetTokens": 64000
+        }
+      }
+    },
+    "prometheus": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "reasoningEffort": "high",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 16000
+      }
+    },
+    "atlas": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.2,
+      "reasoningEffort": "medium"
+    },
+    "hephaestus": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.15,
+      "reasoningEffort": "xhigh",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 64000
+      }
+    },
+    "hermes": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "oracle": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.0,
+      "reasoningEffort": "xhigh",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 32000
+      }
+    },
+    "metis": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.3,
+      "reasoningEffort": "medium"
+    },
+    "momus": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.2,
+      "reasoningEffort": "medium"
+    },
+    "librarian": {
+      "model": "ollama/qwen3.5:9b",
+      "temperature": 0.3,
+      "maxTokens": 4096
+    },
+    "explore": {
+      "model": "ollama/qwen3.5:9b",
+      "temperature": 0.2,
+      "maxTokens": 4096
+    },
+    "multimodal-looker": {
+      "model": "ollama/qwen3.5:9b",
+      "temperature": 0.4,
+      "maxTokens": 8192
+    }
+  },
+  "categories": {
+    "ultrabrain": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.0,
+      "reasoningEffort": "xhigh",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 64000
+      }
+    },
+    "deep": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.15,
+      "reasoningEffort": "high",
+      "thinking": {
+        "type": "enabled",
+        "budgetTokens": 32000
+      }
+    },
+    "visual-engineering": {
+      "model": "ollama/qwen3.5:9b",
+      "temperature": 0.7,
+      "prompt_append": "Use shadcn/ui components and Tailwind CSS. Focus on responsive design and accessibility."
+    },
+    "artistry": {
+      "model": "ollama/qwen3.5:9b",
+      "temperature": 1.0
+    },
+    "quick": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.1,
+      "reasoningEffort": "low"
+    },
+    "unspecified-low": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.2,
+      "reasoningEffort": "low"
+    },
+    "unspecified-high": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "reasoningEffort": "high"
+    },
+    "writing": {
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.6
+    }
+  },
+  "background_task": {
+    "providerConcurrency": {
+      "deepseek": 5,
+      "ollama": 2
+    },
+    "modelConcurrency": {
+      "deepseek/deepseek-v4-pro": 2,
+      "deepseek/deepseek-v4-flash": 5,
+      "ollama/qwen3.5:9b": 2
+    }
+  },
+  "experimental": {
+    "aggressive_truncation": true,
+    "task_system": true,
+    "model_fallback": true
+  },
+  "agent_order": ["hermes", "sisyphus", "hephaestus", "prometheus", "atlas"],
+  "disabled_agents": [],
+  "disabled_skills": [],
+  "skills": {
+    "sources": [
+      {
+        "path": "/home/haonan/.opencode-vibe-stack/core/skills",
+        "recursive": true
+      }
+    ]
+  },
+  "agent_definitions": [
+    "/home/haonan/.opencode-vibe-stack/core/agents/"
+  ]
+}

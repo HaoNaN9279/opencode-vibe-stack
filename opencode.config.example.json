@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "default_agent": "hermes",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://172.18.160.1:11434/v1"
+      },
+      "models": {
+        "qwen3.5:9b": {
+          "name": "qwen3.5:9b"
+        }
+      }
+    }
+  },
+  "plugin": [
+    "oh-my-openagent@latest"
+  ],
+  "lsp": {
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": ["ts", "tsx", "js", "jsx", "mjs", "cjs"]
+    }
+  },
+  "agent": {
+    "hermes": {
+      "mode": "primary",
+      "model": "opencode/deepseek-v4-flash-free",
+      "name": "Hermes - Swift Messenger",
+      "description": "Fast, concise Q&A concierge. Read-only filesystem, git status, web search, document reading. Never modifies anything.",
+      "color": "#6366F1",
+      "order": 0,
+      "temperature": 0.1,
+      "reasoningEffort": "low",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "ask",
+        "task": "deny",
+        "call_omo_agent": "deny",
+        "todowrite": "deny",
+        "todoread": "deny",
+        "question": "allow"
+      }
+    }
+  }
+}
