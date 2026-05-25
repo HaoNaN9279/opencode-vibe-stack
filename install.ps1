@@ -35,16 +35,17 @@ function Write-Bold  { Write-Host $args -ForegroundColor White }
 
 # ---- Banner ----
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     OpenCode Vibe Stack - Windows Installer         ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host "     OpenCode Vibe Stack - Windows Installer         " -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ---- Detect Setup Mode ----
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptPath = $MyInvocation.MyCommand.Path
+$scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $null }
 $isLocalRepo = $false
 
-if ((Test-Path "$scriptDir/core/rules/00-global.md") -and (Test-Path "$scriptDir/domains")) {
+if ($scriptDir -and (Test-Path "$scriptDir/core/rules/00-global.md") -and (Test-Path "$scriptDir/domains")) {
     $isLocalRepo = $true
     Write-OK "Detected local repo at: $scriptDir"
 } else {
@@ -70,7 +71,19 @@ function New-SafeSymlink {
     # Remove existing if present
     if (Test-Path $Link) {
         try {
-            Remove-Item $Link -Recurse -Force -ErrorAction Stop
+            $existing = Get-Item $Link -Force -ErrorAction Stop
+            $isReparse = ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
+            if ($isReparse) {
+                # Reparse point (symlink/junction): remove without -Recurse to
+                # avoid following the link into the target directory.
+                # Use cmd.exe rmdir which safely removes only the reparse point.
+                & cmd.exe /c "rmdir `"$Link`""
+                if ($LASTEXITCODE -ne 0) {
+                    throw "rmdir failed with exit code $LASTEXITCODE"
+                }
+            } else {
+                Remove-Item $Link -Recurse -Force -ErrorAction Stop
+            }
         } catch {
             Write-Warn "Could not remove existing: $Link"
             return $false
@@ -156,11 +169,18 @@ foreach ($type in $symlinkTypes) {
     }
 
     # Check if already correctly linked
+    # Note: PS 5.1 (Windows PowerShell) doesn't expose LinkType/Target on
+    # directory entries. Skip this optimization -- New-SafeSymlink safely
+    # handles re-creation by removing the existing item first.
     if (Test-Path $destDir) {
-        $item = Get-Item $destDir -ErrorAction SilentlyContinue
-        if ($item.LinkType -eq "SymbolicLink" -and $item.Target -eq $srcDir) {
-            Write-OK "$type/ -> already linked"
-            continue
+        try {
+            $item = Get-Item $destDir -Force -ErrorAction Stop
+            $isReparse = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
+            if ($isReparse) {
+                Write-OK "$type/ -> link exists, will refresh"
+            }
+        } catch {
+            # Can't determine -- let New-SafeSymlink handle it
         }
     }
 
@@ -192,11 +212,19 @@ if (-not (Test-Path $userConfig)) {
 }
 
 # Use Python for JSONC manipulation (check if available)
+# On Windows 11, "python" may resolve to the Microsoft Store App Execution
+# Alias stub, not a real Python installation. Filter those out.
 $pythonCmd = $null
-if (Get-Command python3 -ErrorAction SilentlyContinue) {
-    $pythonCmd = "python3"
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    $pythonCmd = "python"
+foreach ($candidate in @("python3", "python")) {
+    $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($cmd) {
+        $src = $cmd.Source
+        # Skip Microsoft Store stubs (App Installer / WindowsApps paths)
+        if ($src -and $src -notmatch '\\WindowsApps\\|AppInstaller') {
+            $pythonCmd = $candidate
+            break
+        }
+    }
 }
 
 if ($pythonCmd) {
@@ -330,8 +358,8 @@ if (-not (Test-Path $cliDestDir)) {
 
 if (Test-Path $cliSrc) {
     # Create a PowerShell wrapper script that calls bash
-    $cliWrapper = "$cliDestDir\vibe-stack.ps1"
-    @"
+    $cliWrapperPath = "$cliDestDir\vibe-stack.ps1"
+    $cliWrapperContent = @"
 # vibe-stack CLI wrapper for Windows
 # Requires: Git Bash or WSL bash in PATH
 param([string[]]`$args)
@@ -355,8 +383,8 @@ if (`$bash -eq `$null) {
 
 & `$bash `$script @args
 "@
-    Set-Content -Path $cliWrapper -Value $cliWrapper -Encoding UTF8
-    Write-OK "CLI wrapper installed: $cliWrapper"
+    Set-Content -Path $cliWrapperPath -Value $cliWrapperContent -Encoding UTF8
+    Write-OK "CLI wrapper installed: $cliWrapperPath"
 
     # Also try to create a direct symlink if bash is in PATH
     if (Get-Command bash -ErrorAction SilentlyContinue) {
@@ -379,9 +407,9 @@ if (`$bash -eq `$null) {
 Write-Host ""
 
 # ---- Success ----
-Write-Host "╔══════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║          ✓ Installation Complete!                   ║" -ForegroundColor Green
-Write-Host "╚══════════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "======================================================" -ForegroundColor Green
+Write-Host "          > Installation Complete!                   " -ForegroundColor Green
+Write-Host "======================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Next Steps:" -ForegroundColor White
 Write-Host ""
