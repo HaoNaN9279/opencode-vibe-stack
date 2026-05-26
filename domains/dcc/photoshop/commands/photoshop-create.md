@@ -5,7 +5,7 @@
 
 ---
 
-## 1. 用途
+## 1. Purpose
 
 Scaffold a new Photoshop development project in one of three surface types:
 
@@ -19,7 +19,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 
 ---
 
-## 2. 用法
+## 2. Usage
 
 ```
 /photoshop-create extendscript --name <project-name> [--version <x.y.z>]
@@ -37,7 +37,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 
 ---
 
-## 3. 参数
+## 3. Parameters
 
 ### Global parameters
 
@@ -57,7 +57,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 | Parameter | Required | Description |
 |---|---|---|
 | `--type` | Yes | Plugin type: `panel` (dockable UI panel), `script` (menu-triggered script), `headless` (no UI). |
-| `--manifest-version` | No | Target manifest version: `4`, `5`, or `6`. Default: `5`. See **§6 — manifest.json 模板指南** below. |
+| `--manifest-version` | No | Target manifest version: `4`, `5`, or `6`. Default: `5`. See **§6 — manifest.json Template Guide** below. |
 | `--framework` | No | UI framework for panel type: `react`, `vue`, or `none`. Default: `none` (vanilla HTML/CSS/JS with Spectrum Web Components). |
 | `--host-min` | No | Minimum Photoshop version (e.g., `24.0`, `25.0`). Default: `24.0`. |
 
@@ -69,7 +69,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 
 ---
 
-## 4. 执行步骤
+## 4. Execution Steps
 
 ### 4.1 ExtendScript project (`extendscript` / `ps-es`)
 
@@ -180,7 +180,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
    - Import Photoshop DOM via `require('photoshop').app`.
    - Use `core.executeAsModal()` for any document-modifying operation.
 
-3. **Generate manifest.json** — See **§6 — manifest.json 模板指南** below for version-specific templates. Generate the appropriate template based on `--manifest-version`.
+3. **Generate manifest.json** — See **§6 — manifest.json Template Guide** below for version-specific templates. Generate the appropriate template based on `--manifest-version`.
 
 4. **Framework setup** (if `--framework react` or `--framework vue`):
    - Generate `src/` with framework entry point (e.g., `index.jsx` for React).
@@ -250,7 +250,7 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 
 ---
 
-## 5. 输出
+## 5. Output
 
 The command produces a fully-scaffolded directory tree at the user's specified location (default: current working directory). The AI agent explicitly lists every created file and its purpose.
 
@@ -291,7 +291,7 @@ Created project "CustomFilter" at ./CustomFilter/
 
 ---
 
-## 6. manifest.json 模板指南
+## 6. manifest.json Template Guide
 
 Generate the appropriate manifest version based on `--manifest-version` parameter.
 
@@ -422,7 +422,7 @@ Generate the appropriate manifest version based on `--manifest-version` paramete
 
 ---
 
-## 7. 注意事项
+## 7. Notes
 
 - **No software installation.** This command does not install the C++ SDK, Visual Studio, Xcode, or any other development toolchain.
 - **No Photoshop execution.** The command does not run scripts in Photoshop or launch the UXP Developer Tool.

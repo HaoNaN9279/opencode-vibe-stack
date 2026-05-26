@@ -287,6 +287,6 @@ git clean -fd
 
 ---
 
-**Related commands:** `/photoshop-create` (project scaffold), `/photoshop-debug` (UXP debugging), `/photoshop-validate` (manifest verification)
+**Related commands:** `/photoshop-create` (project scaffold), `/photoshop-debug` (UXP debugging), `/photoshop-utils` (version compatibility check)
 
 **See also:** [Adobe UXP Developer Tool Documentation](https://developer.adobe.com/uxp/), [Creative Cloud Marketplace Publisher Guide](https://developer.adobe.com/console/)

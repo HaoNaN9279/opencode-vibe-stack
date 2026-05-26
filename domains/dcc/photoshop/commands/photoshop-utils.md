@@ -63,7 +63,7 @@ Photoshop version surface support matrix (from rules/photoshop.md):
 
 **Changelog references:**
 
-- [Photoshop UXP Changelog](https://developer.adobe.com/photosome/uxp/changelog/) — API additions, deprecations, removals per version
+- [Photoshop UXP Changelog](https://developer.adobe.com/photoshop/uxp/changelog/) — API additions, deprecations, removals per version
 - [Adobe Community Forums](https://community.adobe.com/t5/photoshop-ecosystem/bd-p/photoshop-ecosystem) — Version-specific issues and workarounds
 - GitHub [AdobeDocs/uxp-photoshop](https://github.com/AdobeDocs/uxp-photoshop) releases — SDK update notes
 
