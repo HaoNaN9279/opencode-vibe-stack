@@ -1,0 +1,7 @@
+{
+  "name": "AI Training Data Pipeline",
+  "description": "AI training data preparation: image preprocessing, caption management, LLM-based description generation, and ComfyUI synthetic data generation via Data Forge",
+  "domains": [
+    "ai/data_forge"
+  ]
+}
