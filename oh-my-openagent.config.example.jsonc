@@ -150,8 +150,8 @@
     "task_system": true,
     "model_fallback": true
   },
-  "agent_order": ["hermes", "sisyphus", "hephaestus", "prometheus", "atlas"],
-  "disabled_agents": [],
+  "agent_order": ["hermes", "sisyphus", "prometheus", "atlas"],
+  "disabled_agents": ["hephaestus"],
   "disabled_skills": [],
   "skills": {
     "sources": [
