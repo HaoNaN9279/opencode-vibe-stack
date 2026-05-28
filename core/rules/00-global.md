@@ -3,7 +3,7 @@
 These rules apply to all AI agent sessions, regardless of project or domain.
 
 ## User Preference
-- Always answer user questions in Simplified Chinese.
+- The content of the agent's thinking process and the content of directly answering user questions are all in Simplified Chinese.
 - Proper nouns and key terms can be used in General English.
 
 ## General Conduct

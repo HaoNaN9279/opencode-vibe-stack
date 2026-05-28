@@ -152,7 +152,7 @@ if ($SkipClone -or ($env:SKIP_CLONE -eq "1")) {
 Write-Host ""
 
 # ---- Create Core Symlinks ----
-Write-Bold "[1/3] Creating core symlinks..."
+Write-Bold "[1/4] Creating core symlinks..."
 
 $openCodeConfig = "$env:USERPROFILE\.config\opencode"
 New-Item -ItemType Directory -Force -Path $openCodeConfig | Out-Null
@@ -196,7 +196,7 @@ foreach ($type in $symlinkTypes) {
 Write-Host ""
 
 # ---- Update oh-my-openagent.jsonc ----
-Write-Bold "[2/3] Updating oh-my-openagent.jsonc..."
+Write-Bold "[2/4] Updating oh-my-openagent.jsonc..."
 
 $userConfig = "$openCodeConfig\oh-my-openagent.jsonc"
 
@@ -346,8 +346,82 @@ else:
 
 Write-Host ""
 
+# ---- Bootstrap MCP Dependencies ----
+function Bootstrap-McpDeps {
+    param([string]$VibeHome)
+
+    # Init submodules
+    if (Test-Path "$VibeHome\.gitmodules") {
+        Write-Info "Initializing git submodules..."
+        Push-Location $VibeHome
+        try {
+            git submodule update --init --recursive 2>$null
+            Write-OK "Submodules ready"
+        } catch {
+            Write-Warn "Submodule init failed — some MCPs may not work"
+            Write-Host "       Run: cd $VibeHome; git submodule update --init --recursive"
+        }
+        Pop-Location
+    }
+
+    $hasUv = [bool](Get-Command uv -ErrorAction SilentlyContinue)
+    $hasPip = [bool](Get-Command pip -ErrorAction SilentlyContinue)
+    $hasNpm = [bool](Get-Command npm -ErrorAction SilentlyContinue)
+    $foundAny = $false
+
+    $domainsMcp = Join-Path $VibeHome "domains"
+
+    # Python projects under domains/*/mcp/
+    $pyProjects = Get-ChildItem -Path $domainsMcp -Recurse -Filter "pyproject.toml" -ErrorAction SilentlyContinue |
+                  Where-Object { $_.FullName -match '\\mcp\\' -and $_.FullName -notmatch '\\.git\\' }
+    foreach ($py in $pyProjects) {
+        $dir = $py.DirectoryName
+        $label = $dir.Replace($VibeHome, "").TrimStart("\")
+        Write-Info "$label ..."
+        if ($hasUv) {
+            Push-Location $dir
+            try { uv sync 2>$null; Write-OK "  uv sync" } catch { Write-Warn "  uv sync failed" }
+            Pop-Location
+        } elseif ($hasPip) {
+            Push-Location $dir
+            try { pip install -e "." --quiet 2>$null; Write-OK "  pip install" } catch { Write-Warn "  pip install failed" }
+            Pop-Location
+        } else {
+            Write-Warn "  Neither uv nor pip found — install manually"
+        }
+        $foundAny = $true
+    }
+
+    # Node.js projects under domains/*/mcp/ (skip if node_modules exists)
+    $nodeProjects = Get-ChildItem -Path $domainsMcp -Recurse -Filter "package.json" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -match '\\mcp\\' -and $_.FullName -notmatch '\\node_modules\\' -and $_.FullName -notmatch '\\.git\\' }
+    foreach ($pkg in $nodeProjects) {
+        $dir = $pkg.DirectoryName
+        if (Test-Path (Join-Path $dir "node_modules")) { continue }
+        $label = $dir.Replace($VibeHome, "").TrimStart("\")
+        Write-Info "$label ..."
+        if ($hasNpm) {
+            Push-Location $dir
+            try { npm install --silent 2>$null; Write-OK "  npm install" } catch { Write-Warn "  npm install failed" }
+            Pop-Location
+        } else {
+            Write-Warn "  npm not found — install manually"
+        }
+        $foundAny = $true
+    }
+
+    if (-not $foundAny) {
+        Write-Info "No MCP code directories found — nothing to bootstrap"
+    }
+}
+
+Write-Bold "[3/4] Bootstrapping MCP dependencies..."
+Write-Host ""
+Bootstrap-McpDeps -VibeHome $VIBE_STACK_HOME
+Write-Host ""
+
 # ---- Install CLI Tool ----
-Write-Bold "[3/3] Installing CLI tool..."
+Write-Bold "[4/4] Installing CLI tool..."
 
 $cliSrc = "$VIBE_STACK_HOME\bin\vibe-stack"
 $cliDestDir = "$env:USERPROFILE\.local\bin"
@@ -357,47 +431,124 @@ if (-not (Test-Path $cliDestDir)) {
 }
 
 if (Test-Path $cliSrc) {
-    # Create a PowerShell wrapper script that calls bash
-    $cliWrapperPath = "$cliDestDir\vibe-stack.ps1"
-    $cliWrapperContent = @"
-# vibe-stack CLI wrapper for Windows
+    # ---- 3a. Create vibe-stack.cmd (primary entry point for Windows) ----
+    # Windows uses PATHEXT (.COM;.EXE;.BAT;.CMD) to discover executables.
+    # A .cmd wrapper is the standard pattern (npm, pip, etc. all use it).
+    $cliCmdPath = "$cliDestDir\vibe-stack.cmd"
+
+    $cliCmdContent = @'
+@echo off
+setlocal enabledelayedexpansion
+
+set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
+if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME=%USERPROFILE%\.opencode-vibe-stack"
+
+set "VIBE_SCRIPT=!VIBE_STACK_HOME!\bin\vibe-stack"
+
+:: Find bash: Git for Windows, then MSYS2, then System
+set "BASH="
+for %%d in (
+    "C:\Program Files\Git\bin"
+    "C:\Program Files\Git\usr\bin"
+    "C:\msys64\usr\bin"
+    "%ProgramFiles%\Git\bin"
+    "%ProgramFiles%\Git\usr\bin"
+    "%LocalAppData%\Programs\Git\bin"
+) do (
+    if "!BASH!"=="" (
+        if exist "%%~d\bash.exe" set "BASH=%%~d\bash.exe"
+    )
+)
+
+:: Fallback: check PATH for bash
+if "!BASH!"=="" (
+    for %%c in (bash.exe) do (
+        if "!BASH!"=="" set "BASH=%%~$PATH:c"
+    )
+)
+
+if "!BASH!"=="" (
+    echo [ERROR] bash not found. Install Git for Windows ^(https://git-scm.com^) or WSL.
+    exit /b 1
+)
+
+:: Convert backslashes to forward slashes for bash compatibility
+set "VIBE_SCRIPT=!VIBE_SCRIPT:\=/!"
+
+:: Pass arguments explicitly (up to 9) for compatibility with PowerShell invocation
+"!BASH!" "!VIBE_SCRIPT!" %*
+'@
+    Set-Content -Path $cliCmdPath -Value $cliCmdContent -Encoding ASCII
+    Write-OK "CLI .cmd wrapper installed: $cliCmdPath"
+
+    # ---- 3b. Create vibe-stack.ps1 (PowerShell wrapper, for pwsh users) ----
+    $cliPs1Path = "$cliDestDir\vibe-stack.ps1"
+    $cliPs1Content = @'
+# vibe-stack CLI wrapper for Windows PowerShell
 # Requires: Git Bash or WSL bash in PATH
-param([string[]]`$args)
+param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PassThruArgs)
 
-`$vibeHome = if (`$env:VIBE_STACK_HOME) { `$env:VIBE_STACK_HOME } else { "`$env:USERPROFILE\.opencode-vibe-stack" }
-`$script = Join-Path `$vibeHome "bin\vibe-stack"
+$vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { "$env:USERPROFILE\.opencode-vibe-stack" }
+$vibeScript = (Join-Path $vibeHome "bin\vibe-stack") -replace '\\', '/'
 
-# Try bash from Git for Windows, then WSL, then MSYS2
-`$bash = `$null
-foreach (`$candidate in @("bash", "C:\Program Files\Git\bin\bash.exe", "wsl")) {
-    if (Get-Command `$candidate -ErrorAction SilentlyContinue) {
-        `$bash = `$candidate
+# Search for bash: Git for Windows -> MSYS2 -> WSL -> PATH fallback
+$bash = $null
+$searchPaths = @(
+    "C:\Program Files\Git\bin\bash.exe",
+    "C:\Program Files\Git\usr\bin\bash.exe",
+    "C:\msys64\usr\bin\bash.exe",
+    "$env:ProgramFiles\Git\bin\bash.exe",
+    "$env:ProgramFiles\Git\usr\bin\bash.exe",
+    "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+)
+foreach ($p in $searchPaths) {
+    $resolved = $ExecutionContext.InvokeCommand.ExpandString($p)
+    if (Test-Path $resolved -PathType Leaf) {
+        $bash = $resolved
         break
     }
 }
+if (-not $bash) {
+    $bash = (Get-Command bash -ErrorAction SilentlyContinue).Source
+}
 
-if (`$bash -eq `$null) {
-    Write-Host "ERROR: bash not found. Install Git for Windows or WSL." -ForegroundColor Red
+if (-not $bash) {
+    Write-Host "[ERROR] bash not found. Install Git for Windows (https://git-scm.com) or WSL." -ForegroundColor Red
     exit 1
 }
 
-& `$bash `$script @args
-"@
-    Set-Content -Path $cliWrapperPath -Value $cliWrapperContent -Encoding UTF8
-    Write-OK "CLI wrapper installed: $cliWrapperPath"
+# Ensure the bash script exists
+if (-not (Test-Path $vibeScript)) {
+    Write-Host "[ERROR] vibe-stack script not found at: $vibeScript" -ForegroundColor Red
+    Write-Host "        Run 'git pull' in $vibeHome to update." -ForegroundColor Yellow
+    exit 1
+}
 
-    # Also try to create a direct symlink if bash is in PATH
-    if (Get-Command bash -ErrorAction SilentlyContinue) {
-        $cliDest = "$cliDestDir\vibe-stack"
-        New-SafeSymlink -Target $cliSrc -Link $cliDest | Out-Null
-    }
+& $bash $vibeScript @PassThruArgs
+'@
+    Set-Content -Path $cliPs1Path -Value $cliPs1Content -Encoding UTF8
+    Write-OK "CLI .ps1 wrapper installed: $cliPs1Path"
 
-    # Add to PATH if not present
+    # ---- 3c. Add ~/.local/bin to user PATH (for real this time) ----
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if (-not $userPath) { $userPath = "" }
     if ($userPath -notlike "*$cliDestDir*") {
-        Write-Warn "$cliDestDir is not in your user PATH."
-        Write-Host "       Add it manually or run:"
-        Write-Host "       [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$cliDestDir', 'User')" -ForegroundColor Cyan
+        try {
+            $newUserPath = if ($userPath) { "$userPath;$cliDestDir" } else { $cliDestDir }
+            [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
+            Write-OK "Added to user PATH: $cliDestDir"
+
+            # Also update PATH for the current session so vibe-stack works immediately
+            if ($env:Path -notlike "*$cliDestDir*") {
+                $env:Path = "$env:Path;$cliDestDir"
+            }
+        } catch {
+            Write-Warn "Could not update user PATH automatically."
+            Write-Host "       Add it manually:"
+            Write-Host "       [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$cliDestDir', 'User')" -ForegroundColor Cyan
+        }
+    } else {
+        Write-OK "$cliDestDir already in user PATH"
     }
 } else {
     Write-Warn "CLI script not found at $cliSrc"
@@ -428,5 +579,5 @@ Write-Host "     cd ~/.opencode-vibe-stack && git pull" -ForegroundColor Cyan
 Write-Host "     vibe-stack core-update" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Location:   $VIBE_STACK_HOME"
-Write-Host "  CLI Tool:   $cliDestDir\vibe-stack.ps1"
+Write-Host "  CLI Tool:   $cliDestDir\vibe-stack.cmd (primary) / .ps1 (PowerShell)"
 Write-Host ""

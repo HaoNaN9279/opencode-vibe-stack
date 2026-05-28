@@ -45,6 +45,82 @@ detect_python3() {
     fi
 }
 
+# Convert a POSIX path to Windows format (/c/Users/... -> C:\Users\...)
+posix_to_win() {
+    local path="$1"
+    if command -v cygpath &>/dev/null; then
+        cygpath -w "$path" 2>/dev/null && return
+    fi
+    echo "$path" | sed 's|^/\([a-zA-Z]\)/|\1:\\|; s|/|\\|g'
+}
+
+# Create a directory link: symlink on Linux/macOS, symlink or junction on Windows.
+# NEVER falls back to copying. Returns 0 on success, 1 on failure.
+create_dir_link() {
+    local src="$1"
+    local dest="$2"
+
+    # Remove existing safely (handles junctions on Windows)
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        case "$OSTYPE" in
+            msys|cygwin)
+                local win_path
+                win_path="$(posix_to_win "$dest")"
+                # cmd /c rmdir safely removes junctions & directory symlinks
+                # WITHOUT following into the target directory
+                if cmd /c "rmdir \"$win_path\"" >/dev/null 2>&1; then
+                    : # junction/symlink removed safely
+                else
+                    rm -rf "$dest" 2>/dev/null || true
+                fi
+                ;;
+            *)
+                rm -rf "$dest" 2>/dev/null || true
+                ;;
+        esac
+    fi
+
+    # Try native symlink first (works on Linux/macOS, and Windows with Developer Mode)
+    if ln -s "$src" "$dest" 2>/dev/null; then
+        # Verify it's a real link — MSYS2 ln -s may silently fall back to COPY
+        if [ -L "$dest" ]; then
+            return 0  # MSYS2 detected it as a symlink
+        fi
+        case "$OSTYPE" in
+            msys|cygwin)
+                # Check via PowerShell: is it a Windows reparse point?
+                local win_dest_check
+                win_dest_check="$(posix_to_win "$dest")"
+                if powershell -NoProfile -Command \
+                    "exit [int](-not [bool]((Get-Item -Path '$win_dest_check' -Force).LinkType))" \
+                    2>/dev/null; then
+                    return 0  # It's a junction or Windows symlink
+                fi
+                ;;
+        esac
+        # MSYS2 silently copied — remove the copy and try junction below
+        rm -rf "$dest" 2>/dev/null || true
+    fi
+
+    # Windows fallback: create a junction via PowerShell (no admin required, same volume)
+    case "$OSTYPE" in
+        msys|cygwin)
+            local win_src win_dest
+            win_src="$(posix_to_win "$src")"
+            win_dest="$(posix_to_win "$dest")"
+            if [ -n "$win_src" ] && [ -n "$win_dest" ]; then
+                if powershell -NoProfile -Command \
+                    "New-Item -ItemType Junction -Path '$win_dest' -Target '$win_src' -Force | Out-Null" \
+                    2>/dev/null; then
+                    return 0
+                fi
+            fi
+            ;;
+    esac
+
+    return 1
+}
+
 # ---- JSONC Helpers (use python3 for reliability) ----
 
 # Add or remove a skills source entry in a .opencode/oh-my-openagent.jsonc
@@ -230,6 +306,82 @@ with open(config_path, 'w') as f:
 PYEOF
 }
 
+# ---- MCP Activation ----
+
+# activate_mcp <mcp_src_dir> <domain_name> <vibe_stack_home>
+#
+# Scans mcp/*.json in the source directory, resolves ${VIBE_STACK_HOME}
+# placeholders to absolute paths, and generates a wrapper JSON at
+# .opencode/mcp/<domain>.json that OMO auto-discovers.
+activate_mcp() {
+    local mcp_src="$1"
+    local domain="$2"
+    local vibe_home="$3"
+
+    # Check for JSON config files
+    local json_files
+    json_files=$(ls "$mcp_src"/*.json 2>/dev/null || true)
+    if [ -z "$json_files" ]; then
+        return 0
+    fi
+
+    mkdir -p ".opencode/mcp"
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found — MCP wrapper skipped for $domain"
+        return 0
+    fi
+
+    $PYTHON3 - "$mcp_src" "$vibe_home" ".opencode/mcp/${domain}.json" "$domain" << 'PYEOF'
+import json, sys, os, glob
+
+mcp_src = sys.argv[1]
+vibe_home = sys.argv[2]
+dest_wrapper = sys.argv[3]
+domain = sys.argv[4]
+
+vibe_home_norm = os.path.normpath(vibe_home)
+merged_servers = {}
+
+json_pattern = os.path.join(mcp_src, "*.json")
+for json_file in sorted(glob.glob(json_pattern)):
+    with open(json_file, 'r') as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            continue
+
+    if 'mcpServers' not in data:
+        continue
+
+    for name, cfg in data['mcpServers'].items():
+        raw = json.dumps(cfg)
+        resolved_raw = raw.replace('${VIBE_STACK_HOME}', vibe_home_norm)
+        resolved = json.loads(resolved_raw)
+        # Normalize Windows backslashes for uv compatibility
+        if 'args' in resolved:
+            resolved['args'] = [
+                a.replace('\\', '/') if isinstance(a, str) else a
+                for a in resolved['args']
+            ]
+        if name in merged_servers:
+            print(f"  [warn] MCP server '{name}' redefined - overwriting")
+        merged_servers[name] = resolved
+
+if not merged_servers:
+    sys.exit(0)
+
+wrapper = {"mcpServers": merged_servers}
+with open(dest_wrapper, 'w') as f:
+    json.dump(wrapper, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+
+print(f"  MCP wrapper: {dest_wrapper}")
+for name in sorted(merged_servers.keys()):
+    print(f"    server: {name}")
+PYEOF
+}
+
 # ---- Domain Scanning ----
 
 # List all domains as "category/domain"
@@ -285,8 +437,9 @@ cmd_list() {
         fi
 
         # Check if active in current project
+        # Use -d (not -L) to support Windows where ln -s may copy dirs
         local active_mark="  "
-        if [ -L ".opencode/rules/$domain" ]; then
+        if [ -d ".opencode/rules/$domain" ]; then
             active_mark=" *"
         fi
 
@@ -316,14 +469,19 @@ cmd_status() {
             continue
         fi
 
-        # Glob without trailing slash to detect symlinks correctly
+        # Use -d (follows symlinks) instead of -L to support Windows
+        # where ln -s may fall back to copying directories without symlinks
         shopt -s nullglob
         for link in "$odir"/*; do
-            [ -L "$link" ] || continue
+            [ -d "$link" ] || continue
             local item
             item="$(basename "$link")"
             local target
-            target="$(readlink "$link")"
+            if [ -L "$link" ]; then
+                target="$(readlink "$link")"
+            else
+                target="$link  (copy, no symlink support)"
+            fi
 
             if [ "$found" = false ]; then
                 found=true
@@ -393,13 +551,16 @@ cmd_activate() {
 
             local dest_link="$dest_dir/$domain"
 
-            # Remove existing if it's a symlink or empty dir
-            if [ -L "$dest_link" ] || [ -e "$dest_link" ]; then
-                rm -rf "$dest_link"
+            # Create link (symlink or junction on Windows — never copies)
+            if create_dir_link "$src" "$dest_link"; then
+                activated_types+=("$sub")
+                # Generate MCP wrapper for auto-discovery by OMO
+                if [ "$sub" = "mcp" ]; then
+                    activate_mcp "$src" "$domain" "$VIBE_STACK_HOME"
+                fi
+            else
+                warn "Could not link $sub for $domain — skipping"
             fi
-
-            ln -sf "$src" "$dest_link"
-            activated_types+=("$sub")
         done
 
         # Update JSONC for skills
@@ -448,8 +609,22 @@ cmd_deactivate() {
                 rm -f "$dest_link"
                 removed=true
             elif [ -d "$dest_link" ]; then
-                rm -rf "$dest_link"
-                removed=true
+                # On Windows, use cmd /c rmdir to safely remove junctions
+                # without following into the target directory
+                case "$OSTYPE" in
+                    msys|cygwin)
+                        local win_path
+                        win_path="$(posix_to_win "$dest_link")"
+                        if cmd /c "rmdir \"$win_path\"" >/dev/null 2>&1; then
+                            removed=true
+                        else
+                            rm -rf "$dest_link" && removed=true
+                        fi
+                        ;;
+                    *)
+                        rm -rf "$dest_link" && removed=true
+                        ;;
+                esac
             fi
         done
 
@@ -460,6 +635,12 @@ cmd_deactivate() {
                 rmdir "$parent" 2>/dev/null || true
             fi
         done
+
+        # Remove MCP wrapper if present
+        if [ -f ".opencode/mcp/${domain}.json" ]; then
+            rm -f ".opencode/mcp/${domain}.json"
+            info "MCP wrapper removed for $domain"
+        fi
 
         # Update JSONC
         if [ -d "$domain_root/skills" ]; then
@@ -561,11 +742,17 @@ cmd_core_update() {
                 ok "$type/ -> already up-to-date"
                 continue
             fi
+        elif [ -d "$dest" ]; then
+            # Might be a junction on Windows (not detected by -L)
+            ok "$type/ -> already linked"
+            continue
         fi
 
-        # Remove existing and re-link
-        rm -rf "$dest"
-        ln -sf "$src" "$dest"
+        # Remove existing and re-link (create_dir_link handles junctions safely)
+        if ! create_dir_link "$src" "$dest"; then
+            warn "Failed to link $type/"
+            continue
+        fi
         ok "$type/ -> linked"
         updated=true
     done
@@ -582,6 +769,32 @@ cmd_core_update() {
 
     if [ "$updated" = true ]; then
         ok "Core symlinks updated."
+    fi
+
+    # Re-bootstrap MCP dependencies (idempotent)
+    echo ""
+    info "Checking for new or updated MCP dependencies..."
+    if [ -f "$VIBE_STACK_HOME/.gitmodules" ]; then
+        git -C "$VIBE_STACK_HOME" submodule update --init --recursive 2>/dev/null && \
+            ok "Submodules up-to-date" || \
+            warn "Submodule update failed — run manually if needed"
+    fi
+    # Re-run uv sync for any MCP Python projects
+    local found_py=false
+    while IFS= read -r -d '' pyproject; do
+        local dir
+        dir=$(dirname "$pyproject")
+        local label
+        label=$(echo "$dir" | sed "s|$VIBE_STACK_HOME/||")
+        if command -v uv &>/dev/null; then
+            (cd "$dir" && uv sync 2>/dev/null) && \
+                info "  $label — uv sync OK" || \
+                warn "  $label — uv sync failed"
+        fi
+        found_py=true
+    done < <(find "$VIBE_STACK_HOME/domains" -name "pyproject.toml" -path "*/mcp/*" -not -path "*/.git/*" -print0 2>/dev/null)
+    if [ "$found_py" = false ]; then
+        info "  No MCP Python projects found"
     fi
 }
 

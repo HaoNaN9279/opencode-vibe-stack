@@ -93,7 +93,7 @@ fi
 echo ""
 
 # ---- Create Core Symlinks ----
-echo -e "${BOLD}[1/3] Creating core symlinks...${NC}"
+echo -e "${BOLD}[1/4] Creating core symlinks...${NC}"
 
 OPENCODE_CONFIG="$HOME/.config/opencode"
 mkdir -p "$OPENCODE_CONFIG"
@@ -133,7 +133,7 @@ done
 echo ""
 
 # ---- Update oh-my-openagent.jsonc ----
-echo -e "${BOLD}[2/3] Updating oh-my-openagent.jsonc...${NC}"
+echo -e "${BOLD}[2/4] Updating oh-my-openagent.jsonc...${NC}"
 
 USER_CONFIG="$OPENCODE_CONFIG/oh-my-openagent.jsonc"
 
@@ -281,8 +281,79 @@ add_agent_defs "$USER_CONFIG" "$VIBE_STACK_HOME/core/agents/"
 echo -e "  ${GREEN}[OK]${NC} Config updated"
 echo ""
 
+# ---- Bootstrap MCP Dependencies ----
+bootstrap_mcp_deps() {
+    local vibe_home="$1"
+
+    # Init submodules
+    if [ -f "$vibe_home/.gitmodules" ]; then
+        echo -e "  ${CYAN}[i]${NC} Initializing git submodules..."
+        if git -C "$vibe_home" submodule update --init --recursive 2>/dev/null; then
+            echo -e "  ${GREEN}[OK]${NC} Submodules ready"
+        else
+            echo -e "  ${YELLOW}[warn]${NC} Submodule init failed — some MCPs may not work"
+            echo "       Run: cd $vibe_home && git submodule update --init --recursive"
+        fi
+    fi
+
+    local has_uv=false;  command -v uv  &>/dev/null && has_uv=true
+    local has_pip=false; command -v pip &>/dev/null && has_pip=true
+    local has_npm=false; command -v npm &>/dev/null && has_npm=true
+
+    local found_any=false
+
+    # Python projects under domains/*/mcp/
+    while IFS= read -r -d '' pyproject; do
+        local dir
+        dir=$(dirname "$pyproject")
+        local label
+        label=$(echo "$dir" | sed "s|$vibe_home/||")
+        echo -e "  ${CYAN}[i]${NC} $label ..."
+        if $has_uv; then
+            (cd "$dir" && uv sync 2>/dev/null) && \
+                echo -e "    ${GREEN}[OK]${NC} uv sync" || \
+                echo -e "    ${YELLOW}[warn]${NC} uv sync failed"
+        elif $has_pip; then
+            (cd "$dir" && pip install -e "." --quiet 2>/dev/null) && \
+                echo -e "    ${GREEN}[OK]${NC} pip install" || \
+                echo -e "    ${YELLOW}[warn]${NC} pip install failed"
+        else
+            echo -e "    ${YELLOW}[warn]${NC} Neither uv nor pip found — install manually"
+        fi
+        found_any=true
+    done < <(find "$vibe_home/domains" -name "pyproject.toml" -path "*/mcp/*" -not -path "*/.git/*" -print0 2>/dev/null)
+
+    # Node.js projects under domains/*/mcp/
+    while IFS= read -r -d '' pkgjson; do
+        local dir
+        dir=$(dirname "$pkgjson")
+        # Skip if already installed
+        if [ -d "$dir/node_modules" ]; then continue; fi
+        local label
+        label=$(echo "$dir" | sed "s|$vibe_home/||")
+        echo -e "  ${CYAN}[i]${NC} $label ..."
+        if $has_npm; then
+            (cd "$dir" && npm install --silent 2>/dev/null) && \
+                echo -e "    ${GREEN}[OK]${NC} npm install" || \
+                echo -e "    ${YELLOW}[warn]${NC} npm install failed"
+        else
+            echo -e "    ${YELLOW}[warn]${NC} npm not found — install manually"
+        fi
+        found_any=true
+    done < <(find "$vibe_home/domains" -name "package.json" -path "*/mcp/*" -not -path "*/node_modules/*" -not -path "*/.git/*" -print0 2>/dev/null)
+
+    if [ "$found_any" = false ]; then
+        echo -e "  ${CYAN}[i]${NC} No MCP code directories found — nothing to bootstrap"
+    fi
+}
+
+echo -e "${BOLD}[3/4] Bootstrapping MCP dependencies...${NC}"
+echo ""
+bootstrap_mcp_deps "$VIBE_STACK_HOME"
+echo ""
+
 # ---- Install CLI Tool ----
-echo -e "${BOLD}[3/3] Installing CLI tool...${NC}"
+echo -e "${BOLD}[4/4] Installing CLI tool...${NC}"
 
 # Determine bin directory (prefer ~/.local/bin, fall back to ~/bin)
 if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then

@@ -5,7 +5,7 @@
       "args": [
         "run",
         "--directory",
-        "domains/ai/data_forge/mcp/data_forge",
+        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data_forge",
         "data-forge-mcp"
       ]
     }
