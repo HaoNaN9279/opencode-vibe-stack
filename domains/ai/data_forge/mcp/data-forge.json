@@ -1,13 +1,15 @@
 {
-  "mcpServers": {
+  "mcp": {
     "data-forge": {
-      "command": "uv",
-      "args": [
+      "type": "local",
+      "command": [
+        "uv",
         "run",
         "--directory",
         "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data_forge",
         "data-forge-mcp"
-      ]
+      ],
+      "enabled": true
     }
   }
 }

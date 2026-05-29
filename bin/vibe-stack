@@ -49,13 +49,15 @@ detect_python3() {
 posix_to_win() {
     local path="$1"
     if command -v cygpath &>/dev/null; then
-        cygpath -w "$path" 2>/dev/null && return
+        cygpath -wa "$path" 2>/dev/null && return
     fi
     echo "$path" | sed 's|^/\([a-zA-Z]\)/|\1:\\|; s|/|\\|g'
 }
 
-# Create a directory link: symlink on Linux/macOS, symlink or junction on Windows.
-# NEVER falls back to copying. Returns 0 on success, 1 on failure.
+# Create a directory link: symlink on Linux/macOS, junction on Windows.
+# On MSYS2/Cygwin, uses PowerShell junction FIRST to avoid ln -s silently
+# copying large directory trees. NEVER falls back to copying.
+# Returns 0 on success, 1 on failure.
 create_dir_link() {
     local src="$1"
     local dest="$2"
@@ -64,15 +66,8 @@ create_dir_link() {
     if [ -e "$dest" ] || [ -L "$dest" ]; then
         case "$OSTYPE" in
             msys|cygwin)
-                local win_path
-                win_path="$(posix_to_win "$dest")"
-                # cmd /c rmdir safely removes junctions & directory symlinks
-                # WITHOUT following into the target directory
-                if cmd /c "rmdir \"$win_path\"" >/dev/null 2>&1; then
-                    : # junction/symlink removed safely
-                else
-                    rm -rf "$dest" 2>/dev/null || true
-                fi
+                # rm (without -r) removes symlinks/junctions without following them
+                rm -f "$dest" 2>/dev/null || true
                 ;;
             *)
                 rm -rf "$dest" 2>/dev/null || true
@@ -80,29 +75,9 @@ create_dir_link() {
         esac
     fi
 
-    # Try native symlink first (works on Linux/macOS, and Windows with Developer Mode)
-    if ln -s "$src" "$dest" 2>/dev/null; then
-        # Verify it's a real link — MSYS2 ln -s may silently fall back to COPY
-        if [ -L "$dest" ]; then
-            return 0  # MSYS2 detected it as a symlink
-        fi
-        case "$OSTYPE" in
-            msys|cygwin)
-                # Check via PowerShell: is it a Windows reparse point?
-                local win_dest_check
-                win_dest_check="$(posix_to_win "$dest")"
-                if powershell -NoProfile -Command \
-                    "exit [int](-not [bool]((Get-Item -Path '$win_dest_check' -Force).LinkType))" \
-                    2>/dev/null; then
-                    return 0  # It's a junction or Windows symlink
-                fi
-                ;;
-        esac
-        # MSYS2 silently copied — remove the copy and try junction below
-        rm -rf "$dest" 2>/dev/null || true
-    fi
-
-    # Windows fallback: create a junction via PowerShell (no admin required, same volume)
+    # MSYS2/Cygwin: try junction first (no admin, no Developer Mode needed).
+    # ln -s on MSYS2 without Developer Mode silently COPIES directories —
+    # we skip it entirely to avoid wasteful copy+delete for large trees.
     case "$OSTYPE" in
         msys|cygwin)
             local win_src win_dest
@@ -115,8 +90,22 @@ create_dir_link() {
                     return 0
                 fi
             fi
+            # Junction failed — fall through to ln -s as last resort
             ;;
     esac
+
+    # Native symlink (Linux/macOS primary, Windows fallback)
+    if ln -s "$src" "$dest" 2>/dev/null; then
+        if [ -L "$dest" ]; then
+            return 0
+        fi
+        # MSYS2 silently copied — undo the copy
+        case "$OSTYPE" in
+            msys|cygwin)
+                rm -rf "$dest" 2>/dev/null || true
+                ;;
+        esac
+    fi
 
     return 1
 }
@@ -306,79 +295,463 @@ with open(config_path, 'w') as f:
 PYEOF
 }
 
-# ---- MCP Activation ----
+# Sync opencode.json instructions to include core rules
+# Usage: sync_opencode_instructions <opencode_json_path> <rules_glob>
+sync_opencode_instructions() {
+    local config_path="$1"
+    local rules_glob="$2"
 
-# activate_mcp <mcp_src_dir> <domain_name> <vibe_stack_home>
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found - skipping opencode.json update"
+        return 0
+    fi
+
+    $PYTHON3 - "$config_path" "$rules_glob" << 'PYEOF'
+import json, sys, os
+
+config_path = sys.argv[1]
+rules_glob = sys.argv[2]
+
+# Read existing config
+original = ""
+if os.path.exists(config_path):
+    with open(config_path, 'r') as f:
+        original = f.read()
+
+# Strip // comments for JSON parsing
+lines = []
+for line in original.split('\n'):
+    in_str = False
+    comment_start = -1
+    i = 0
+    while i < len(line):
+        if not in_str and line[i] == '"':
+            in_str = True
+        elif in_str and line[i] == '\\':
+            i += 1
+        elif in_str and line[i] == '"':
+            in_str = False
+        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+            comment_start = i
+            break
+        i += 1
+    stripped = line[:comment_start] if comment_start >= 0 else line
+    if stripped.strip():
+        lines.append(stripped)
+
+clean_json = '\n'.join(lines)
+try:
+    data = json.loads(clean_json)
+except json.JSONDecodeError:
+    data = {}
+
+# Ensure $schema
+if '$schema' not in data:
+    data['$schema'] = 'https://opencode.ai/config.json'
+
+# Ensure instructions
+if 'instructions' not in data:
+    data['instructions'] = []
+
+instructions = data['instructions']
+if rules_glob not in instructions:
+    instructions.append(rules_glob)
+    print(f'  Added instructions: {rules_glob}')
+
+    output = json.dumps(data, indent=2, ensure_ascii=False)
+    with open(config_path, 'w') as f:
+        f.write(output + '\n')
+else:
+    print(f'  instructions already up-to-date')
+PYEOF
+}
+
+# Add or remove instructions entry in project-level .opencode/opencode.json
+# Usage: modify_project_instructions <config_path> <action:add|remove> <instructions_path>
+modify_project_instructions() {
+    local config_path="$1"
+    local action="$2"
+    local instructions_path="$3"
+
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found - skipping opencode.json update"
+        return 0
+    fi
+
+    $PYTHON3 - "$config_path" "$action" "$instructions_path" << 'PYEOF'
+import json, os, sys
+
+config_path = sys.argv[1]
+action = sys.argv[2]
+instructions_path = sys.argv[3]
+
+try:
+    with open(config_path, 'r') as f:
+        original = f.read()
+except FileNotFoundError:
+    if action == 'add':
+        original = '{}'
+    else:
+        sys.exit(0)
+
+# Strip // comments
+lines = []
+for line in original.split('\n'):
+    in_str = False
+    comment_start = -1
+    i = 0
+    while i < len(line):
+        if not in_str and line[i] == '"':
+            in_str = True
+        elif in_str and line[i] == '\\':
+            i += 1
+        elif in_str and line[i] == '"':
+            in_str = False
+        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+            comment_start = i
+            break
+        i += 1
+    stripped = line[:comment_start] if comment_start >= 0 else line
+    if stripped.strip():
+        lines.append(stripped)
+
+clean_json = '\n'.join(lines)
+try:
+    data = json.loads(clean_json)
+except json.JSONDecodeError:
+    data = {}
+
+# Ensure $schema
+if '$schema' not in data:
+    data['$schema'] = 'https://opencode.ai/config.json'
+
+# Ensure instructions
+if 'instructions' not in data:
+    data['instructions'] = []
+
+instructions = data['instructions']
+
+if action == 'add':
+    if instructions_path not in instructions:
+        instructions.append(instructions_path)
+        data['instructions'] = instructions
+        print(f'  Added instructions: {instructions_path}')
+elif action == 'remove':
+    new_instructions = [i for i in instructions if i != instructions_path]
+    if len(new_instructions) < len(instructions):
+        data['instructions'] = new_instructions
+        print(f'  Removed instructions: {instructions_path}')
+
+# Clean up empty arrays
+if 'instructions' in data and not data['instructions']:
+    del data['instructions']
+
+output = json.dumps(data, indent=2, ensure_ascii=False)
+with open(config_path, 'w') as f:
+    f.write(output + '\n')
+PYEOF
+}
+
+# ---- MCP Activation ----
 #
-# Scans mcp/*.json in the source directory, resolves ${VIBE_STACK_HOME}
-# placeholders to absolute paths, and generates a wrapper JSON at
-# .opencode/mcp/<domain>.json that OMO auto-discovers.
+# activate_mcp <mcp_src_dir> <domain_name> <vibe_stack_home> <project_root>
+#
+# Scans mcp/*.json in the domain's mcp/ directory (OpenCode native "mcp" format),
+# resolves ${VIBE_STACK_HOME} / ${PROJECT_ROOT} placeholders,
+# adds "vibe:" prefix to server names for namespace isolation,
+# and merges entries into .opencode/opencode.json under the "mcp" key.
+# OpenCode auto-discovers mcp entries from .opencode/opencode.json on startup.
 activate_mcp() {
     local mcp_src="$1"
     local domain="$2"
     local vibe_home="$3"
+    local project_root="$4"
 
-    # Check for JSON config files
     local json_files
     json_files=$(ls "$mcp_src"/*.json 2>/dev/null || true)
     if [ -z "$json_files" ]; then
         return 0
     fi
 
-    mkdir -p ".opencode/mcp"
     detect_python3
     if [ -z "$PYTHON3" ]; then
-        warn "python3 not found — MCP wrapper skipped for $domain"
+        warn "python3 not found — MCP activation skipped for $domain"
         return 0
     fi
 
-    $PYTHON3 - "$mcp_src" "$vibe_home" ".opencode/mcp/${domain}.json" "$domain" << 'PYEOF'
+    mkdir -p ".opencode"
+    local project_config=".opencode/opencode.json"
+
+    $PYTHON3 - "$mcp_src" "$vibe_home" "$project_config" "$domain" "$project_root" << 'PYEOF'
 import json, sys, os, glob
 
 mcp_src = sys.argv[1]
 vibe_home = sys.argv[2]
-dest_wrapper = sys.argv[3]
+config_path = sys.argv[3]
 domain = sys.argv[4]
+project_root = sys.argv[5]
 
-vibe_home_norm = os.path.normpath(vibe_home)
-merged_servers = {}
+vibe_home_norm = os.path.normpath(vibe_home).replace('\\', '/')
+project_root_norm = os.path.normpath(project_root).replace('\\', '/')
 
+def strip_jsonc_comments(raw_text):
+    """Strip // comments from JSONC text, returning clean JSON."""
+    lines = []
+    for line in raw_text.split('\n'):
+        in_str = False
+        comment_start = -1
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if not in_str and ch == '"':
+                in_str = True
+            elif in_str and ch == '\\':
+                i += 1  # skip escaped char
+            elif in_str and ch == '"':
+                in_str = False
+            elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+                comment_start = i
+                break
+            i += 1
+        if comment_start >= 0:
+            line = line[:comment_start]
+        lines.append(line)
+    return '\n'.join(lines)
+
+def resolve_placeholders(val):
+    """Replace ${VIBE_STACK_HOME} and ${PROJECT_ROOT} in a string."""
+    if isinstance(val, str):
+        val = val.replace('${VIBE_STACK_HOME}', vibe_home_norm)
+        val = val.replace('${PROJECT_ROOT}', project_root_norm)
+    return val
+
+# 1. Collect all MCP entries from domain definition files
+new_entries = {}
 json_pattern = os.path.join(mcp_src, "*.json")
 for json_file in sorted(glob.glob(json_pattern)):
     with open(json_file, 'r') as f:
+        raw = f.read()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
         try:
-            data = json.load(f)
+            data = json.loads(strip_jsonc_comments(raw))
         except json.JSONDecodeError:
+            print(f"  [warn] Failed to parse {json_file} — skipping")
             continue
 
-    if 'mcpServers' not in data:
+    if not isinstance(data, dict):
         continue
 
-    for name, cfg in data['mcpServers'].items():
-        raw = json.dumps(cfg)
-        resolved_raw = raw.replace('${VIBE_STACK_HOME}', vibe_home_norm)
-        resolved = json.loads(resolved_raw)
-        # Normalize Windows backslashes for uv compatibility
-        if 'args' in resolved:
-            resolved['args'] = [
-                a.replace('\\', '/') if isinstance(a, str) else a
-                for a in resolved['args']
-            ]
-        if name in merged_servers:
-            print(f"  [warn] MCP server '{name}' redefined - overwriting")
-        merged_servers[name] = resolved
+    # Support both "mcp" (OpenCode native) and "mcpServers" (legacy Claude Code) keys
+    mcp_block = data.get('mcp') or data.get('mcpServers')
+    if not mcp_block or not isinstance(mcp_block, dict):
+        continue
 
-if not merged_servers:
+    for name, cfg in mcp_block.items():
+        if not isinstance(cfg, dict):
+            continue
+
+        entry = {}
+
+        if 'type' in cfg:
+            # Already in OpenCode native format — copy as-is after placeholder resolution
+            entry = {k: v for k, v in cfg.items()}
+        else:
+            # Legacy format: {command: str, args: [...], env?: [...]}
+            entry['type'] = 'local'
+            entry['enabled'] = cfg.get('enabled', True)
+            cmd = cfg.get('command', '')
+            if isinstance(cmd, list):
+                entry['command'] = list(cmd)
+            else:
+                entry['command'] = [cmd] + cfg.get('args', [])
+
+            # Convert env array ["KEY=val", ...] to environment object {KEY: "val"}
+            if 'env' in cfg and isinstance(cfg['env'], list):
+                environment = {}
+                for env_str in cfg['env']:
+                    if '=' in env_str:
+                        k, v = env_str.split('=', 1)
+                        environment[k.strip()] = v.strip()
+                if environment:
+                    entry['environment'] = environment
+
+        # Resolve placeholders in command array
+        if 'command' in entry:
+            entry['command'] = [resolve_placeholders(a) for a in entry['command']]
+
+        # Resolve placeholders in environment object
+        if 'environment' in entry and isinstance(entry.get('environment'), dict):
+            entry['environment'] = {
+                k: resolve_placeholders(v)
+                for k, v in entry['environment'].items()
+            }
+
+        # Add vibe: namespace prefix for isolation
+        prefixed_name = f"vibe:{name}"
+        new_entries[prefixed_name] = entry
+
+if not new_entries:
     sys.exit(0)
 
-wrapper = {"mcpServers": merged_servers}
-with open(dest_wrapper, 'w') as f:
-    json.dump(wrapper, f, indent=2, ensure_ascii=False)
+# 2. Read existing .opencode/opencode.json (create if missing)
+try:
+    with open(config_path, 'r') as f:
+        raw = f.read()
+    existing = json.loads(strip_jsonc_comments(raw))
+except (FileNotFoundError, json.JSONDecodeError):
+    existing = {}
+
+if not isinstance(existing, dict):
+    existing = {}
+
+# 3. Merge: keep non-vibe:* entries, add/update vibe:* entries for this domain
+existing_mcp = existing.get('mcp', {})
+if not isinstance(existing_mcp, dict):
+    existing_mcp = {}
+
+# Remove ALL existing vibe:* entries (clean slate — deactivate handles per-domain removal)
+existing_mcp = {k: v for k, v in existing_mcp.items() if not k.startswith('vibe:')}
+# Add new domain entries
+existing_mcp.update(new_entries)
+
+existing['mcp'] = existing_mcp
+
+# 4. Write back
+with open(config_path, 'w') as f:
+    json.dump(existing, f, indent=2, ensure_ascii=False)
     f.write('\n')
 
-print(f"  MCP wrapper: {dest_wrapper}")
-for name in sorted(merged_servers.keys()):
-    print(f"    server: {name}")
+print(f"  MCP activated -> {config_path}")
+for name in sorted(new_entries.keys()):
+    print(f"    + {name}")
+PYEOF
+}
+
+# deactivate_mcp <domain_name> <domain_root>
+#
+# Scans domain_root/mcp/*.json to find original server names,
+# then removes vibe:{name} entries from .opencode/opencode.json.
+deactivate_mcp() {
+    local domain="$1"
+    local domain_root="$2"
+
+    local project_config=".opencode/opencode.json"
+    if [ ! -f "$project_config" ]; then
+        return 0
+    fi
+
+    local mcp_src="$domain_root/mcp"
+    if [ ! -d "$mcp_src" ]; then
+        return 0
+    fi
+
+    local json_files
+    json_files=$(ls "$mcp_src"/*.json 2>/dev/null || true)
+    if [ -z "$json_files" ]; then
+        return 0
+    fi
+
+    detect_python3
+    if [ -z "$PYTHON3" ]; then
+        warn "python3 not found — MCP deactivation skipped for $domain"
+        return 0
+    fi
+
+    $PYTHON3 - "$project_config" "$mcp_src" "$domain" << 'PYEOF'
+import json, sys, os, glob
+
+config_path = sys.argv[1]
+mcp_src = sys.argv[2]
+domain = sys.argv[3]
+
+def strip_jsonc_comments(raw_text):
+    lines = []
+    for line in raw_text.split('\n'):
+        in_str = False
+        comment_start = -1
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if not in_str and ch == '"':
+                in_str = True
+            elif in_str and ch == '\\':
+                i += 1
+            elif in_str and ch == '"':
+                in_str = False
+            elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
+                comment_start = i
+                break
+            i += 1
+        if comment_start >= 0:
+            line = line[:comment_start]
+        lines.append(line)
+    return '\n'.join(lines)
+
+# 1. Collect original server names from domain's mcp/*.json files
+target_names = set()
+json_pattern = os.path.join(mcp_src, "*.json")
+for json_file in sorted(glob.glob(json_pattern)):
+    with open(json_file, 'r') as f:
+        raw = f.read()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(strip_jsonc_comments(raw))
+        except json.JSONDecodeError:
+            continue
+    if not isinstance(data, dict):
+        continue
+    mcp_block = data.get('mcp') or data.get('mcpServers')
+    if not mcp_block or not isinstance(mcp_block, dict):
+        continue
+    for name in mcp_block.keys():
+        target_names.add(f"vibe:{name}")
+
+if not target_names:
+    print(f"  No MCP servers defined in {mcp_src}")
+    sys.exit(0)
+
+# 2. Read .opencode/opencode.json and remove matching vibe:* entries
+try:
+    with open(config_path, 'r') as f:
+        raw = f.read()
+    data = json.loads(strip_jsonc_comments(raw))
+except (FileNotFoundError, json.JSONDecodeError):
+    print(f"  [warn] Could not read {config_path}")
+    sys.exit(1)
+
+if not isinstance(data, dict) or 'mcp' not in data:
+    print(f"  No MCP entries in {config_path}")
+    sys.exit(0)
+
+old_mcp = data['mcp']
+if not isinstance(old_mcp, dict):
+    print(f"  No MCP entries in {config_path}")
+    sys.exit(0)
+
+new_mcp = {k: v for k, v in old_mcp.items() if k not in target_names}
+removed = [k for k in old_mcp if k not in new_mcp]
+
+if not removed:
+    print(f"  No vibe:* MCP entries to remove for {domain}")
+    sys.exit(0)
+
+data['mcp'] = new_mcp
+if not new_mcp:
+    del data['mcp']
+
+with open(config_path, 'w') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+
+print(f"  MCP deactivated for {domain}:")
+for name in sorted(removed):
+    print(f"    - {name}")
 PYEOF
 }
 
@@ -554,9 +927,9 @@ cmd_activate() {
             # Create link (symlink or junction on Windows — never copies)
             if create_dir_link "$src" "$dest_link"; then
                 activated_types+=("$sub")
-                # Generate MCP wrapper for auto-discovery by OMO
+                # Merge MCP configs into .opencode/opencode.json (OpenCode native)
                 if [ "$sub" = "mcp" ]; then
-                    activate_mcp "$src" "$domain" "$VIBE_STACK_HOME"
+                    activate_mcp "$src" "$domain" "$VIBE_STACK_HOME" "$PROJECT_ROOT"
                 fi
             else
                 warn "Could not link $sub for $domain — skipping"
@@ -573,6 +946,11 @@ cmd_activate() {
         if [[ " ${activated_types[*]} " =~ " agents " ]]; then
             local agents_path="$domain_root/agents/"
             modify_agent_defs ".opencode/oh-my-openagent.jsonc" "add" "$agents_path"
+        fi
+
+        # Update opencode.json instructions for rules (relative to project root)
+        if [[ " ${activated_types[*]} " =~ " rules " ]]; then
+            modify_project_instructions ".opencode/opencode.json" "add" ".opencode/rules/$domain/*.md"
         fi
 
         ok "Activated $category/$domain"
@@ -636,11 +1014,8 @@ cmd_deactivate() {
             fi
         done
 
-        # Remove MCP wrapper if present
-        if [ -f ".opencode/mcp/${domain}.json" ]; then
-            rm -f ".opencode/mcp/${domain}.json"
-            info "MCP wrapper removed for $domain"
-        fi
+        # Remove MCP entries from .opencode/opencode.json
+        deactivate_mcp "$domain" "$domain_root"
 
         # Update JSONC
         if [ -d "$domain_root/skills" ]; then
@@ -648,6 +1023,11 @@ cmd_deactivate() {
         fi
         if [ -d "$domain_root/agents" ]; then
             modify_agent_defs ".opencode/oh-my-openagent.jsonc" "remove" "$domain_root/agents/"
+        fi
+
+        # Remove opencode.json instructions for this domain's rules
+        if [ -d "$domain_root/rules" ]; then
+            modify_project_instructions ".opencode/opencode.json" "remove" ".opencode/rules/$domain/*.md"
         fi
 
         if [ "$removed" = true ]; then
@@ -766,6 +1146,12 @@ cmd_core_update() {
     else
         warn "No ~/.config/opencode/oh-my-openagent.jsonc found. Run install.sh first."
     fi
+
+    # Update ~/.config/opencode/opencode.json instructions
+    # Path is relative to the config directory (where rules/ symlink lives)
+    local opencode_json="$config_dir/opencode.json"
+    info "Updating core rules in $opencode_json ..."
+    sync_opencode_instructions "$opencode_json" "rules/*.md"
 
     if [ "$updated" = true ]; then
         ok "Core symlinks updated."

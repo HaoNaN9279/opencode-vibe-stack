@@ -195,23 +195,10 @@ foreach ($type in $symlinkTypes) {
 
 Write-Host ""
 
-# ---- Update oh-my-openagent.jsonc ----
-Write-Bold "[2/4] Updating oh-my-openagent.jsonc..."
+# ---- Update configuration files ----
+Write-Bold "[2/4] Updating configuration files..."
 
-$userConfig = "$openCodeConfig\oh-my-openagent.jsonc"
-
-# Ensure config file exists
-if (-not (Test-Path $userConfig)) {
-    Write-Warn "No oh-my-openagent.jsonc found. Creating minimal config..."
-    @'
-{
-  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json"
-}
-'@ | Out-File -FilePath $userConfig -Encoding UTF8
-    Write-OK "Created $userConfig"
-}
-
-# Use Python for JSONC manipulation (check if available)
+# Detect Python once for all config file manipulations
 # On Windows 11, "python" may resolve to the Microsoft Store App Execution
 # Alias stub, not a real Python installation. Filter those out.
 $pythonCmd = $null
@@ -227,121 +214,46 @@ foreach ($candidate in @("python3", "python")) {
     }
 }
 
+if (-not $pythonCmd) {
+    Write-Warn "python3 not available - config file updates will be skipped"
+}
+
+# -- 2a. Update opencode.json with core rules as instructions --
+# Path is relative to the config directory (where the rules/ symlink lives)
+$opencodeJson = "$openCodeConfig\opencode.json"
+$rulesGlob = "rules/*.md"
+$configManager = "$VIBE_STACK_HOME\script\config_manager.py"
+
 if ($pythonCmd) {
-    # Add skills sources
+    & $pythonCmd $configManager add-instructions "$opencodeJson" "$rulesGlob"
+}
+
+Write-Host ""
+
+# -- 2b. Update oh-my-openagent.jsonc --
+Write-Host "  --- oh-my-openagent.jsonc ---" -ForegroundColor White
+
+$userConfig = "$openCodeConfig\oh-my-openagent.jsonc"
+
+# Ensure config file exists
+if (-not (Test-Path $userConfig)) {
+    Write-Warn "No oh-my-openagent.jsonc found. Creating minimal config..."
+    @'
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json"
+}
+'@ | Out-File -FilePath $userConfig -Encoding UTF8
+    Write-OK "Created $userConfig"
+}
+
+if ($pythonCmd) {
     $skillsPath = $VIBE_STACK_HOME.Replace('\', '/') + "/core/skills"
+    & $pythonCmd $configManager add-skills-source "$userConfig" "$skillsPath"
 
-    $pythonScript = @"
-import json, sys, os
-
-config_path = r'$userConfig'.replace('\\', '/')
-skills_path = '$skillsPath'
-
-with open(config_path, 'r') as f:
-    original = f.read()
-
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-if 'skills' not in data:
-    data['skills'] = {}
-if 'sources' not in data['skills']:
-    data['skills']['sources'] = []
-
-sources = data['skills']['sources']
-entry = {'path': skills_path, 'recursive': True}
-
-if not any(s.get('path') == skills_path for s in sources):
-    sources.append(entry)
-    print(f'    Added skills.sources entry: {skills_path}')
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(config_path, 'w') as f:
-        f.write(output + '\n')
-else:
-    print(f'    skills.sources already has: {skills_path}')
-"@
-    & $pythonCmd -c $pythonScript
-
-    # Add agent definitions
     $agentsPath = $VIBE_STACK_HOME.Replace('\', '/') + "/core/agents/"
-
-    $pythonScript2 = @"
-import json, sys
-
-config_path = r'$userConfig'.replace('\\', '/')
-agents_path = '$agentsPath'
-
-with open(config_path, 'r') as f:
-    original = f.read()
-
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-if 'agent_definitions' not in data:
-    data['agent_definitions'] = []
-
-if agents_path not in data['agent_definitions']:
-    data['agent_definitions'].append(agents_path)
-    print(f'    Added agent_definitions: {agents_path}')
-
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(config_path, 'w') as f:
-        f.write(output + '\n')
-else:
-    print(f'    agent_definitions already has: {agents_path}')
-"@
-    & $pythonCmd -c $pythonScript2
+    & $pythonCmd $configManager add-agent-defs "$userConfig" "$agentsPath"
 
     Write-OK "Config updated"
-} else {
-    Write-Warn "python3 not available - skipping oh-my-openagent.jsonc update"
-    Write-Warn "   You'll need to manually add skills.sources and agent_definitions"
 }
 
 Write-Host ""

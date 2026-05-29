@@ -132,153 +132,39 @@ done
 
 echo ""
 
-# ---- Update oh-my-openagent.jsonc ----
-echo -e "${BOLD}[2/4] Updating oh-my-openagent.jsonc...${NC}"
+# ---- Update configuration files ----
+echo -e "${BOLD}[2/4] Updating configuration files...${NC}"
 
+OPENCODE_JSON="$OPENCODE_CONFIG/opencode.json"
+RULES_GLOB="rules/*.md"
 USER_CONFIG="$OPENCODE_CONFIG/oh-my-openagent.jsonc"
+CONFIG_MANAGER="$VIBE_STACK_HOME/script/config_manager.py"
 
-# Ensure config file exists
-if [ ! -f "$USER_CONFIG" ]; then
-    echo -e "  ${YELLOW}[!]${NC} No oh-my-openagent.jsonc found. Creating minimal config..."
-    cat > "$USER_CONFIG" << 'JSONCEOF'
+if command -v python3 &>/dev/null; then
+    # 2a. Update opencode.json with core rules as instructions
+    python3 "$CONFIG_MANAGER" add-instructions "$OPENCODE_JSON" "$RULES_GLOB"
+    echo ""
+
+    # 2b. Update oh-my-openagent.jsonc
+    # Ensure config file exists
+    if [ ! -f "$USER_CONFIG" ]; then
+        echo -e "  ${YELLOW}[!]${NC} No oh-my-openagent.jsonc found. Creating minimal config..."
+        cat > "$USER_CONFIG" << 'JSONCEOF'
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json"
 }
 JSONCEOF
-    echo -e "  ${GREEN}[OK]${NC} Created $USER_CONFIG"
+        echo -e "  ${GREEN}[OK]${NC} Created $USER_CONFIG"
+    fi
+
+    python3 "$CONFIG_MANAGER" add-skills-source "$USER_CONFIG" "$VIBE_STACK_HOME/core/skills"
+    python3 "$CONFIG_MANAGER" add-agent-defs "$USER_CONFIG" "$VIBE_STACK_HOME/core/agents/"
+
+    echo -e "  ${GREEN}[OK]${NC} Config updated"
+else
+    echo -e "  ${YELLOW}[warn]${NC} python3 not available - skipping config updates"
 fi
 
-# Add skills sources (for core skills)
-add_skills_source() {
-    local config_file="$1"
-    local skills_path="$2"
-
-    # Use python3 for robust JSONC manipulation
-    if command -v python3 &>/dev/null; then
-        python3 - "$config_file" "$skills_path" << 'PYEOF'
-import json, sys, os
-
-config_path = sys.argv[1]
-skills_path = sys.argv[2]
-
-with open(config_path, 'r') as f:
-    original = f.read()
-
-# Strip // comments to parse as JSON
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-# Ensure skills.sources exists
-if 'skills' not in data:
-    data['skills'] = {}
-if 'sources' not in data['skills']:
-    data['skills']['sources'] = []
-
-sources = data['skills']['sources']
-entry = {'path': skills_path, 'recursive': True}
-
-if not any(s.get('path') == skills_path for s in sources):
-    sources.append(entry)
-    print(f'    Added skills.sources entry: {skills_path}')
-
-    # Write back - json.dumps includes $schema if it was in the original
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(config_path, 'w') as f:
-        f.write(output + '\n')
-else:
-    print(f'    skills.sources already has: {skills_path}')
-PYEOF
-    else
-        echo -e "  ${YELLOW}[warn]${NC} python3 not available - skipping skills config"
-    fi
-}
-
-# Add agent definitions (for core agents)
-add_agent_defs() {
-    local config_file="$1"
-    local agents_path="$2"
-
-    if command -v python3 &>/dev/null; then
-        python3 - "$config_file" "$agents_path" << 'PYEOF'
-import json, sys
-
-config_path = sys.argv[1]
-agents_path = sys.argv[2]
-
-with open(config_path, 'r') as f:
-    original = f.read()
-
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-if 'agent_definitions' not in data:
-    data['agent_definitions'] = []
-
-if agents_path not in data['agent_definitions']:
-    data['agent_definitions'].append(agents_path)
-    print(f'    Added agent_definitions: {agents_path}')
-
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(config_path, 'w') as f:
-        f.write(output + '\n')
-else:
-    print(f'    agent_definitions already has: {agents_path}')
-PYEOF
-    else
-        echo -e "  ${YELLOW}[warn]${NC} python3 not available - skipping agent config"
-    fi
-}
-
-add_skills_source "$USER_CONFIG" "$VIBE_STACK_HOME/core/skills"
-add_agent_defs "$USER_CONFIG" "$VIBE_STACK_HOME/core/agents/"
-
-echo -e "  ${GREEN}[OK]${NC} Config updated"
 echo ""
 
 # ---- Bootstrap MCP Dependencies ----

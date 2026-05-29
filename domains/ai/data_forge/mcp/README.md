@@ -13,7 +13,15 @@ mcp/
 
 ## How It Works
 
-When this domain is activated via `vibe-stack activate ai/data_forge`, the `mcp/` directory is symlinked to `.opencode/mcp/data_forge/` in the project. OMO/OpenCode reads the MCP server configuration from `data-forge.json` and registers the Data Forge MCP server.
+When this domain is activated via `vibe-stack activate ai/data_forge`:
+
+1. `vibe-stack` reads `data-forge.json` from this directory
+2. Resolves `${VIBE_STACK_HOME}` placeholders to absolute paths
+3. Adds `vibe:` namespace prefix (→ `vibe:data-forge`)
+4. Merges the entry into `.opencode/opencode.json` under the `mcp` key
+5. OpenCode auto-discovers and connects to the MCP server on next startup
+
+When deactivated, the `vibe:data-forge` entry is removed from `.opencode/opencode.json`.
 
 ## Prerequisites
 
@@ -56,25 +64,34 @@ When this domain is activated via `vibe-stack activate ai/data_forge`, the `mcp/
 
 ## Configuration Reference
 
-The `data-forge.json` file uses the standard MCP server configuration format:
+The `data-forge.json` file uses the OpenCode native `mcp` configuration format:
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "data-forge": {
-      "command": "uv",
-      "args": [
+      "type": "local",
+      "command": [
+        "uv",
         "run",
         "--directory",
-        "<path-to-submodule>",
+        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data_forge",
         "data-forge-mcp"
-      ]
+      ],
+      "enabled": true
     }
   }
 }
 ```
 
-The `--directory` path is relative to the project root where the domain is activated. When using `vibe-stack activate`, this resolves correctly through the symlink chain.
+| Field | Description |
+|---|---|
+| `type` | Must be `"local"` for stdio-based MCP servers |
+| `command` | Full command array (executable + arguments) |
+| `enabled` | Whether the server starts automatically |
+| `${VIBE_STACK_HOME}` | Placeholder resolved at activation time |
+
+> **Naming**: The server name `data-forge` in this file is automatically prefixed with `vibe:` when written to `.opencode/opencode.json` (→ `vibe:data-forge`), preventing collisions with user or Claude Code MCPs.
 
 ## Available MCP Tools (24)
 
