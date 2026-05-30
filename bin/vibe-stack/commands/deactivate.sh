@@ -67,6 +67,11 @@ cmd_deactivate() {
             modify_project_instructions ".opencode/opencode.json" "remove" "rules/$domain/*.md"
         fi
 
+        # Remove skills path from opencode.json if no skills remain
+        if [ ! -d ".opencode/skills" ] || [ -z "$(ls -A ".opencode/skills" 2>/dev/null)" ]; then
+            _jsonc_nested_array_remove ".opencode/opencode.json" "skills" "paths" '"skills"'
+        fi
+
         # Clean up oh-my-openagent.jsonc if no active domains remain
         deactivate_omo_config
 

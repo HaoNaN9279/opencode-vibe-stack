@@ -34,6 +34,21 @@ elif ! grep -qF "\"$RULES_GLOB\"" "$OPENCODE_JSON"; then
 else
     echo -e "  ${GREEN}[OK]${NC} instructions already has: $RULES_GLOB"
 fi
+
+# ---- Register core skills in opencode.json ----
+if grep -q '"skills"' "$OPENCODE_JSON" 2>/dev/null; then
+    _jsonc_nested_array_add "$OPENCODE_JSON" "skills" "paths" '"skills"' || true
+else
+    sed '$d' "$OPENCODE_JSON" | sed '$s/$/,/' > "${OPENCODE_JSON}.tmp"
+    {
+        echo '  "skills": {'
+        echo '    "paths": ["skills"]'
+        echo '  }'
+        echo '}'
+    } >> "${OPENCODE_JSON}.tmp"
+    mv "${OPENCODE_JSON}.tmp" "$OPENCODE_JSON"
+fi
+echo -e "  ${GREEN}[OK]${NC} Registered core skills in skills.paths"
 echo ""
 
 # Merge core/mcp configurations

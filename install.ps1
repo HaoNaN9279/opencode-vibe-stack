@@ -83,6 +83,24 @@ else {
         1 { Write-Warn "instructions key not found in $opencodeJson — skipping" }
     }
 }
+
+# ---- Register core skills in opencode.json ----
+$raw = Get-Content -Raw -Path $opencodeJson
+if ($raw -match '"skills"\s*:') {
+    Add-JsoncNestedArrayValue -FilePath $opencodeJson -ParentKey "skills" -ChildKey "paths" -Value '"skills"'
+} else {
+    $lines = Get-Content -Path $opencodeJson
+    $last = $lines.Count - 1
+    $lines[$last - 1] = $lines[$last - 1] + ','
+    $lines = $lines[0..($last-1)] + @(
+        '  "skills": {',
+        '    "paths": ["skills"]',
+        '  }',
+        '}'
+    )
+    Set-Content -Path $opencodeJson -Value $lines -Encoding UTF8
+}
+Write-OK "Registered core skills in skills.paths"
 Write-Host ""
 
 # ---- [3/4] Install MCP Binaries ----

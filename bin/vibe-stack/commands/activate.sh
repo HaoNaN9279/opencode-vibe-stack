@@ -64,6 +64,11 @@ cmd_activate() {
             modify_project_instructions ".opencode/opencode.json" "add" "rules/$domain/*.md"
         fi
 
+        # Register domain skills path in project opencode.json
+        if [[ " ${activated_types[*]} " =~ " skills " ]]; then
+            _jsonc_nested_array_add ".opencode/opencode.json" "skills" "paths" '"skills"'
+        fi
+
         # Ensure project-level oh-my-openagent.jsonc exists for skills/agents
         if [[ " ${activated_types[*]} " =~ " skills " ]] || [[ " ${activated_types[*]} " =~ " agents " ]]; then
             activate_omo_config

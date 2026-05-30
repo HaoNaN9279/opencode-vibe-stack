@@ -2,6 +2,7 @@ source "${SCRIPT_DIR}/lib/helpers.sh"
 source "${SCRIPT_DIR}/lib/path.sh"
 source "${SCRIPT_DIR}/lib/instructions.sh"
 source "${SCRIPT_DIR}/lib/mcp.sh"
+source "${SCRIPT_DIR}/lib/jsonc.sh"
 
 cmd_core_update() {
     echo -e "${BOLD}Re-syncing core symlinks...${NC}"
@@ -49,6 +50,14 @@ cmd_core_update() {
     local opencode_json="$config_dir/opencode.json"
     info "Updating core rules in $opencode_json ..."
     sync_opencode_instructions "$opencode_json" "rules/**/*.md"
+
+    # Register core skills path in user config
+    if ! grep -q '"skills"' "$opencode_json" 2>/dev/null; then
+        sed -i.bak 's/}[[:space:]]*$/,\n  "skills": {\n    "paths": ["skills"]\n  }\n}/' "$opencode_json" && rm -f "${opencode_json}.bak"
+        ok "Registered core skills in skills.paths"
+    else
+        _jsonc_nested_array_add "$opencode_json" "skills" "paths" '"skills"'
+    fi
 
     if [ "$updated" = true ]; then
         ok "Core symlinks updated."
