@@ -7,7 +7,28 @@
 # ============================================================================
 set -euo pipefail
 
-VIBE_STACK_HOME="${VIBE_STACK_HOME:-$HOME/.opencode-vibe-stack}"
+# ---- Auto-detect VIBE_STACK_HOME from script location ----
+# Resolves symlinks so it works whether the script is symlinked (Linux),
+# called via a wrapper (Windows .cmd/.ps1), or run directly.
+_resolve_script_dir() {
+    local target="${BASH_SOURCE[0]:-$0}"
+    # Follow symlinks (portable: works on GNU/Linux, macOS, and Git Bash)
+    if command -v readlink >/dev/null 2>&1; then
+        while [ -L "$target" ]; do
+            local link
+            link="$(readlink "$target")"
+            case "$link" in
+                /*) target="$link" ;;
+                *)  target="$(dirname "$target")/$link" ;;
+            esac
+        done
+    fi
+    cd "$(dirname "$target")" && pwd
+}
+SCRIPT_DIR="$(_resolve_script_dir)"
+# VIBE_STACK_HOME is the parent of bin/ (the repo root).
+# Environment variable overrides auto-detection.
+VIBE_STACK_HOME="${VIBE_STACK_HOME:-$(dirname "$SCRIPT_DIR")}"
 PROJECT_ROOT="${PWD}"
 
 # ---- Colors ----
