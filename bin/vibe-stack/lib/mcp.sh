@@ -281,9 +281,10 @@ install_mcp_binaries() {
 
     local plat_key
     case "$(uname -s)" in
-        Linux)  plat_key="linux" ;;
-        Darwin) plat_key="darwin" ;;
-        *)      plat_key="linux" ;;
+        Linux)                         plat_key="linux" ;;
+        Darwin)                        plat_key="darwin" ;;
+        MINGW*|MSYS*|CYGWIN*)          plat_key="windows" ;;
+        *)                             plat_key="linux" ;;
     esac
 
     local found_any=false
@@ -341,9 +342,9 @@ install_mcp_binaries() {
 
         in_release && repo != "" {
             if (index($0, "\"" plat "\"") > 0) {
-                gsub(/.*"/, "", $0)
-                gsub(/"[:[space:]]*/, "", $0)
-                gsub(/".*/, "")
+                # Extract asset name: remove key prefix up to the opening quote of the value
+                gsub(/^[[:space:]]*[^:]+:[[:space:]]*"/, "")
+                gsub(/".*$/, "")
                 asset = $0
             }
         }

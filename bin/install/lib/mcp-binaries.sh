@@ -8,9 +8,10 @@ install_mcp_binaries() {
 
     local plat_key
     case "$(uname -s)" in
-        Linux)  plat_key="linux" ;;
-        Darwin) plat_key="darwin" ;;
-        *)      plat_key="linux" ;;
+        Linux)                         plat_key="linux" ;;
+        Darwin)                        plat_key="darwin" ;;
+        MINGW*|MSYS*|CYGWIN*)          plat_key="windows" ;;
+        *)                             plat_key="linux" ;;
     esac
 
     echo ""

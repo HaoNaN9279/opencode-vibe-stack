@@ -9,9 +9,9 @@
       "release": {
         "repo": "HaoNaN9279/data_forge",
         "asset": {
-          "linux": "data-forge-linux",
-          "windows": "data-forge.exe",
-          "darwin": "data-forge-darwin"
+          "linux": "data-forge-linux-x64",
+          "windows": "data-forge-windows-x64.exe",
+          "darwin": "data-forge-macos-x64"
         }
       }
     }
