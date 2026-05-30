@@ -136,47 +136,75 @@ Write-Host ""
 # ---- Update configuration files ----
 Write-Bold "[2/4] Updating configuration files..."
 
-# ---- JSONC helpers (pure PowerShell, no python) ----
-function Read-JsoncFile {
-    param([string]$Path)
-    if (-not (Test-Path $Path)) { return $null }
-    $raw = Get-Content -Raw -Path $Path -ErrorAction SilentlyContinue
-    if (-not $raw) { return $null }
-    $clean = $raw -replace '//[^\r\n]*', ''
-    try { return ($clean | ConvertFrom-Json -ErrorAction Stop) }
-    catch { return $null }
+# ---- JSONC helpers (text-based, preserves comments, formatting, and all other content) ----
+
+# Check if a value string exists in a JSONC file
+function Test-JsoncValue {
+    param([string]$FilePath, [string]$Value)
+    if (-not (Test-Path $FilePath)) { return $false }
+    $content = Get-Content -Raw -Path $FilePath -ErrorAction SilentlyContinue
+    if (-not $content) { return $false }
+    return $content.Contains($Value)
 }
 
-function Save-JsonFile {
-    param([string]$Path, $Data)
-    $json = $Data | ConvertTo-Json -Depth 10
-    Set-Content -Path $Path -Value $json -Encoding UTF8
+# Add a value to a JSON array by key (inserts before closing bracket).
+# Returns: 0=added, 1=key not found, 2=already exists
+function Add-JsoncArrayValue {
+    param([string]$FilePath, [string]$Key, [string]$Value)
+    
+    if (-not (Test-Path $FilePath)) { return 1 }
+    
+    # Already exists?
+    if (Test-JsoncValue $FilePath $Value) { return 2 }
+    
+    $content = Get-Content -Raw -Path $FilePath
+    # Key exists?
+    if ($content -notmatch """$Key""") { return 1 }
+    
+    # Read line by line, find key then closing bracket, insert before it
+    $lines = Get-Content -Path $FilePath
+    $newLines = [System.Collections.ArrayList]::new()
+    $inKey = $false
+    $done = $false
+    
+    foreach ($line in $lines) {
+        if (-not $done) {
+            if ($line -match """$Key""") { $inKey = $true }
+            if ($inKey -and ($line -match '^\s*\]\s*,?\s*$')) {
+                [void]$newLines.Add("    ""$Value"",")
+                $done = $true
+            }
+        }
+        [void]$newLines.Add($line)
+    }
+    
+    # Fix trailing comma on the entry just before our insertion (the original last entry)
+    $joined = $newLines -join [Environment]::NewLine
+    Set-Content -Path $FilePath -Value $joined -Encoding UTF8
+    return 0
 }
 
 # -- 2a. Update opencode.json with core rules as instructions --
 $opencodeJson = "$openCodeConfig\opencode.json"
 $rulesGlob = "rules/*.md"
 
-$ocData = Read-JsoncFile $opencodeJson
-if (-not $ocData) {
-    $ocData = [PSCustomObject]@{
-        '$schema'     = 'https://opencode.ai/config.json'
-        instructions = @($rulesGlob)
-    }
-    Save-JsonFile $opencodeJson $ocData
+if (-not (Test-Path $opencodeJson)) {
+    # Create new file from scratch
+    $initial = "{" + [Environment]::NewLine +
+               "  `"`$schema`": `"https://opencode.ai/config.json`"," + [Environment]::NewLine +
+               "  `"instructions`": [" + [Environment]::NewLine +
+               "    `"$rulesGlob`"" + [Environment]::NewLine +
+               "  ]" + [Environment]::NewLine +
+               "}" + [Environment]::NewLine
+    Set-Content -Path $opencodeJson -Value $initial -Encoding UTF8 -NoNewline
     Write-OK "Created $opencodeJson with instructions: $rulesGlob"
 }
 else {
-    if (-not $ocData.PSObject.Properties['instructions']) {
-        $ocData | Add-Member -Name 'instructions' -Value @() -MemberType NoteProperty
-    }
-    if ($rulesGlob -notin $ocData.instructions) {
-        $ocData.instructions += $rulesGlob
-        Save-JsonFile $opencodeJson $ocData
-        Write-OK "Added instructions: $rulesGlob"
-    }
-    else {
-        Write-OK "instructions already has: $rulesGlob"
+    $result = Add-JsoncArrayValue -FilePath $opencodeJson -Key "instructions" -Value $rulesGlob
+    switch ($result) {
+        0 { Write-OK "Added instructions: $rulesGlob" }
+        2 { Write-OK "instructions already has: $rulesGlob" }
+        1 { Write-Warn "instructions key not found in $opencodeJson — skipping" }
     }
 }
 
@@ -302,7 +330,7 @@ if (Test-Path $cliSrc) {
 setlocal enabledelayedexpansion
 
 set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
-if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME=%USERPROFILE%\.opencode-vibe-stack"
+if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME=__VIBE_STACK_HOME__"
 
 set "VIBE_SCRIPT=!VIBE_STACK_HOME!\bin\vibe-stack"
 
@@ -339,6 +367,7 @@ set "VIBE_SCRIPT=!VIBE_SCRIPT:\=/!"
 :: Pass arguments explicitly (up to 9) for compatibility with PowerShell invocation
 "!BASH!" "!VIBE_SCRIPT!" %*
 '@
+    $cliCmdContent = $cliCmdContent -replace '__VIBE_STACK_HOME__', $VIBE_STACK_HOME
     Set-Content -Path $cliCmdPath -Value $cliCmdContent -Encoding ASCII
     Write-OK "CLI .cmd wrapper installed: $cliCmdPath"
 
@@ -349,7 +378,7 @@ set "VIBE_SCRIPT=!VIBE_SCRIPT:\=/!"
 # Requires: Git Bash or WSL bash in PATH
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PassThruArgs)
 
-$vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { "$env:USERPROFILE\.opencode-vibe-stack" }
+$vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { "__VIBE_STACK_HOME__" }
 $vibeScript = (Join-Path $vibeHome "bin\vibe-stack") -replace '\\', '/'
 
 # Search for bash: Git for Windows -> MSYS2 -> WSL -> PATH fallback
@@ -387,6 +416,7 @@ if (-not (Test-Path $vibeScript)) {
 
 & $bash $vibeScript @PassThruArgs
 '@
+    $cliPs1Content = $cliPs1Content -replace '__VIBE_STACK_HOME__', $VIBE_STACK_HOME
     Set-Content -Path $cliPs1Path -Value $cliPs1Content -Encoding UTF8
     Write-OK "CLI .ps1 wrapper installed: $cliPs1Path"
 
