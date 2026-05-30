@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# ============================================================================
+# vibe-stack - CLI management tool for OpenCode Vibe Stack
+#
+# Manage domain-specific AI agent configs: activate, deactivate, list, status.
+# Deployed by install.sh to ~/.local/bin/vibe-stack (or $PATH).
+# ============================================================================
+set -euo pipefail
+
+# ---- Auto-detect VIBE_STACK_HOME from script location ----
+# Resolves symlinks so it works whether the script is symlinked (Linux),
+# called via a wrapper (Windows .cmd/.ps1), or run directly.
+_resolve_script_dir() {
+    local target="${BASH_SOURCE[0]:-$0}"
+    # Follow symlinks (portable: works on GNU/Linux, macOS, and Git Bash)
+    if command -v readlink >/dev/null 2>&1; then
+        while [ -L "$target" ]; do
+            local link
+            link="$(readlink "$target")"
+            case "$link" in
+                /*) target="$link" ;;
+                *)  target="$(dirname "$target")/$link" ;;
+            esac
+        done
+    fi
+    cd "$(dirname "$target")" && pwd
+}
+SCRIPT_DIR="$(_resolve_script_dir)"
+# VIBE_STACK_HOME is the parent of bin/ (the repo root).
+# Environment variable overrides auto-detection.
+VIBE_STACK_HOME="${VIBE_STACK_HOME:-$(dirname "$(dirname "$SCRIPT_DIR")")}"
+PROJECT_ROOT="${PWD}"
+
+# Source libraries
+source "${SCRIPT_DIR}/lib/helpers.sh"
+source "${SCRIPT_DIR}/lib/jsonc.sh"
+source "${SCRIPT_DIR}/lib/path.sh"
+source "${SCRIPT_DIR}/lib/instructions.sh"
+source "${SCRIPT_DIR}/lib/omo-config.sh"
+source "${SCRIPT_DIR}/lib/mcp.sh"
+
+# ---- Main ----
+
+main() {
+    local cmd="${1:-help}"
+
+    case "$cmd" in
+        list)
+            source "${SCRIPT_DIR}/commands/list.sh"
+            cmd_list
+            ;;
+        status)
+            source "${SCRIPT_DIR}/commands/status.sh"
+            cmd_status
+            ;;
+        activate)
+            source "${SCRIPT_DIR}/commands/activate.sh"
+            shift
+            cmd_activate "$@"
+            ;;
+        deactivate)
+            source "${SCRIPT_DIR}/commands/deactivate.sh"
+            shift
+            cmd_deactivate "$@"
+            ;;
+        use-stack)
+            source "${SCRIPT_DIR}/commands/use-stack.sh"
+            cmd_use_stack "${2:-}"
+            ;;
+        core-update)
+            source "${SCRIPT_DIR}/commands/core-update.sh"
+            cmd_core_update
+            ;;
+        help|--help|-h)
+            source "${SCRIPT_DIR}/commands/help.sh"
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $cmd${NC}" >&2
+            echo "" >&2
+            source "${SCRIPT_DIR}/commands/help.sh"
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
