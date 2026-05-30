@@ -156,12 +156,12 @@
   "skills": {
     "sources": [
       {
-        "path": "/home/haonan/.opencode-vibe-stack/core/skills",
+        "path": "<VIBE_STACK_HOME>/core/skills",
         "recursive": true
       }
     ]
   },
   "agent_definitions": [
-    "/home/haonan/.opencode-vibe-stack/core/agents/"
+    "<VIBE_STACK_HOME>/core/agents/"
   ]
 }

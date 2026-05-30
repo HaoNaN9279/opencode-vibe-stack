@@ -10,7 +10,8 @@
         "repo": "HaoNaN9279/data_forge",
         "asset": {
           "linux": "data-forge-linux",
-          "windows": "data-forge.exe"
+          "windows": "data-forge.exe",
+          "darwin": "data-forge-darwin"
         }
       }
     }

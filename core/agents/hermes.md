@@ -6,7 +6,7 @@ name: Hermes
 order: 0
 color: "#6366F1"
 temperature: 0.1
-reasoningEffort": medium
+reasoningEffort: medium
 permission:
     edit: deny
     write: deny
