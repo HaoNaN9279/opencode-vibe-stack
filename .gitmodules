@@ -1,3 +1,0 @@
-[submodule "domains/ai/data_forge/mcp/data_forge"]
-	path = domains/ai/data_forge/mcp/data_forge
-	url = git@github.com:HaoNaN9279/data_forge.git

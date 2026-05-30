@@ -6,14 +6,14 @@
 # Creates core symlinks in ~/.config/opencode/ and installs the CLI tool.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/.../install.sh | bash
-#   # Or clone and run locally:
 #   ./install.sh
 #
+# VIBE_STACK_HOME is auto-detected as the directory containing this script
+# (i.e. the repo root). Override with:
+#   VIBE_STACK_HOME=/custom/path ./install.sh
+#
 # Environment:
-#   VIBE_STACK_HOME     Override install directory (default: ~/.opencode-vibe-stack)
-#   VIBE_STACK_REPO     Override git clone URL
-#   SKIP_CLONE=1        Skip git clone (use if already in repo or pre-installed)
+#   VIBE_STACK_HOME     Override install directory (default: script directory)
 # ============================================================================
 set -euo pipefail
 
@@ -36,60 +36,19 @@ echo -e "${CYAN}║     OpenCode Vibe Stack - One-Click Installer       ║${NC}
 echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# ---- Detect Setup Mode ----
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-REPO_ROOT="$SCRIPT_DIR"
-IS_LOCAL_REPO=false
-
-# Check if we're running from inside the repo
-if [ -f "$REPO_ROOT/core/rules/00-global.md" ] && [ -d "$REPO_ROOT/domains" ]; then
-    IS_LOCAL_REPO=true
-    echo -e "${GREEN}[✓]${NC} Detected local repo at: $REPO_ROOT"
-else
-    echo -e "${YELLOW}[!]${NC} Running outside repo. Will clone from remote."
-fi
-
 # ---- Determine VIBE_STACK_HOME ----
-VIBE_STACK_HOME="${VIBE_STACK_HOME:-$HOME/.opencode-vibe-stack}"
-echo -e "${CYAN}[i]${NC} Install directory: ${BOLD}$VIBE_STACK_HOME${NC}"
-echo ""
+# Default to the directory containing this script (the repo root)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+VIBE_STACK_HOME="${VIBE_STACK_HOME:-$SCRIPT_DIR}"
 
-# ---- Clone / Link Repo ----
-if [ "${SKIP_CLONE:-0}" = "1" ]; then
-    echo -e "${YELLOW}[!]${NC} SKIP_CLONE=1 - skipping repo setup"
-elif [ "$IS_LOCAL_REPO" = true ]; then
-    # Running from the repo itself
-    if [ "$REPO_ROOT" = "$VIBE_STACK_HOME" ]; then
-        echo -e "${GREEN}[✓]${NC} Already running from VIBE_STACK_HOME"
-    elif [ -e "$VIBE_STACK_HOME" ]; then
-        echo -e "${YELLOW}[!]${NC} $VIBE_STACK_HOME already exists, skipping link"
-        echo -e "       To update: cd $VIBE_STACK_HOME && git pull"
-    else
-        echo -e "${CYAN}[i]${NC} Linking repo -> $VIBE_STACK_HOME"
-        ln -sf "$REPO_ROOT" "$VIBE_STACK_HOME"
-        echo -e "${GREEN}[✓]${NC} Linked"
-    fi
-else
-    # Clone from remote
-    REPO_URL="${VIBE_STACK_REPO:-https://github.com/your-org/opencode-vibe-stack.git}"
-
-    if [ -d "$VIBE_STACK_HOME/.git" ]; then
-        echo -e "${CYAN}[i]${NC} Existing repo found, updating..."
-        git -C "$VIBE_STACK_HOME" pull --ff-only 2>/dev/null || {
-            echo -e "${YELLOW}[!]${NC} Could not update - continuing with existing checkout"
-        }
-        echo -e "${GREEN}[✓]${NC} Updated"
-    elif [ -e "$VIBE_STACK_HOME" ]; then
-        echo -e "${RED}[✗]${NC} $VIBE_STACK_HOME exists but is not a git repo"
-        echo "       Remove it or set VIBE_STACK_HOME to a different path."
-        exit 1
-    else
-        echo -e "${CYAN}[i]${NC} Cloning $REPO_URL ..."
-        git clone "$REPO_URL" "$VIBE_STACK_HOME"
-        echo -e "${GREEN}[✓]${NC} Cloned"
-    fi
+# Verify we're in the repo
+if [ ! -f "$VIBE_STACK_HOME/core/rules/00-global.md" ] || [ ! -d "$VIBE_STACK_HOME/domains" ]; then
+    echo -e "${RED}[✗]${NC} VIBE_STACK_HOME does not appear to be a valid vibe-stack repo: $VIBE_STACK_HOME"
+    echo "       Run this script from within the opencode-vibe-stack repository."
+    exit 1
 fi
 
+echo -e "${GREEN}[✓]${NC} Repo root: ${BOLD}$VIBE_STACK_HOME${NC}"
 echo ""
 
 # ---- Create Core Symlinks ----
@@ -137,106 +96,190 @@ echo -e "${BOLD}[2/4] Updating configuration files...${NC}"
 
 OPENCODE_JSON="$OPENCODE_CONFIG/opencode.json"
 RULES_GLOB="rules/*.md"
-USER_CONFIG="$OPENCODE_CONFIG/oh-my-openagent.jsonc"
-CONFIG_MANAGER="$VIBE_STACK_HOME/script/config_manager.py"
 
-if command -v python3 &>/dev/null; then
-    # 2a. Update opencode.json with core rules as instructions
-    python3 "$CONFIG_MANAGER" add-instructions "$OPENCODE_JSON" "$RULES_GLOB"
-    echo ""
+# ---- JSONC Config Helpers (pure bash, no python required) ----
 
-    # 2b. Update oh-my-openagent.jsonc
-    # Ensure config file exists
-    if [ ! -f "$USER_CONFIG" ]; then
-        echo -e "  ${YELLOW}[!]${NC} No oh-my-openagent.jsonc found. Creating minimal config..."
-        cat > "$USER_CONFIG" << 'JSONCEOF'
-{
-  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json"
+# Append a value to a JSON array before its closing bracket.
+# Usage: _jsonc_array_add <file> <key> <value_line>
+# Returns 0 if added, 1 if already present.
+_jsonc_array_add() {
+    local file="$1" key="$2" val="$3"
+    local tmp="${file}.tmp" in_key=false done=false
+
+    [ ! -f "$file" ] && return 1
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        if ! $done; then
+            if echo "$line" | grep -q "\"$key\""; then
+                in_key=true
+            fi
+            if $in_key && echo "$line" | grep -qE '^[[:space:]]*\][[:space:]]*,?[[:space:]]*$'; then
+                echo "$val" >> "$tmp"
+                done=true
+            fi
+        fi
+        echo "$line" >> "$tmp"
+    done < "$file"
+
+    mv "$tmp" "$file"
+    return 0
 }
-JSONCEOF
-        echo -e "  ${GREEN}[OK]${NC} Created $USER_CONFIG"
+
+# 2a. Update opencode.json with core rules as instructions
+if [ ! -f "$OPENCODE_JSON" ]; then
+    printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$RULES_GLOB" > "$OPENCODE_JSON"
+    echo -e "  ${GREEN}[OK]${NC} Created $OPENCODE_JSON with instructions: $RULES_GLOB"
+elif ! grep -qF "\"$RULES_GLOB\"" "$OPENCODE_JSON"; then
+    if _jsonc_array_add "$OPENCODE_JSON" "instructions" "    \"$RULES_GLOB\""; then
+        echo -e "  ${GREEN}[OK]${NC} Added instructions: $RULES_GLOB"
+    else
+        echo -e "  ${YELLOW}[!]${NC} Could not auto-update $OPENCODE_JSON — please add \"$RULES_GLOB\" to the instructions array manually"
     fi
-
-    python3 "$CONFIG_MANAGER" add-skills-source "$USER_CONFIG" "$VIBE_STACK_HOME/core/skills"
-    python3 "$CONFIG_MANAGER" add-agent-defs "$USER_CONFIG" "$VIBE_STACK_HOME/core/agents/"
-
-    echo -e "  ${GREEN}[OK]${NC} Config updated"
 else
-    echo -e "  ${YELLOW}[warn]${NC} python3 not available - skipping config updates"
+    echo -e "  ${GREEN}[OK]${NC} instructions already has: $RULES_GLOB"
 fi
 
 echo ""
 
-# ---- Bootstrap MCP Dependencies ----
-bootstrap_mcp_deps() {
+# ---- Install MCP Binaries ----
+#
+# Scans domains/*/mcp/*.json for MCP configs with "release" metadata,
+# and downloads the pre-built binary from GitHub Releases.
+# Configs without "release" are skipped (binary expected to be already present).
+install_mcp_binaries() {
     local vibe_home="$1"
 
-    # Init submodules
-    if [ -f "$vibe_home/.gitmodules" ]; then
-        echo -e "  ${CYAN}[i]${NC} Initializing git submodules..."
-        if git -C "$vibe_home" submodule update --init --recursive 2>/dev/null; then
-            echo -e "  ${GREEN}[OK]${NC} Submodules ready"
-        else
-            echo -e "  ${YELLOW}[warn]${NC} Submodule init failed — some MCPs may not work"
-            echo "       Run: cd $vibe_home && git submodule update --init --recursive"
-        fi
-    fi
+    local plat_key
+    case "$(uname -s)" in
+        Linux)  plat_key="linux" ;;
+        Darwin) plat_key="darwin" ;;
+        *)      plat_key="linux" ;;
+    esac
 
-    local has_uv=false;  command -v uv  &>/dev/null && has_uv=true
-    local has_pip=false; command -v pip &>/dev/null && has_pip=true
-    local has_npm=false; command -v npm &>/dev/null && has_npm=true
-
+    echo ""
     local found_any=false
 
-    # Python projects under domains/*/mcp/
-    while IFS= read -r -d '' pyproject; do
-        local dir
-        dir=$(dirname "$pyproject")
-        local label
-        label=$(echo "$dir" | sed "s|$vibe_home/||")
-        echo -e "  ${CYAN}[i]${NC} $label ..."
-        if $has_uv; then
-            (cd "$dir" && uv sync 2>/dev/null) && \
-                echo -e "    ${GREEN}[OK]${NC} uv sync" || \
-                echo -e "    ${YELLOW}[warn]${NC} uv sync failed"
-        elif $has_pip; then
-            (cd "$dir" && pip install -e "." --quiet 2>/dev/null) && \
-                echo -e "    ${GREEN}[OK]${NC} pip install" || \
-                echo -e "    ${YELLOW}[warn]${NC} pip install failed"
-        else
-            echo -e "    ${YELLOW}[warn]${NC} Neither uv nor pip found — install manually"
-        fi
-        found_any=true
-    done < <(find "$vibe_home/domains" -name "pyproject.toml" -path "*/mcp/*" -not -path "*/.git/*" -print0 2>/dev/null)
+    for json_file in $(find "$vibe_home/domains" -path "*/mcp/*.json" ! -name "README.md" 2>/dev/null | sort); do
+        [ ! -f "$json_file" ] && continue
 
-    # Node.js projects under domains/*/mcp/
-    while IFS= read -r -d '' pkgjson; do
-        local dir
-        dir=$(dirname "$pkgjson")
-        # Skip if already installed
-        if [ -d "$dir/node_modules" ]; then continue; fi
-        local label
-        label=$(echo "$dir" | sed "s|$vibe_home/||")
-        echo -e "  ${CYAN}[i]${NC} $label ..."
-        if $has_npm; then
-            (cd "$dir" && npm install --silent 2>/dev/null) && \
-                echo -e "    ${GREEN}[OK]${NC} npm install" || \
-                echo -e "    ${YELLOW}[warn]${NC} npm install failed"
-        else
-            echo -e "    ${YELLOW}[warn]${NC} npm not found — install manually"
-        fi
-        found_any=true
-    done < <(find "$vibe_home/domains" -name "package.json" -path "*/mcp/*" -not -path "*/node_modules/*" -not -path "*/.git/*" -print0 2>/dev/null)
+        # Skip files without release metadata
+        grep -q '"release"' "$json_file" 2>/dev/null || continue
 
-    if [ "$found_any" = false ]; then
-        echo -e "  ${CYAN}[i]${NC} No MCP code directories found — nothing to bootstrap"
+        # Strip // comments from JSONC
+        local content
+        content=$(sed 's/[[:space:]]*\/\/.*$//' "$json_file")
+
+        # Extract MCP servers with release metadata (tab-separated: name \t cmd \t repo \t asset)
+        echo "$content" | awk -v plat="$plat_key" -v home="$vibe_home" '
+        BEGIN { OFS="\t"; srv=""; cmd=""; repo=""; asset=""; in_release=0; in_cmd=0 }
+
+        { gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
+
+        # Server entry: "name": {
+        /^"[^"]+"[[:space:]]*:[[:space:]]*\{$/ {
+            flush()
+            srv = $0; gsub(/[[:space:]]*:.*/, "", srv); gsub(/"/, "", srv)
+            cmd = ""; repo = ""; asset = ""; in_release = 0; in_cmd = 0
+            next
+        }
+
+        # Command array on single line: "command": ["path"]
+        /"command"/ {
+            in_cmd = 1
+            if (match($0, /\[[[:space:]]*"([^"]+)"/)) {
+                cmd = substr($0, RSTART+1, RLENGTH-1)
+                gsub(/^\[[[:space:]]*"/, "", cmd); gsub(/"[[:space:]]*\]?.*$/, "", cmd)
+                gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
+                in_cmd = 0
+            }
+            next
+        }
+
+        # Multi-line command array: "path" on next line
+        in_cmd && /^[[:space:]]*"/ {
+            gsub(/^[[:space:]]*"/, ""); gsub(/".*/, "")
+            cmd = $0
+            gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
+            in_cmd = 0
+        }
+
+        in_cmd && /\]/ { in_cmd = 0 }
+
+        # Release block
+        /"release"/ { in_release = 1 }
+
+        # Repo inside release
+        in_release && /"repo"/ {
+            gsub(/.*"repo"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            repo = $0
+        }
+
+        # Platform asset inside release
+        in_release && repo != "" {
+            re = "\"" plat "\""
+            if (index($0, re) > 0) {
+                gsub(/.*"'"$plat_key"'"[[:space:]]*:[[:space:]]*"/, "")
+                gsub(/".*/, "")
+                asset = $0
+            }
+        }
+
+        # End of blocks
+        /^\}[[:space:]]*,?[[:space:]]*$/ {
+            if (in_release) { in_release = 0 }
+            else { flush(); srv = "" }
+        }
+
+        function flush() {
+            if (srv && cmd && repo && asset)
+                print srv, cmd, repo, asset
+        }
+
+        END { flush() }
+        ' | while IFS=$'\t' read -r srv cmd repo asset; do
+            [ -z "$srv" ] && continue
+            found_any=true
+
+            if [ -f "$cmd" ]; then
+                echo "  ✅ $srv — binary already installed at $cmd"
+                continue
+            fi
+
+            local url="https://github.com/$repo/releases/latest/download/$asset"
+            echo "  ⬇  $srv: downloading $asset …"
+            mkdir -p "$(dirname "$cmd")" 2>/dev/null
+
+            if command -v curl &>/dev/null; then
+                if curl -fsSL -o "$cmd" "$url" 2>/dev/null; then
+                    chmod +x "$cmd" 2>/dev/null
+                    echo "    ✅ $asset installed → $cmd"
+                else
+                    echo "    ⚠  Download failed: $url"
+                    rm -f "$cmd" 2>/dev/null
+                fi
+            elif command -v wget &>/dev/null; then
+                if wget -q -O "$cmd" "$url" 2>/dev/null; then
+                    chmod +x "$cmd" 2>/dev/null
+                    echo "    ✅ $asset installed → $cmd"
+                else
+                    echo "    ⚠  Download failed: $url"
+                    rm -f "$cmd" 2>/dev/null
+                fi
+            else
+                echo "    ⚠  No curl or wget found — cannot download: $url"
+            fi
+        done
+    done
+
+    if ! $found_any; then
+        echo "  ℹ  No MCP binaries to download (all already installed or no release metadata)."
     fi
+    echo ""
 }
 
-echo -e "${BOLD}[3/4] Bootstrapping MCP dependencies...${NC}"
-echo ""
-bootstrap_mcp_deps "$VIBE_STACK_HOME"
-echo ""
+echo -e "${BOLD}[3/4] Installing MCP binaries...${NC}"
+install_mcp_binaries "$VIBE_STACK_HOME"
 
 # ---- Install CLI Tool ----
 echo -e "${BOLD}[4/4] Installing CLI tool...${NC}"
@@ -300,7 +343,7 @@ echo -e "  3. Check active domains:"
 echo -e "     ${CYAN}vibe-stack status${NC}"
 echo ""
 echo -e "  4. Update the stack later:"
-echo -e "     ${CYAN}cd ~/.opencode-vibe-stack && git pull${NC}"
+echo -e "     ${CYAN}cd $VIBE_STACK_HOME && git pull${NC}"
 echo -e "     ${CYAN}vibe-stack core-update${NC}"
 echo ""
 echo -e "  ${BOLD}Location:${NC}    $VIBE_STACK_HOME"

@@ -3,13 +3,16 @@
     "data-forge": {
       "type": "local",
       "command": [
-        "uv",
-        "run",
-        "--directory",
-        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data_forge",
-        "data-forge-mcp"
+        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge"
       ],
-      "enabled": true
+      "enabled": true,
+      "release": {
+        "repo": "HaoNaN9279/data_forge",
+        "asset": {
+          "linux": "data-forge-linux",
+          "windows": "data-forge.exe"
+        }
+      }
     }
   }
 }

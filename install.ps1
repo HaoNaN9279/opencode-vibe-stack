@@ -5,9 +5,11 @@
 # Creates core symlinks/junctions in ~/.config/opencode/ and installs the CLI.
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/.../install.ps1 | iex
-#   # Or clone and run locally:
 #   .\install.ps1
+#
+# VIBE_STACK_HOME is auto-detected as the directory containing this script
+# (i.e. the repo root). Override with:
+#   $env:VIBE_STACK_HOME = "C:\custom\path"; .\install.ps1
 #
 # Requirements:
 #   - Windows 10+ with Developer Mode enabled (for symlinks without admin)
@@ -15,14 +17,8 @@
 #   - Git must be installed
 #
 # Environment:
-#   $env:VIBE_STACK_HOME     Override install directory (default: ~/.opencode-vibe-stack)
-#   $env:VIBE_STACK_REPO     Override git clone URL
-#   $env:SKIP_CLONE          Set to 1 to skip git clone
+#   $env:VIBE_STACK_HOME     Override install directory (default: script directory)
 # ============================================================================
-
-param(
-    [switch]$SkipClone = $false
-)
 
 $ErrorActionPreference = "Stop"
 
@@ -40,25 +36,25 @@ Write-Host "     OpenCode Vibe Stack - Windows Installer         " -ForegroundCo
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ---- Detect Setup Mode ----
-$scriptPath = $MyInvocation.MyCommand.Path
-$scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $null }
-$isLocalRepo = $false
-
-if ($scriptDir -and (Test-Path "$scriptDir/core/rules/00-global.md") -and (Test-Path "$scriptDir/domains")) {
-    $isLocalRepo = $true
-    Write-OK "Detected local repo at: $scriptDir"
-} else {
-    Write-Warn "Running outside repo. Will clone from remote."
-}
-
 # ---- Determine VIBE_STACK_HOME ----
+# Default to the directory containing this script (the repo root)
+$scriptPath = $MyInvocation.MyCommand.Path
+$scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $PWD.Path }
+
 if ($env:VIBE_STACK_HOME) {
     $VIBE_STACK_HOME = $env:VIBE_STACK_HOME
 } else {
-    $VIBE_STACK_HOME = "$env:USERPROFILE\.opencode-vibe-stack"
+    $VIBE_STACK_HOME = $scriptDir
 }
-Write-Info "Install directory: $VIBE_STACK_HOME"
+
+# Verify we're in the repo
+if (-not (Test-Path "$VIBE_STACK_HOME/core/rules/00-global.md") -or -not (Test-Path "$VIBE_STACK_HOME/domains")) {
+    Write-Error_ "VIBE_STACK_HOME does not appear to be a valid vibe-stack repo: $VIBE_STACK_HOME"
+    Write-Host "       Run this script from within the opencode-vibe-stack repository."
+    exit 1
+}
+
+Write-OK "Repo root: $VIBE_STACK_HOME"
 Write-Host ""
 
 # ---- Helper: Create symbolic link (with junction fallback) ----
@@ -74,9 +70,6 @@ function New-SafeSymlink {
             $existing = Get-Item $Link -Force -ErrorAction Stop
             $isReparse = ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
             if ($isReparse) {
-                # Reparse point (symlink/junction): remove without -Recurse to
-                # avoid following the link into the target directory.
-                # Use cmd.exe rmdir which safely removes only the reparse point.
                 & cmd.exe /c "rmdir `"$Link`""
                 if ($LASTEXITCODE -ne 0) {
                     throw "rmdir failed with exit code $LASTEXITCODE"
@@ -112,45 +105,6 @@ function New-SafeSymlink {
     }
 }
 
-# ---- Clone / Link Repo ----
-if ($SkipClone -or ($env:SKIP_CLONE -eq "1")) {
-    Write-Warn "SKIP_CLONE set - skipping repo setup"
-} elseif ($isLocalRepo) {
-    if ($scriptDir -eq $VIBE_STACK_HOME) {
-        Write-OK "Already running from VIBE_STACK_HOME"
-    } elseif (Test-Path $VIBE_STACK_HOME) {
-        Write-Warn "$VIBE_STACK_HOME already exists, skipping link"
-    } else {
-        Write-Info "Linking repo -> $VIBE_STACK_HOME"
-        New-SafeSymlink -Target $scriptDir -Link $VIBE_STACK_HOME | Out-Null
-        Write-OK "Linked"
-    }
-} else {
-    $repoUrl = if ($env:VIBE_STACK_REPO) { $env:VIBE_STACK_REPO } else { "https://github.com/your-org/opencode-vibe-stack.git" }
-
-    if (Test-Path "$VIBE_STACK_HOME/.git") {
-        Write-Info "Existing repo found, updating..."
-        Push-Location $VIBE_STACK_HOME
-        try {
-            git pull --ff-only 2>$null
-            Write-OK "Updated"
-        } catch {
-            Write-Warn "Could not update - continuing with existing checkout"
-        }
-        Pop-Location
-    } elseif (Test-Path $VIBE_STACK_HOME) {
-        Write-Error_ "$VIBE_STACK_HOME exists but is not a git repo"
-        Write-Host "       Remove it or set `$env:VIBE_STACK_HOME to a different path."
-        exit 1
-    } else {
-        Write-Info "Cloning $repoUrl ..."
-        git clone $repoUrl $VIBE_STACK_HOME
-        Write-OK "Cloned"
-    }
-}
-
-Write-Host ""
-
 # ---- Create Core Symlinks ----
 Write-Bold "[1/4] Creating core symlinks..."
 
@@ -168,22 +122,6 @@ foreach ($type in $symlinkTypes) {
         continue
     }
 
-    # Check if already correctly linked
-    # Note: PS 5.1 (Windows PowerShell) doesn't expose LinkType/Target on
-    # directory entries. Skip this optimization -- New-SafeSymlink safely
-    # handles re-creation by removing the existing item first.
-    if (Test-Path $destDir) {
-        try {
-            $item = Get-Item $destDir -Force -ErrorAction Stop
-            $isReparse = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
-            if ($isReparse) {
-                Write-OK "$type/ -> link exists, will refresh"
-            }
-        } catch {
-            # Can't determine -- let New-SafeSymlink handle it
-        }
-    }
-
     Write-Info "Linking $type/ ..."
     $success = New-SafeSymlink -Target $srcDir -Link $destDir
     if ($success) {
@@ -198,138 +136,149 @@ Write-Host ""
 # ---- Update configuration files ----
 Write-Bold "[2/4] Updating configuration files..."
 
-# Detect Python once for all config file manipulations
-# On Windows 11, "python" may resolve to the Microsoft Store App Execution
-# Alias stub, not a real Python installation. Filter those out.
-$pythonCmd = $null
-foreach ($candidate in @("python3", "python")) {
-    $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
-    if ($cmd) {
-        $src = $cmd.Source
-        # Skip Microsoft Store stubs (App Installer / WindowsApps paths)
-        if ($src -and $src -notmatch '\\WindowsApps\\|AppInstaller') {
-            $pythonCmd = $candidate
-            break
-        }
-    }
+# ---- JSONC helpers (pure PowerShell, no python) ----
+function Read-JsoncFile {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $null }
+    $raw = Get-Content -Raw -Path $Path -ErrorAction SilentlyContinue
+    if (-not $raw) { return $null }
+    $clean = $raw -replace '//[^\r\n]*', ''
+    try { return ($clean | ConvertFrom-Json -ErrorAction Stop) }
+    catch { return $null }
 }
 
-if (-not $pythonCmd) {
-    Write-Warn "python3 not available - config file updates will be skipped"
+function Save-JsonFile {
+    param([string]$Path, $Data)
+    $json = $Data | ConvertTo-Json -Depth 10
+    Set-Content -Path $Path -Value $json -Encoding UTF8
 }
 
 # -- 2a. Update opencode.json with core rules as instructions --
-# Path is relative to the config directory (where the rules/ symlink lives)
 $opencodeJson = "$openCodeConfig\opencode.json"
 $rulesGlob = "rules/*.md"
-$configManager = "$VIBE_STACK_HOME\script\config_manager.py"
 
-if ($pythonCmd) {
-    & $pythonCmd $configManager add-instructions "$opencodeJson" "$rulesGlob"
+$ocData = Read-JsoncFile $opencodeJson
+if (-not $ocData) {
+    $ocData = [PSCustomObject]@{
+        '$schema'     = 'https://opencode.ai/config.json'
+        instructions = @($rulesGlob)
+    }
+    Save-JsonFile $opencodeJson $ocData
+    Write-OK "Created $opencodeJson with instructions: $rulesGlob"
 }
+else {
+    if (-not $ocData.PSObject.Properties['instructions']) {
+        $ocData | Add-Member -Name 'instructions' -Value @() -MemberType NoteProperty
+    }
+    if ($rulesGlob -notin $ocData.instructions) {
+        $ocData.instructions += $rulesGlob
+        Save-JsonFile $opencodeJson $ocData
+        Write-OK "Added instructions: $rulesGlob"
+    }
+    else {
+        Write-OK "instructions already has: $rulesGlob"
+    }
+}
+
+
 
 Write-Host ""
 
-# -- 2b. Update oh-my-openagent.jsonc --
-Write-Host "  --- oh-my-openagent.jsonc ---" -ForegroundColor White
-
-$userConfig = "$openCodeConfig\oh-my-openagent.jsonc"
-
-# Ensure config file exists
-if (-not (Test-Path $userConfig)) {
-    Write-Warn "No oh-my-openagent.jsonc found. Creating minimal config..."
-    @'
-{
-  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json"
-}
-'@ | Out-File -FilePath $userConfig -Encoding UTF8
-    Write-OK "Created $userConfig"
-}
-
-if ($pythonCmd) {
-    $skillsPath = $VIBE_STACK_HOME.Replace('\', '/') + "/core/skills"
-    & $pythonCmd $configManager add-skills-source "$userConfig" "$skillsPath"
-
-    $agentsPath = $VIBE_STACK_HOME.Replace('\', '/') + "/core/agents/"
-    & $pythonCmd $configManager add-agent-defs "$userConfig" "$agentsPath"
-
-    Write-OK "Config updated"
-}
-
-Write-Host ""
-
-# ---- Bootstrap MCP Dependencies ----
-function Bootstrap-McpDeps {
+# ---- Install MCP Binaries ----
+#
+# Scans $VibeHome\domains\*\mcp\*.json for MCP configs with "release" metadata,
+# and downloads the pre-built binary from GitHub Releases.
+# Configs without "release" are skipped (binary expected to be already present).
+function Install-McpBinaries {
     param([string]$VibeHome)
 
-    # Init submodules
-    if (Test-Path "$VibeHome\.gitmodules") {
-        Write-Info "Initializing git submodules..."
-        Push-Location $VibeHome
-        try {
-            git submodule update --init --recursive 2>$null
-            Write-OK "Submodules ready"
-        } catch {
-            Write-Warn "Submodule init failed — some MCPs may not work"
-            Write-Host "       Run: cd $VibeHome; git submodule update --init --recursive"
-        }
-        Pop-Location
-    }
+    # Detect platform key matching the release.asset map
+    $platformKey = if ($IsLinux) { "linux" }
+                   elseif ($IsMacOS) { "darwin" }
+                   else { "windows" }
 
-    $hasUv = [bool](Get-Command uv -ErrorAction SilentlyContinue)
-    $hasPip = [bool](Get-Command pip -ErrorAction SilentlyContinue)
-    $hasNpm = [bool](Get-Command npm -ErrorAction SilentlyContinue)
     $foundAny = $false
+    $jsonPattern = Join-Path $VibeHome "domains\*\mcp\*.json"
 
-    $domainsMcp = Join-Path $VibeHome "domains"
+    $jsonFiles = Get-ChildItem -Path $jsonPattern -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -ne "README.md" }
 
-    # Python projects under domains/*/mcp/
-    $pyProjects = Get-ChildItem -Path $domainsMcp -Recurse -Filter "pyproject.toml" -ErrorAction SilentlyContinue |
-                  Where-Object { $_.FullName -match '\\mcp\\' -and $_.FullName -notmatch '\\.git\\' }
-    foreach ($py in $pyProjects) {
-        $dir = $py.DirectoryName
-        $label = $dir.Replace($VibeHome, "").TrimStart("\")
-        Write-Info "$label ..."
-        if ($hasUv) {
-            Push-Location $dir
-            try { uv sync 2>$null; Write-OK "  uv sync" } catch { Write-Warn "  uv sync failed" }
-            Pop-Location
-        } elseif ($hasPip) {
-            Push-Location $dir
-            try { pip install -e "." --quiet 2>$null; Write-OK "  pip install" } catch { Write-Warn "  pip install failed" }
-            Pop-Location
-        } else {
-            Write-Warn "  Neither uv nor pip found — install manually"
+    foreach ($jsonFile in $jsonFiles) {
+        try {
+            $data = Get-Content -Raw $jsonFile.FullName | ConvertFrom-Json
+        } catch {
+            continue
         }
-        $foundAny = $true
-    }
 
-    # Node.js projects under domains/*/mcp/ (skip if node_modules exists)
-    $nodeProjects = Get-ChildItem -Path $domainsMcp -Recurse -Filter "package.json" -ErrorAction SilentlyContinue |
-                    Where-Object { $_.FullName -match '\\mcp\\' -and $_.FullName -notmatch '\\node_modules\\' -and $_.FullName -notmatch '\\.git\\' }
-    foreach ($pkg in $nodeProjects) {
-        $dir = $pkg.DirectoryName
-        if (Test-Path (Join-Path $dir "node_modules")) { continue }
-        $label = $dir.Replace($VibeHome, "").TrimStart("\")
-        Write-Info "$label ..."
-        if ($hasNpm) {
-            Push-Location $dir
-            try { npm install --silent 2>$null; Write-OK "  npm install" } catch { Write-Warn "  npm install failed" }
-            Pop-Location
-        } else {
-            Write-Warn "  npm not found — install manually"
+        $mcpBlock = $data.mcp
+        if (-not $mcpBlock) { $mcpBlock = $data.mcpServers }
+        if (-not $mcpBlock) { continue }
+
+        foreach ($prop in $mcpBlock.PSObject.Properties) {
+            $name = $prop.Name
+            $cfg = $prop.Value
+
+            if (-not $cfg.release) {
+                # Config without release metadata — skip (binary assumed already in repo)
+                continue
+            }
+
+            # Resolve binary path from command array
+            $cmd = $cfg.command
+            if (-not $cmd -or $cmd.Count -eq 0) { continue }
+            $binaryPath = $cmd[0].Replace('${VIBE_STACK_HOME}', $VibeHome)
+
+            # Skip if already installed
+            if (Test-Path $binaryPath -PathType Leaf) {
+                Write-Host "  [OK] $name` — binary already installed at $binaryPath" -ForegroundColor Green
+                $foundAny = $true
+                continue
+            }
+
+            # Determine asset name for this platform
+            $assetName = $cfg.release.asset.$platformKey
+            if (-not $assetName) {
+                Write-Warn "$name`: no asset defined for platform '$platformKey'"
+                continue
+            }
+
+            $repo = $cfg.release.repo
+            if (-not $repo) {
+                Write-Warn "$name`: missing 'repo' in release metadata"
+                continue
+            }
+
+            $url = "https://github.com/$repo/releases/latest/download/$assetName"
+            $binaryDir = Split-Path -Parent $binaryPath
+
+            Write-Info "$name`: downloading $assetName ..."
+
+            if (-not (Test-Path $binaryDir)) {
+                New-Item -ItemType Directory -Force -Path $binaryDir | Out-Null
+            }
+
+            try {
+                Invoke-WebRequest -Uri $url -OutFile $binaryPath -ErrorAction Stop
+                # Set executable attribute (not strictly needed on Windows, but harmless)
+                Write-Host "    [OK] $assetName installed -> $binaryPath" -ForegroundColor Green
+                $foundAny = $true
+            } catch {
+                Write-Warn "Failed to download $assetName`: $($_.Exception.Message)"
+                Write-Host "       URL: $url"
+                # Clean up partial download
+                if (Test-Path $binaryPath) { Remove-Item $binaryPath -Force -ErrorAction SilentlyContinue }
+            }
         }
-        $foundAny = $true
     }
 
     if (-not $foundAny) {
-        Write-Info "No MCP code directories found — nothing to bootstrap"
+        Write-Info "No MCP binaries to download (all already installed or no release metadata)."
     }
 }
 
-Write-Bold "[3/4] Bootstrapping MCP dependencies..."
+Write-Bold "[3/4] Installing MCP binaries..."
 Write-Host ""
-Bootstrap-McpDeps -VibeHome $VIBE_STACK_HOME
+Install-McpBinaries -VibeHome $VIBE_STACK_HOME
 Write-Host ""
 
 # ---- Install CLI Tool ----
@@ -487,7 +436,7 @@ Write-Host "  3. Check active domains:"
 Write-Host "     vibe-stack status" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  4. Update the stack later:"
-Write-Host "     cd ~/.opencode-vibe-stack && git pull" -ForegroundColor Cyan
+Write-Host "     cd $VIBE_STACK_HOME && git pull" -ForegroundColor Cyan
 Write-Host "     vibe-stack core-update" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Location:   $VIBE_STACK_HOME"

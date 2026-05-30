@@ -35,14 +35,75 @@ resolve_path() {
     fi
 }
 
-# Detect python3 (for JSONC manipulation)
-PYTHON3=""
-detect_python3() {
-    if command -v python3 &>/dev/null; then
-        PYTHON3="python3"
-    elif command -v python &>/dev/null; then
-        PYTHON3="python"
+# ---- JSONC Array Operations (pure bash, no external deps) ----
+
+# Check if a value string exists in file (literal match)
+_jsonc_array_has() {
+    local file="$1" val="$2"
+    [ -f "$file" ] && grep -qF "$val" "$file" 2>/dev/null
+}
+
+# Fix trailing commas before closing JSON brackets
+_jsonc_fix_trailing_commas() {
+    local file="$1"
+    awk '
+    NR == 1 { prev = $0; next }
+    {
+        if (prev ~ /,[[:space:]]*$/ && $0 ~ /^[[:space:]]*\]/) {
+            sub(/,[[:space:]]*$/, "", prev)
+        }
+        print prev
+        prev = $0
+    }
+    END { print prev }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# Add value to JSON array (inserts before closing ])
+# Returns: 0=added, 1=key not found, 2=already exists
+_jsonc_array_add() {
+    local file="$1" key="$2" val="$3"
+    local tmp="${file}.tmp" in_key=false done=false
+
+    [ ! -f "$file" ] && return 1
+
+    if _jsonc_array_has "$file" "$val"; then
+        return 2
     fi
+
+    if ! grep -q "\"$key\"" "$file" 2>/dev/null; then
+        return 1
+    fi
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        if ! $done; then
+            if echo "$line" | grep -q "\"$key\""; then
+                in_key=true
+            fi
+            if $in_key && echo "$line" | grep -qE '^[[:space:]]*\][[:space:]]*,?[[:space:]]*$'; then
+                echo "$val" >> "$tmp"
+                done=true
+            fi
+        fi
+        echo "$line" >> "$tmp"
+    done < "$file"
+
+    mv "$tmp" "$file"
+    _jsonc_fix_trailing_commas "$file"
+    return 0
+}
+
+# Remove lines containing value from JSON array, fix trailing commas
+_jsonc_array_remove() {
+    local file="$1" val="$2"
+    local tmp="${file}.tmp"
+
+    [ ! -f "$file" ] && return 1
+
+    grep -vF "$val" "$file" > "$tmp"
+    mv "$tmp" "$file"
+    _jsonc_fix_trailing_commas "$file"
+    return 0
 }
 
 # Convert a POSIX path to Windows format (/c/Users/... -> C:\Users\...)
@@ -110,190 +171,7 @@ create_dir_link() {
     return 1
 }
 
-# ---- JSONC Helpers (use python3 for reliability) ----
 
-# Add or remove a skills source entry in a .opencode/oh-my-openagent.jsonc
-# Usage: modify_skills_source <config_path> <action:add|remove> <skills_path>
-modify_skills_source() {
-    local config_path="$1"
-    local action="$2"
-    local skills_path="$3"
-
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found - skipping oh-my-openagent.jsonc update"
-        return 0
-    fi
-
-    $PYTHON3 - "$config_path" "$action" "$skills_path" << 'PYEOF'
-import json, os, sys
-
-config_path = sys.argv[1]
-action = sys.argv[2]
-skills_path = sys.argv[3]
-
-# Read original content to preserve it
-try:
-    with open(config_path, 'r') as f:
-        original = f.read()
-except FileNotFoundError:
-    if action == 'add':
-        original = '{}\n'
-    else:
-        sys.exit(0)
-
-# Parse: strip // comments
-lines = []
-for line in original.split('\n'):
-    # Simple inline comment stripping (not perfect but works for practical cases)
-    stripped = line
-    # Find // outside of strings
-    in_str = False
-    in_quote = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-            in_quote = not in_quote
-        elif in_str and line[i] == '\\':
-            i += 1  # skip escaped char
-        elif in_str and line[i] == '"':
-            in_str = False
-            in_quote = not in_quote
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-
-    if comment_start >= 0:
-        stripped = line[:comment_start]
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    # Fallback: try with empty object
-    data = {}
-
-# Ensure skills.sources exists
-if 'skills' not in data:
-    data['skills'] = {}
-if 'sources' not in data['skills']:
-    data['skills']['sources'] = []
-
-sources = data['skills']['sources']
-
-if action == 'add':
-    entry = {'path': skills_path, 'recursive': True}
-    if not any(s.get('path') == skills_path for s in sources):
-        sources.append(entry)
-        print(f'Added skills source: {skills_path}')
-elif action == 'remove':
-    new_sources = [s for s in sources if s.get('path') != skills_path]
-    if len(new_sources) < len(sources):
-        data['skills']['sources'] = new_sources
-        print(f'Removed skills source: {skills_path}')
-
-# Clean up empty arrays/objects
-if 'skills' in data and 'sources' in data['skills'] and not data['skills']['sources']:
-    del data['skills']['sources']
-if 'skills' in data and not data['skills']:
-    del data['skills']
-
-# Write back - $schema is included in json.dumps output
-output = json.dumps(data, indent=2, ensure_ascii=False)
-with open(config_path, 'w') as f:
-    f.write(output + '\n')
-PYEOF
-}
-
-# Add or remove agent_definitions entry
-# Usage: modify_agent_defs <config_path> <action:add|remove> <agents_path>
-modify_agent_defs() {
-    local config_path="$1"
-    local action="$2"
-    local agents_path="$3"
-
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found - skipping oh-my-openagent.jsonc update"
-        return 0
-    fi
-
-    $PYTHON3 - "$config_path" "$action" "$agents_path" << 'PYEOF'
-import json, os, sys
-
-config_path = sys.argv[1]
-action = sys.argv[2]
-agents_path = sys.argv[3]
-
-try:
-    with open(config_path, 'r') as f:
-        original = f.read()
-except FileNotFoundError:
-    if action == 'add':
-        original = '{}\n'
-    else:
-        sys.exit(0)
-
-# Strip // comments
-lines = []
-for line in original.split('\n'):
-    stripped = line
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    if comment_start >= 0:
-        stripped = line[:comment_start]
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-if 'agent_definitions' not in data:
-    data['agent_definitions'] = []
-
-defs = data['agent_definitions']
-
-if action == 'add':
-    if agents_path not in defs:
-        defs.append(agents_path)
-        print(f'Added agent_definitions: {agents_path}')
-elif action == 'remove':
-    new_defs = [d for d in defs if d != agents_path]
-    if len(new_defs) < len(defs):
-        data['agent_definitions'] = new_defs
-        print(f'Removed agent_definitions: {agents_path}')
-
-# Clean up
-if 'agent_definitions' in data and not data['agent_definitions']:
-    del data['agent_definitions']
-
-output = json.dumps(data, indent=2, ensure_ascii=False)
-with open(config_path, 'w') as f:
-    f.write(output + '\n')
-PYEOF
-}
 
 # Sync opencode.json instructions to include core rules
 # Usage: sync_opencode_instructions <opencode_json_path> <rules_glob>
@@ -301,70 +179,21 @@ sync_opencode_instructions() {
     local config_path="$1"
     local rules_glob="$2"
 
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found - skipping opencode.json update"
+    if _jsonc_array_has "$config_path" "\"$rules_glob\""; then
+        info "instructions already up-to-date"
         return 0
     fi
 
-    $PYTHON3 - "$config_path" "$rules_glob" << 'PYEOF'
-import json, sys, os
+    if [ ! -f "$config_path" ]; then
+        printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$rules_glob" > "$config_path"
+        info "Created $config_path with instructions: $rules_glob"
+        return 0
+    fi
 
-config_path = sys.argv[1]
-rules_glob = sys.argv[2]
-
-# Read existing config
-original = ""
-if os.path.exists(config_path):
-    with open(config_path, 'r') as f:
-        original = f.read()
-
-# Strip // comments for JSON parsing
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-# Ensure $schema
-if '$schema' not in data:
-    data['$schema'] = 'https://opencode.ai/config.json'
-
-# Ensure instructions
-if 'instructions' not in data:
-    data['instructions'] = []
-
-instructions = data['instructions']
-if rules_glob not in instructions:
-    instructions.append(rules_glob)
-    print(f'  Added instructions: {rules_glob}')
-
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    with open(config_path, 'w') as f:
-        f.write(output + '\n')
-else:
-    print(f'  instructions already up-to-date')
-PYEOF
+    if grep -q '"instructions"' "$config_path" 2>/dev/null; then
+        _jsonc_array_add "$config_path" "instructions" "    \"$rules_glob\""
+    fi
+    info "Added instructions: $rules_glob"
 }
 
 # Add or remove instructions entry in project-level .opencode/opencode.json
@@ -374,84 +203,26 @@ modify_project_instructions() {
     local action="$2"
     local instructions_path="$3"
 
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found - skipping opencode.json update"
-        return 0
-    fi
-
-    $PYTHON3 - "$config_path" "$action" "$instructions_path" << 'PYEOF'
-import json, os, sys
-
-config_path = sys.argv[1]
-action = sys.argv[2]
-instructions_path = sys.argv[3]
-
-try:
-    with open(config_path, 'r') as f:
-        original = f.read()
-except FileNotFoundError:
-    if action == 'add':
-        original = '{}'
-    else:
-        sys.exit(0)
-
-# Strip // comments
-lines = []
-for line in original.split('\n'):
-    in_str = False
-    comment_start = -1
-    i = 0
-    while i < len(line):
-        if not in_str and line[i] == '"':
-            in_str = True
-        elif in_str and line[i] == '\\':
-            i += 1
-        elif in_str and line[i] == '"':
-            in_str = False
-        elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-            comment_start = i
-            break
-        i += 1
-    stripped = line[:comment_start] if comment_start >= 0 else line
-    if stripped.strip():
-        lines.append(stripped)
-
-clean_json = '\n'.join(lines)
-try:
-    data = json.loads(clean_json)
-except json.JSONDecodeError:
-    data = {}
-
-# Ensure $schema
-if '$schema' not in data:
-    data['$schema'] = 'https://opencode.ai/config.json'
-
-# Ensure instructions
-if 'instructions' not in data:
-    data['instructions'] = []
-
-instructions = data['instructions']
-
-if action == 'add':
-    if instructions_path not in instructions:
-        instructions.append(instructions_path)
-        data['instructions'] = instructions
-        print(f'  Added instructions: {instructions_path}')
-elif action == 'remove':
-    new_instructions = [i for i in instructions if i != instructions_path]
-    if len(new_instructions) < len(instructions):
-        data['instructions'] = new_instructions
-        print(f'  Removed instructions: {instructions_path}')
-
-# Clean up empty arrays
-if 'instructions' in data and not data['instructions']:
-    del data['instructions']
-
-output = json.dumps(data, indent=2, ensure_ascii=False)
-with open(config_path, 'w') as f:
-    f.write(output + '\n')
-PYEOF
+    case "$action" in
+        add)
+            if _jsonc_array_has "$config_path" "\"$instructions_path\""; then
+                return 0
+            fi
+            if [ ! -f "$config_path" ]; then
+                printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$instructions_path" > "$config_path"
+                info "Added instructions: $instructions_path"
+                return 0
+            fi
+            if grep -q '"instructions"' "$config_path" 2>/dev/null; then
+                _jsonc_array_add "$config_path" "instructions" "    \"$instructions_path\""
+            fi
+            info "Added instructions: $instructions_path"
+            ;;
+        remove)
+            _jsonc_array_remove "$config_path" "$instructions_path"
+            info "Removed instructions: $instructions_path"
+            ;;
+    esac
 }
 
 # ---- MCP Activation ----
@@ -471,164 +242,143 @@ activate_mcp() {
 
     local json_files
     json_files=$(ls "$mcp_src"/*.json 2>/dev/null || true)
-    if [ -z "$json_files" ]; then
-        return 0
-    fi
-
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found — MCP activation skipped for $domain"
-        return 0
-    fi
+    [ -z "$json_files" ] && return 0
 
     mkdir -p ".opencode"
     local project_config=".opencode/opencode.json"
 
-    $PYTHON3 - "$mcp_src" "$vibe_home" "$project_config" "$domain" "$project_root" << 'PYEOF'
-import json, sys, os, glob
+    # Step 1: Extract MCP server entries from source files into a temp list
+    # Format per line: vibe:name<TAB><raw JSON config block (single line)>
+    local mcp_tmp
+    mcp_tmp=$(mktemp)
 
-mcp_src = sys.argv[1]
-vibe_home = sys.argv[2]
-config_path = sys.argv[3]
-domain = sys.argv[4]
-project_root = sys.argv[5]
+    for f in $json_files; do
+        awk -v vibe_home="$vibe_home" -v project_root="$project_root" '
+        BEGIN { in_mcp=0; server=""; depth=0; buf="" }
 
-vibe_home_norm = os.path.normpath(vibe_home).replace('\\', '/')
-project_root_norm = os.path.normpath(project_root).replace('\\', '/')
+        # Strip comments and normalize
+        { gsub(/\/\/.*$/, ""); gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
 
-def strip_jsonc_comments(raw_text):
-    """Strip // comments from JSONC text, returning clean JSON."""
-    lines = []
-    for line in raw_text.split('\n'):
-        in_str = False
-        comment_start = -1
-        i = 0
-        while i < len(line):
-            ch = line[i]
-            if not in_str and ch == '"':
-                in_str = True
-            elif in_str and ch == '\\':
-                i += 1  # skip escaped char
-            elif in_str and ch == '"':
-                in_str = False
-            elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-                comment_start = i
-                break
-            i += 1
-        if comment_start >= 0:
-            line = line[:comment_start]
-        lines.append(line)
-    return '\n'.join(lines)
+        /^"mcp"/ || /^"mcpServers"/ { in_mcp=1; next }
 
-def resolve_placeholders(val):
-    """Replace ${VIBE_STACK_HOME} and ${PROJECT_ROOT} in a string."""
-    if isinstance(val, str):
-        val = val.replace('${VIBE_STACK_HOME}', vibe_home_norm)
-        val = val.replace('${PROJECT_ROOT}', project_root_norm)
-    return val
+        in_mcp && /^"[^"]+"[[:space:]]*:[[:space:]]*\{/ {
+            server = $0
+            gsub(/[[:space:]]*:.*/, "", server)
+            gsub(/"/, "", server)
+            depth = 0
+            buf = ""
+        }
 
-# 1. Collect all MCP entries from domain definition files
-new_entries = {}
-json_pattern = os.path.join(mcp_src, "*.json")
-for json_file in sorted(glob.glob(json_pattern)):
-    with open(json_file, 'r') as f:
-        raw = f.read()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        try:
-            data = json.loads(strip_jsonc_comments(raw))
-        except json.JSONDecodeError:
-            print(f"  [warn] Failed to parse {json_file} — skipping")
-            continue
-
-    if not isinstance(data, dict):
-        continue
-
-    # Support both "mcp" (OpenCode native) and "mcpServers" (legacy Claude Code) keys
-    mcp_block = data.get('mcp') or data.get('mcpServers')
-    if not mcp_block or not isinstance(mcp_block, dict):
-        continue
-
-    for name, cfg in mcp_block.items():
-        if not isinstance(cfg, dict):
-            continue
-
-        entry = {}
-
-        if 'type' in cfg:
-            # Already in OpenCode native format — copy as-is after placeholder resolution
-            entry = {k: v for k, v in cfg.items()}
-        else:
-            # Legacy format: {command: str, args: [...], env?: [...]}
-            entry['type'] = 'local'
-            entry['enabled'] = cfg.get('enabled', True)
-            cmd = cfg.get('command', '')
-            if isinstance(cmd, list):
-                entry['command'] = list(cmd)
-            else:
-                entry['command'] = [cmd] + cfg.get('args', [])
-
-            # Convert env array ["KEY=val", ...] to environment object {KEY: "val"}
-            if 'env' in cfg and isinstance(cfg['env'], list):
-                environment = {}
-                for env_str in cfg['env']:
-                    if '=' in env_str:
-                        k, v = env_str.split('=', 1)
-                        environment[k.strip()] = v.strip()
-                if environment:
-                    entry['environment'] = environment
-
-        # Resolve placeholders in command array
-        if 'command' in entry:
-            entry['command'] = [resolve_placeholders(a) for a in entry['command']]
-
-        # Resolve placeholders in environment object
-        if 'environment' in entry and isinstance(entry.get('environment'), dict):
-            entry['environment'] = {
-                k: resolve_placeholders(v)
-                for k, v in entry['environment'].items()
+        in_mcp && server != "" {
+            buf = buf $0 " "
+            n = split($0, chs, "")
+            for (i = 1; i <= n; i++) {
+                if (chs[i] == "{") depth++
+                if (chs[i] == "}") { depth--; if (depth == 0) break }
             }
+            if (depth == 0) {
+                gsub(/\$\{VIBE_STACK_HOME\}/, vibe_home, buf)
+                gsub(/\$\{PROJECT_ROOT\}/, project_root, buf)
+                gsub(/[[:space:]]+$/, "", buf)
+                printf "vibe:%s\t%s\n", server, buf
+                server = ""; buf = ""
+            }
+        }
+        ' "$f" >> "$mcp_tmp"
+    done
 
-        # Add vibe: namespace prefix for isolation
-        prefixed_name = f"vibe:{name}"
-        new_entries[prefixed_name] = entry
+    [ ! -s "$mcp_tmp" ] && { rm -f "$mcp_tmp"; return 0; }
 
-if not new_entries:
-    sys.exit(0)
+    # Step 2: Merge into opencode.json
+    # Strategy: find mcp block boundaries, rebuild mcp section with non-vibe entries + new entries
+    awk -v mcp_file="$mcp_tmp" '
+    BEGIN {
+        while ((getline < mcp_file) > 0) {
+            tab = index($0, "\t")
+            if (tab > 0) {
+                name = substr($0, 1, tab-1)
+                cfg  = substr($0, tab+1)
+                new_names[++n_new] = name
+                new_configs[name] = cfg
+            }
+        }
+        close(mcp_file)
+    }
 
-# 2. Read existing .opencode/opencode.json (create if missing)
-try:
-    with open(config_path, 'r') as f:
-        raw = f.read()
-    existing = json.loads(strip_jsonc_comments(raw))
-except (FileNotFoundError, json.JSONDecodeError):
-    existing = {}
+    !in_mcp {
+        if ($0 ~ /^[[:space:]]*"mcp"/) {
+            in_mcp = 1
+            depth = 0
+            if ($0 ~ /\{/) depth++
+            # Skip the original mcp opening line
+            next
+        }
+        else if ($0 ~ /^[[:space:]]*\}/ && !found_end && !in_mcp) {
+            # Last closing brace — possible insertion point if no mcp exists
+            found_end = 1; end_line = $0
+            next
+        }
+        else { print }
+        next
+    }
 
-if not isinstance(existing, dict):
-    existing = {}
+    {
+        opens = gsub(/{/, "{", $0)
+        closes = gsub(/}/, "}", $0)
+        depth += opens - closes
+        if (depth <= 0) {
+            # End of original mcp block — output rebuilt mcp section
+            print "  \"mcp\": {"
+            for (i = 1; i <= n_new; i++) {
+                comma = (i < n_new) ? "," : ""
+                print "    \"" new_names[i] "\": " new_configs[i] comma
+            }
+            comma_suffix = ($0 ~ /,$/ ? "," : "")
+            print "  }" comma_suffix
+            in_mcp = 0; depth = 0
+            next
+        }
+    }
 
-# 3. Merge: keep non-vibe:* entries, add/update vibe:* entries for this domain
-existing_mcp = existing.get('mcp', {})
-if not isinstance(existing_mcp, dict):
-    existing_mcp = {}
+    END {
+        if (!in_mcp && !found_mcp && found_end) {
+            # File had no mcp key — insert before closing }
+            print "  \"mcp\": {"
+            for (i = 1; i <= n_new; i++) {
+                comma = (i < n_new) ? "," : ""
+                print "    \"" new_names[i] "\": " new_configs[i] comma
+            }
+            print "  }"
+            print end_line
+        }
+        else if (!in_mcp && !found_mcp && !found_end) {
+            # File was empty or minimal — create from scratch
+            print "{"
+            print "  \"mcp\": {"
+            for (i = 1; i <= n_new; i++) {
+                comma = (i < n_new) ? "," : ""
+                print "    \"" new_names[i] "\": " new_configs[i] comma
+            }
+            print "  }"
+            print "}"
+        }
+    }
+    ' "$project_config" > "${project_config}.tmp" 2>/dev/null
 
-# Remove ALL existing vibe:* entries (clean slate — deactivate handles per-domain removal)
-existing_mcp = {k: v for k, v in existing_mcp.items() if not k.startswith('vibe:')}
-# Add new domain entries
-existing_mcp.update(new_entries)
+    if [ -s "${project_config}.tmp" ]; then
+        _jsonc_fix_trailing_commas "${project_config}.tmp"
+        mv "${project_config}.tmp" "$project_config"
+        ok "MCP activated -> $project_config"
+        while IFS= read -r line; do
+            local srv_name="${line%%$'\t'*}"
+            [ -n "$srv_name" ] && info "    + $srv_name"
+        done < "$mcp_tmp"
+    else
+        warn "MCP activation: failed to merge into $project_config"
+        rm -f "${project_config}.tmp"
+    fi
 
-existing['mcp'] = existing_mcp
-
-# 4. Write back
-with open(config_path, 'w') as f:
-    json.dump(existing, f, indent=2, ensure_ascii=False)
-    f.write('\n')
-
-print(f"  MCP activated -> {config_path}")
-for name in sorted(new_entries.keys()):
-    print(f"    + {name}")
-PYEOF
+    rm -f "$mcp_tmp"
 }
 
 # deactivate_mcp <domain_name> <domain_root>
@@ -640,119 +390,92 @@ deactivate_mcp() {
     local domain_root="$2"
 
     local project_config=".opencode/opencode.json"
-    if [ ! -f "$project_config" ]; then
-        return 0
-    fi
+    [ ! -f "$project_config" ] && return 0
 
     local mcp_src="$domain_root/mcp"
-    if [ ! -d "$mcp_src" ]; then
-        return 0
-    fi
+    [ ! -d "$mcp_src" ] && return 0
 
     local json_files
     json_files=$(ls "$mcp_src"/*.json 2>/dev/null || true)
-    if [ -z "$json_files" ]; then
-        return 0
+    [ -z "$json_files" ] && return 0
+
+    # Collect server names from MCP source files
+    local target_names=""
+    for f in $json_files; do
+        # Extract server names from "mcp" or "mcpServers" block
+        local names
+        names=$(awk '
+        /"mcp"/ || /"mcpServers"/ { in_mcp=1; next }
+        in_mcp && /^[[:space:]]*"[^"]+"[[:space:]]*:/ {
+            s = $0; gsub(/^[[:space:]]*"/, "", s); gsub(/".*/, "", s)
+            print "vibe:" s
+        }
+        /^\}[[:space:]]*,?[[:space:]]*$/ { if (in_mcp) in_mcp=0 }
+        ' "$f" 2>/dev/null)
+        target_names="${target_names}${target_names:+$'\n'}${names}"
+    done
+
+    [ -z "$target_names" ] && return 0
+
+    # Remove vibe:* entries from opencode.json mcp block
+    awk -v targets="$target_names" '
+    BEGIN {
+        split(targets, target_arr, "\n")
+        for (i in target_arr) {
+            if (target_arr[i] != "") target_set[target_arr[i]] = 1
+        }
+    }
+
+    !in_mcp {
+        if ($0 ~ /^[[:space:]]*"mcp"/) {
+            in_mcp = 1
+            depth = 0
+            if ($0 ~ /\{/) depth++
+            print
+            next
+        }
+        print
+        next
+    }
+
+    {
+        opens = gsub(/{/, "{", $0)
+        closes = gsub(/}/, "}", $0)
+        new_depth = depth + opens - closes
+
+        if (!skipping) {
+            if (depth == 1 && $0 ~ /"vibe:[^"]*"/) {
+                s = $0; gsub(/^[[:space:]]*"/, "", s); gsub(/".*/, "", s)
+                if (s in target_set) {
+                    skipping = 1; skip_target = new_depth
+                    depth = new_depth; next
+                }
+            }
+            if (new_depth == 0) {
+                # End of mcp block
+                in_mcp = 0
+            }
+            print
+        }
+
+        if (skipping && new_depth <= skip_target) {
+            skipping = 0
+        }
+        depth = new_depth
+    }
+    ' "$project_config" > "${project_config}.tmp" 2>/dev/null
+
+    if [ -s "${project_config}.tmp" ]; then
+        _jsonc_fix_trailing_commas "${project_config}.tmp"
+        mv "${project_config}.tmp" "$project_config"
+        ok "MCP deactivated for $domain:"
+        while IFS= read -r name; do
+            [ -n "$name" ] && info "    - $name"
+        done <<< "$target_names"
+    else
+        warn "MCP deactivation: failed to process $project_config"
+        rm -f "${project_config}.tmp"
     fi
-
-    detect_python3
-    if [ -z "$PYTHON3" ]; then
-        warn "python3 not found — MCP deactivation skipped for $domain"
-        return 0
-    fi
-
-    $PYTHON3 - "$project_config" "$mcp_src" "$domain" << 'PYEOF'
-import json, sys, os, glob
-
-config_path = sys.argv[1]
-mcp_src = sys.argv[2]
-domain = sys.argv[3]
-
-def strip_jsonc_comments(raw_text):
-    lines = []
-    for line in raw_text.split('\n'):
-        in_str = False
-        comment_start = -1
-        i = 0
-        while i < len(line):
-            ch = line[i]
-            if not in_str and ch == '"':
-                in_str = True
-            elif in_str and ch == '\\':
-                i += 1
-            elif in_str and ch == '"':
-                in_str = False
-            elif not in_str and i + 1 < len(line) and line[i:i+2] == '//':
-                comment_start = i
-                break
-            i += 1
-        if comment_start >= 0:
-            line = line[:comment_start]
-        lines.append(line)
-    return '\n'.join(lines)
-
-# 1. Collect original server names from domain's mcp/*.json files
-target_names = set()
-json_pattern = os.path.join(mcp_src, "*.json")
-for json_file in sorted(glob.glob(json_pattern)):
-    with open(json_file, 'r') as f:
-        raw = f.read()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        try:
-            data = json.loads(strip_jsonc_comments(raw))
-        except json.JSONDecodeError:
-            continue
-    if not isinstance(data, dict):
-        continue
-    mcp_block = data.get('mcp') or data.get('mcpServers')
-    if not mcp_block or not isinstance(mcp_block, dict):
-        continue
-    for name in mcp_block.keys():
-        target_names.add(f"vibe:{name}")
-
-if not target_names:
-    print(f"  No MCP servers defined in {mcp_src}")
-    sys.exit(0)
-
-# 2. Read .opencode/opencode.json and remove matching vibe:* entries
-try:
-    with open(config_path, 'r') as f:
-        raw = f.read()
-    data = json.loads(strip_jsonc_comments(raw))
-except (FileNotFoundError, json.JSONDecodeError):
-    print(f"  [warn] Could not read {config_path}")
-    sys.exit(1)
-
-if not isinstance(data, dict) or 'mcp' not in data:
-    print(f"  No MCP entries in {config_path}")
-    sys.exit(0)
-
-old_mcp = data['mcp']
-if not isinstance(old_mcp, dict):
-    print(f"  No MCP entries in {config_path}")
-    sys.exit(0)
-
-new_mcp = {k: v for k, v in old_mcp.items() if k not in target_names}
-removed = [k for k in old_mcp if k not in new_mcp]
-
-if not removed:
-    print(f"  No vibe:* MCP entries to remove for {domain}")
-    sys.exit(0)
-
-data['mcp'] = new_mcp
-if not new_mcp:
-    del data['mcp']
-
-with open(config_path, 'w') as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-    f.write('\n')
-
-print(f"  MCP deactivated for {domain}:")
-for name in sorted(removed):
-    print(f"    - {name}")
-PYEOF
 }
 
 # ---- Domain Scanning ----
@@ -886,14 +609,6 @@ cmd_activate() {
     # Ensure .opencode/ exists
     mkdir -p .opencode
 
-    local project_config=".opencode/oh-my-openagent.jsonc"
-    # Create minimal config if it doesn't exist
-    if [ ! -f "$project_config" ]; then
-        echo '{' > "$project_config"
-        echo '}' >> "$project_config"
-        info "Created $project_config"
-    fi
-
     for arg in "$@"; do
         local category domain
         category="${arg%%/*}"
@@ -935,18 +650,6 @@ cmd_activate() {
                 warn "Could not link $sub for $domain — skipping"
             fi
         done
-
-        # Update JSONC for skills
-        if [[ " ${activated_types[*]} " =~ " skills " ]]; then
-            local skills_path="$domain_root/skills"
-            modify_skills_source ".opencode/oh-my-openagent.jsonc" "add" "$skills_path"
-        fi
-
-        # Update JSONC for agents
-        if [[ " ${activated_types[*]} " =~ " agents " ]]; then
-            local agents_path="$domain_root/agents/"
-            modify_agent_defs ".opencode/oh-my-openagent.jsonc" "add" "$agents_path"
-        fi
 
         # Update opencode.json instructions for rules (relative to project root)
         if [[ " ${activated_types[*]} " =~ " rules " ]]; then
@@ -1017,14 +720,6 @@ cmd_deactivate() {
         # Remove MCP entries from .opencode/opencode.json
         deactivate_mcp "$domain" "$domain_root"
 
-        # Update JSONC
-        if [ -d "$domain_root/skills" ]; then
-            modify_skills_source ".opencode/oh-my-openagent.jsonc" "remove" "$domain_root/skills"
-        fi
-        if [ -d "$domain_root/agents" ]; then
-            modify_agent_defs ".opencode/oh-my-openagent.jsonc" "remove" "$domain_root/agents/"
-        fi
-
         # Remove opencode.json instructions for this domain's rules
         if [ -d "$domain_root/rules" ]; then
             modify_project_instructions ".opencode/opencode.json" "remove" ".opencode/rules/$domain/*.md"
@@ -1069,19 +764,8 @@ cmd_use_stack() {
 
     info "Loading stack: $stack_name"
 
-    # Read domains from JSON - use python3 or simple grep
-    if detect_python3 && [ -n "$PYTHON3" ]; then
-        domains=$($PYTHON3 -c "
-import json
-with open('$stack_file') as f:
-    data = json.load(f)
-for d in data.get('domains', []):
-    print(d)
-")
-    else
-        # Fallback: simple grep extraction
-        domains=$(grep -oE '"[a-z0-9_-]+/[a-z0-9_-]+"' "$stack_file" | tr -d '"' || true)
-    fi
+    # Read domains from JSON stack file via grep
+    domains=$(grep -oE '"[a-z0-9_-]+/[a-z0-9_-]+"' "$stack_file" | tr -d '"' || true)
 
     if [ -z "$domains" ]; then
         die "No domains found in stack '$stack_name'. Expected 'domains' array in JSON."
@@ -1094,6 +778,127 @@ for d in data.get('domains', []):
     done <<< "$domains"
 
     ok "Stack '$stack_name' activated."
+}
+
+install_mcp_binaries() {
+    local vibe_home="$1"
+
+    local plat_key
+    case "$(uname -s)" in
+        Linux)  plat_key="linux" ;;
+        Darwin) plat_key="darwin" ;;
+        *)      plat_key="linux" ;;
+    esac
+
+    local found_any=false
+
+    for json_file in $(find "$vibe_home/domains" -path "*/mcp/*.json" ! -name "README.md" 2>/dev/null | sort); do
+        [ ! -f "$json_file" ] && continue
+        grep -q '"release"' "$json_file" 2>/dev/null || continue
+
+        local content
+        content=$(sed 's/[[:space:]]*\/\/.*$//' "$json_file")
+
+        echo "$content" | awk -v plat="$plat_key" -v home="$vibe_home" '
+        BEGIN { OFS="\t"; srv=""; cmd=""; repo=""; asset=""; in_release=0; in_cmd=0 }
+
+        { gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
+
+        /^"[^"]+"[[:space:]]*:[[:space:]]*\{$/ {
+            flush()
+            srv = $0; gsub(/[[:space:]]*:.*/, "", srv); gsub(/"/, "", srv)
+            cmd = ""; repo = ""; asset = ""; in_release = 0; in_cmd = 0
+            next
+        }
+
+        /"command"/ {
+            in_cmd = 1
+            start = index($0, "[")
+            if (start > 0) {
+                rest = substr($0, start+1)
+                if (match(rest, /"([^"]+)"/)) {
+                    cmd = substr(rest, RSTART+1, RLENGTH-2)
+                    gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
+                    in_cmd = 0
+                }
+            }
+            next
+        }
+
+        in_cmd && /^[[:space:]]*"/ {
+            gsub(/^[[:space:]]*"/, ""); gsub(/".*/, "")
+            cmd = $0
+            gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
+            in_cmd = 0
+        }
+
+        in_cmd && /\]/ { in_cmd = 0 }
+        /"release"/ { in_release = 1 }
+
+        in_release && /"repo"/ {
+            gsub(/.*"repo"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            repo = $0
+        }
+
+        in_release && repo != "" {
+            if (index($0, "\"" plat "\"") > 0) {
+                gsub(/.*"/, "", $0)
+                gsub(/"[:[space:]]*/, "", $0)
+                gsub(/".*/, "")
+                asset = $0
+            }
+        }
+
+        /^\}[[:space:]]*,?[[:space:]]*$/ {
+            if (in_release) { in_release = 0 }
+            else { flush(); srv = "" }
+        }
+
+        function flush() {
+            if (srv && cmd && repo && asset)
+                print srv, cmd, repo, asset
+        }
+
+        END { flush() }
+        ' | while IFS=$'\t' read -r srv cmd repo asset; do
+            [ -z "$srv" ] && continue
+            found_any=true
+
+            if [ -f "$cmd" ]; then
+                info "$srv — already installed"
+                continue
+            fi
+
+            local url="https://github.com/$repo/releases/latest/download/$asset"
+            info "$srv: downloading $asset …"
+            mkdir -p "$(dirname "$cmd")" 2>/dev/null
+
+            if command -v curl &>/dev/null; then
+                if curl -fsSL -o "$cmd" "$url" 2>/dev/null; then
+                    chmod +x "$cmd" 2>/dev/null
+                    ok "$asset installed -> $cmd"
+                else
+                    warn "Download failed: $url"
+                    rm -f "$cmd" 2>/dev/null
+                fi
+            elif command -v wget &>/dev/null; then
+                if wget -q -O "$cmd" "$url" 2>/dev/null; then
+                    chmod +x "$cmd" 2>/dev/null
+                    ok "$asset installed -> $cmd"
+                else
+                    warn "Download failed: $url"
+                    rm -f "$cmd" 2>/dev/null
+                fi
+            else
+                warn "No curl/wget — cannot download: $url"
+            fi
+        done
+    done
+
+    if ! $found_any; then
+        info "No MCP binaries to download."
+    fi
 }
 
 cmd_core_update() {
@@ -1137,16 +942,6 @@ cmd_core_update() {
         updated=true
     done
 
-    # Update ~/.config/opencode/oh-my-openagent.jsonc
-    local user_config="$config_dir/oh-my-openagent.jsonc"
-    if [ -f "$user_config" ]; then
-        info "Updating core references in $user_config ..."
-        modify_skills_source "$user_config" "add" "$VIBE_STACK_HOME/core/skills"
-        modify_agent_defs "$user_config" "add" "$VIBE_STACK_HOME/core/agents/"
-    else
-        warn "No ~/.config/opencode/oh-my-openagent.jsonc found. Run install.sh first."
-    fi
-
     # Update ~/.config/opencode/opencode.json instructions
     # Path is relative to the config directory (where rules/ symlink lives)
     local opencode_json="$config_dir/opencode.json"
@@ -1157,31 +952,10 @@ cmd_core_update() {
         ok "Core symlinks updated."
     fi
 
-    # Re-bootstrap MCP dependencies (idempotent)
+    # Re-download MCP binaries (idempotent – skips already-installed)
     echo ""
-    info "Checking for new or updated MCP dependencies..."
-    if [ -f "$VIBE_STACK_HOME/.gitmodules" ]; then
-        git -C "$VIBE_STACK_HOME" submodule update --init --recursive 2>/dev/null && \
-            ok "Submodules up-to-date" || \
-            warn "Submodule update failed — run manually if needed"
-    fi
-    # Re-run uv sync for any MCP Python projects
-    local found_py=false
-    while IFS= read -r -d '' pyproject; do
-        local dir
-        dir=$(dirname "$pyproject")
-        local label
-        label=$(echo "$dir" | sed "s|$VIBE_STACK_HOME/||")
-        if command -v uv &>/dev/null; then
-            (cd "$dir" && uv sync 2>/dev/null) && \
-                info "  $label — uv sync OK" || \
-                warn "  $label — uv sync failed"
-        fi
-        found_py=true
-    done < <(find "$VIBE_STACK_HOME/domains" -name "pyproject.toml" -path "*/mcp/*" -not -path "*/.git/*" -print0 2>/dev/null)
-    if [ "$found_py" = false ]; then
-        info "  No MCP Python projects found"
-    fi
+    info "Checking for new or updated MCP binaries..."
+    install_mcp_binaries "$VIBE_STACK_HOME"
 }
 
 cmd_help() {
