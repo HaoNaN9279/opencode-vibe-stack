@@ -3,7 +3,7 @@
     "data-forge": {
       "type": "local",
       "command": [
-        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge"
+        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge.exe"
       ],
       "enabled": true,
       "release": {
