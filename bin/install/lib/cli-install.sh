@@ -8,12 +8,12 @@ elif [ -d "$HOME/bin" ] || mkdir -p "$HOME/bin" 2>/dev/null; then
     BIN_DIR="$HOME/bin"
 else
     echo -e "  ${RED}[✗]${NC} Could not find/create a bin directory in HOME"
-    echo "       Manually add bin/vibe-stack to your PATH"
+    echo "       Manually add bin/vibe-stack/vibe-stack to your PATH"
     BIN_DIR=""
 fi
 
 if [ -n "$BIN_DIR" ]; then
-    CLI_SRC="$VIBE_STACK_HOME/bin/vibe-stack"
+    CLI_SRC="$VIBE_STACK_HOME/bin/vibe-stack/vibe-stack"
     CLI_DEST="$BIN_DIR/vibe-stack"
 
     if [ ! -f "$CLI_SRC" ]; then

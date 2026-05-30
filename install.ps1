@@ -63,7 +63,7 @@ Write-Bold "[2/4] Updating configuration files..."
 
 $openCodeConfig = "$env:USERPROFILE\.config\opencode"
 $opencodeJson = "$openCodeConfig\opencode.json"
-$rulesGlob = "rules/*.md"
+$rulesGlob = "rules/**/*.md"
 
 if (-not (Test-Path $opencodeJson)) {
     $initial = "{" + [Environment]::NewLine +

@@ -61,7 +61,7 @@ cmd_activate() {
 
         # Update opencode.json instructions for rules (relative to project root)
         if [[ " ${activated_types[*]} " =~ " rules " ]]; then
-            modify_project_instructions ".opencode/opencode.json" "add" ".opencode/rules/$domain/*.md"
+            modify_project_instructions ".opencode/opencode.json" "add" "rules/$domain/*.md"
         fi
 
         # Ensure project-level oh-my-openagent.jsonc exists for skills/agents

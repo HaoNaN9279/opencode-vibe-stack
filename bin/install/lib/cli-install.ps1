@@ -3,7 +3,7 @@
 function Install-CliTool {
     param([string]$VibeHome)
 
-    $cliSrc = "$VibeHome\bin\vibe-stack"
+    $cliSrc = "$VibeHome\bin\vibe-stack\vibe-stack"
     $cliDestDir = "$env:USERPROFILE\.local\bin"
 
     if (-not (Test-Path $cliDestDir)) {
@@ -23,7 +23,7 @@ setlocal enabledelayedexpansion
 set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
 if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME=__VIBE_STACK_HOME__"
 
-set "VIBE_SCRIPT=!VIBE_STACK_HOME!\bin\vibe-stack"
+set "VIBE_SCRIPT=!VIBE_STACK_HOME!\bin\vibe-stack\vibe-stack"
 
 :: Find bash: Git for Windows, then MSYS2, then System
 set "BASH="
@@ -70,7 +70,7 @@ set "VIBE_SCRIPT=!VIBE_SCRIPT:\=/!"
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PassThruArgs)
 
 $vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { "__VIBE_STACK_HOME__" }
-$vibeScript = (Join-Path $vibeHome "bin\vibe-stack") -replace '\\', '/'
+$vibeScript = (Join-Path $vibeHome "bin\vibe-stack\vibe-stack") -replace '\\', '/'
 
 # Search for bash: Git for Windows -> MSYS2 -> WSL -> PATH fallback
 $bash = $null

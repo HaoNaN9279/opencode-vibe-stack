@@ -20,7 +20,7 @@ source "$LIB_DIR/symlinks.sh"
 echo -e "${BOLD}[2/4] Updating configuration files...${NC}"
 
 OPENCODE_JSON="$OPENCODE_CONFIG/opencode.json"
-RULES_GLOB="rules/*.md"
+RULES_GLOB="rules/**/*.md"
 
 if [ ! -f "$OPENCODE_JSON" ]; then
     printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$RULES_GLOB" > "$OPENCODE_JSON"
@@ -34,6 +34,10 @@ elif ! grep -qF "\"$RULES_GLOB\"" "$OPENCODE_JSON"; then
 else
     echo -e "  ${GREEN}[OK]${NC} instructions already has: $RULES_GLOB"
 fi
+echo ""
+
+# Merge core/mcp configurations
+merge_core_mcp_configs "$VIBE_STACK_HOME" "$OPENCODE_JSON"
 echo ""
 
 # ---- Step 3: Install MCP binaries ----

@@ -64,7 +64,7 @@ cmd_deactivate() {
 
         # Remove opencode.json instructions for this domain's rules
         if [ -d "$domain_root/rules" ]; then
-            modify_project_instructions ".opencode/opencode.json" "remove" ".opencode/rules/$domain/*.md"
+            modify_project_instructions ".opencode/opencode.json" "remove" "rules/$domain/*.md"
         fi
 
         # Clean up oh-my-openagent.jsonc if no active domains remain
