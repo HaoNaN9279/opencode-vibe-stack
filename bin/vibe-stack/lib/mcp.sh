@@ -303,7 +303,14 @@ install_mcp_binaries() {
 
         { gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
 
+        # Track release block FIRST — must appear before server-entry regex
+        # so that "release": { sets in_release before being consumed as a server entry.
+        /"release"/ { in_release = 1 }
+        in_release && /^\}[[:space:]]*,?[[:space:]]*$/ { in_release = 0 }
+
+        # Server entry — must only match at top level, not nested inside release/asset
         /^"[^"]+"[[:space:]]*:[[:space:]]*\{$/ {
+            if (in_release) { next }
             flush()
             srv = $0; gsub(/[[:space:]]*:.*/, "", srv); gsub(/"/, "", srv)
             cmd = ""; repo = ""; asset = ""; in_release = 0; in_cmd = 0
@@ -332,7 +339,6 @@ install_mcp_binaries() {
         }
 
         in_cmd && /\]/ { in_cmd = 0 }
-        /"release"/ { in_release = 1 }
 
         in_release && /"repo"/ {
             gsub(/.*"repo"[[:space:]]*:[[:space:]]*"/, "")
