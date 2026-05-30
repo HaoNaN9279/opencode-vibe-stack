@@ -26,7 +26,9 @@ activate_mcp() {
     mcp_tmp=$(mktemp)
 
     for f in $json_files; do
-        awk -v vibe_home="$vibe_home" -v project_root="$project_root" '
+        local normalized_home
+        normalized_home=$(echo "$vibe_home" | sed 's/\\/\//g')
+        awk -v vibe_home="$normalized_home" -v project_root="$project_root" '
         BEGIN { in_mcp=0; server=""; depth=0; buf="" }
 
         # Strip comments and leading whitespace only.
@@ -293,7 +295,9 @@ install_mcp_binaries() {
         local content
         content=$(sed 's/[[:space:]]*\/\/.*$//' "$json_file")
 
-        echo "$content" | awk -v plat="$plat_key" -v home="$vibe_home" '
+        local normalized_home
+        normalized_home=$(echo "$vibe_home" | sed 's/\\/\//g')
+        echo "$content" | awk -v plat="$plat_key" -v home="$normalized_home" '
         BEGIN { OFS="\t"; srv=""; cmd=""; repo=""; asset=""; in_release=0; in_cmd=0 }
 
         { gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
