@@ -1,159 +1,186 @@
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
-  "permissions": {
-    "edit": "ask",
-    "web": "allow",
-    "run": "ask",
-    
-    "bash": {
-      "allow": [
-        "ls", "ll", "la", "pwd", "cd", "echo", "cat", "head", "tail", "less", "more",
-        "wc", "grep", "find", "which", "whereis", "whoami", "id", "uname", "hostname",
-        "date", "uptime", "free", "df", "du", "ps", "top", "htop", "netstat", "ss",
-        "ip", "ifconfig", "ping", "curl -I", "wget --spider", "dig", "nslookup",
-        
-        "git status", "git log", "git branch", "git diff", "git show", "git remote -v",
-        "git config --list", "git stash list", "git tag", "git describe",
-        "npm list", "npm outdated", "npm view", "yarn list", "pnpm list",
-        "docker ps", "docker images", "docker volume ls", "docker network ls",
-        "docker compose ps", "kubectl get", "kubectl describe", "helm list",
-        
-        "clear", "history", "alias", "env", "printenv", "set", "export",
-        "mkdir -p", "touch", "cp -n", "mv -n", "ln -s"
-      ],
-      
-      "ask": [
-        "rm", "rmdir", "mv", "cp", "chmod", "chown", "chgrp", "mkdir",
-        "sed", "awk", "tr", "cut", "sort", "uniq", "tee", ">>", ">",
-        
-        "git add", "git commit", "git push", "git pull", "git merge", "git rebase",
-        "git checkout", "git switch", "git reset", "git revert", "git stash",
-        "git stash pop", "git branch -d", "git tag -d", "git remote add",
-        
-        "npm install", "npm uninstall", "npm update", "npm run",
-        "yarn add", "yarn remove", "yarn upgrade", "yarn run",
-        "pnpm add", "pnpm remove", "pnpm update", "pnpm run",
-        "pip install", "pip uninstall", "pip update", "cargo install",
-        
-        "docker run", "docker build", "docker pull", "docker push",
-        "docker stop", "docker start", "docker restart", "docker rm", "docker rmi",
-        "docker compose up", "docker compose down", "docker compose restart",
-        
-        "sudo", "su", "systemctl", "service", "apt", "apt-get", "yum", "dnf",
-        "brew", "snap", "flatpak", "useradd", "userdel", "groupadd", "groupdel",
-        
-        "wget", "curl", "tar", "zip", "unzip", "gzip", "gunzip",
-        "ssh", "scp", "rsync", "nc", "telnet", "bash", "sh", "zsh"
-      ],
-      
-      "deny": [
-        "rm -rf /", "rm -rf /*", "rm -rf ~", "rm -rf ~/*",
-        "dd if=/dev/zero", "dd if=/dev/random", "mkfs", "mkswap",
-        "fdisk", "parted", "gdisk", "cfdisk", "sfdisk",
-        
-        "shutdown", "reboot", "halt", "poweroff", "init 0", "init 6",
-        "systemctl poweroff", "systemctl reboot", "systemctl halt",
-        
-        "chmod 777 /", "chmod -R 777 /", "chown -R root:root /",
-        "mv /etc", "rm -rf /etc", "rm -rf /bin", "rm -rf /sbin",
-        "rm -rf /usr", "rm -rf /var", "rm -rf /boot",
-        
-        "nmap", "masscan", "hping3", "nc -l", "nc -lvp",
-        "iptables -F", "ufw disable", "firewalld stop",
-        
-        ":(){ :|:& };:", "fork bomb", "eval", "exec", "source",
-        "sudo su", "sudo -i", "sudo -s", "su root", "passwd root"
-      ]
-    }
-  },
-  
-  "security": {
-    "enforce_ask_for_pipes": true,
-    "enforce_ask_for_wildcards": true,
-    "always_ask_for_sudo": true,
-    "command_timeout": 30,
-    "max_command_length": 1024
-  },
-    
+
+  // ============================================================
+  // Agent Permissions Design Principles:
+  //
+  // 每种 agent 的 permission 根据其角色职能设计：
+  //
+  //   orchestrator 类 (sisyphus, atlas, hephaestus):
+  //     全部 allow — 需要执行所有操作协调工作
+  //
+  //   planner 类 (prometheus):
+  //     全部 allow — 需要编辑计划文件、运行命令调研
+  //
+  //   read-only advisor 类 (oracle, metis, momus):
+  //     edit/bash/task → deny, webfetch → allow
+  //     只读咨询分析，但需要联网查资料
+  //
+  //   explorer 类 (librarian):
+  //     edit/task → deny, bash/webfetch → allow
+  //     需要 git/gh 命令克隆仓库查代码
+  //
+  //   explorer 类 (explore, multimodal-looker):
+  //     全部 deny — 仅用内置 grep/lsp/read 工具
+  //
+  //   executor 类 (sisyphus-junior):
+  //     全部 allow — 需要完整执行能力
+  //
+  //   default 类 (build):
+  //     edit/bash/webfetch → allow, task → deny
+  //     OpenCode 默认 agent，不需要创建子任务
+  // ============================================================
+
   "agents": {
+    // ---- Orchestrators ----
     "sisyphus": {
       "model": "deepseek/deepseek-v4-pro",
       "temperature": 0.1,
       "reasoningEffort": "high",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 32000
-      },
+      "thinking": { "type": "enabled", "budgetTokens": 32000 },
       "ultrawork": {
         "model": "deepseek/deepseek-v4-pro",
         "reasoningEffort": "xhigh",
-        "thinking": {
-          "type": "enabled",
-          "budgetTokens": 64000
-        }
-      }
-    },
-    "prometheus": {
-      "model": "deepseek/deepseek-v4-pro",
-      "temperature": 0.1,
-      "reasoningEffort": "high",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 16000
+        "thinking": { "type": "enabled", "budgetTokens": 64000 }
+      },
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "allow",
+        "external_directory": "allow"
       }
     },
     "atlas": {
       "model": "deepseek/deepseek-v4-flash",
       "temperature": 0.2,
-      "reasoningEffort": "medium"
+      "reasoningEffort": "medium",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "allow",
+        "external_directory": "allow"
+      }
     },
     "hephaestus": {
       "model": "deepseek/deepseek-v4-pro",
       "temperature": 0.15,
       "reasoningEffort": "xhigh",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 64000
+      "thinking": { "type": "enabled", "budgetTokens": 64000 },
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "allow",
+        "external_directory": "allow"
       }
     },
-    "hermes": {
-      "model": "deepseek/deepseek-v4-flash"
+
+    // ---- Planner ----
+    "prometheus": {
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "reasoningEffort": "high",
+      "thinking": { "type": "enabled", "budgetTokens": 16000 },
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "allow"
+      }
     },
+
+    // ---- Read-only Advisors ----
     "oracle": {
       "model": "deepseek/deepseek-v4-pro",
       "temperature": 0.0,
       "reasoningEffort": "xhigh",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 32000
+      "thinking": { "type": "enabled", "budgetTokens": 32000 },
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow",
+        "task": "deny"
       }
     },
     "metis": {
       "model": "deepseek/deepseek-v4-flash",
       "temperature": 0.3,
-      "reasoningEffort": "medium"
+      "reasoningEffort": "medium",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow",
+        "task": "deny"
+      }
     },
     "momus": {
       "model": "deepseek/deepseek-v4-flash",
       "temperature": 0.2,
-      "reasoningEffort": "medium"
+      "reasoningEffort": "medium",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow",
+        "task": "deny"
+      }
     },
+
+    // ---- Explorers ----
     "librarian": {
       "model": "opencode/deepseek-v4-flash-free",
       "temperature": 0.3,
       "reasoningEffort": "low",
-      "maxTokens": 4096
+      "maxTokens": 4096,
+      "permission": {
+        "edit": "deny",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "deny"
+      }
     },
     "explore": {
       "model": "opencode/deepseek-v4-flash-free",
       "temperature": 0.2,
       "reasoningEffort": "low",
-      "maxTokens": 4096
+      "maxTokens": 4096,
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny",
+        "task": "deny"
+      }
     },
     "multimodal-looker": {
       "model": "ollama/qwen3.5:9b",
       "temperature": 0.4,
-      "maxTokens": 8192
+      "maxTokens": 8192,
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny",
+        "task": "deny"
+      }
+    },
+
+    // ---- Executors ----
+    "sisyphus-junior": {
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "allow",
+        "external_directory": "allow"
+      }
+    },
+    "build": {
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "task": "deny"
+      }
     }
   },
   "categories": {
@@ -161,19 +188,13 @@
       "model": "deepseek/deepseek-v4-pro",
       "temperature": 0.0,
       "reasoningEffort": "xhigh",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 64000
-      }
+      "thinking": { "type": "enabled", "budgetTokens": 64000 }
     },
     "deep": {
       "model": "deepseek/deepseek-v4-pro",
       "temperature": 0.15,
       "reasoningEffort": "high",
-      "thinking": {
-        "type": "enabled",
-        "budgetTokens": 32000
-      }
+      "thinking": { "type": "enabled", "budgetTokens": 32000 }
     },
     "visual-engineering": {
       "model": "opencode/nemotron-3-super-free",
@@ -225,7 +246,7 @@
     "task_system": true,
     "model_fallback": true
   },
-  "agent_order": ["hermes", "sisyphus", "prometheus", "atlas"],
-  "disabled_agents": ["hephaestus"],
+  "agent_order": ["sisyphus", "prometheus", "atlas", "hephaestus"],
+  "disabled_agents": [],
   "disabled_skills": []
 }
