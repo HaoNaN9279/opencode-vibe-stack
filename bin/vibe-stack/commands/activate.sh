@@ -78,4 +78,7 @@ cmd_activate() {
         echo "   Types: ${activated_types[*]}"
         echo ""
     done
+
+    # Auto-download MCP binaries for all newly activated domains
+    install_mcp_binaries "$VIBE_STACK_HOME"
 }

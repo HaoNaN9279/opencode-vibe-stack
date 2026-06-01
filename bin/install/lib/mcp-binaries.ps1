@@ -19,7 +19,11 @@ function Install-McpBinaries {
 
     foreach ($jsonFile in $jsonFiles) {
         try {
-            $data = Get-Content -Raw $jsonFile.FullName | ConvertFrom-Json
+            $rawContent = Get-Content -Raw $jsonFile.FullName
+            # Strip JSONC comments (// and /* */) before parsing
+            $rawContent = $rawContent -replace '//[^\n]*', ''
+            $rawContent = $rawContent -replace '(?s)/\*.*?\*/', ''
+            $data = $rawContent | ConvertFrom-Json
         } catch {
             continue
         }

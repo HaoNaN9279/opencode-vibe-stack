@@ -110,6 +110,27 @@ cmd_core_update() {
                         if (index(vibe_home, "\\") > 0) gsub(/\\/, "\\\\", vibe_home)
                         gsub(/\$\{VIBE_STACK_HOME\}/, vibe_home, buf)
                         gsub(/[[:space:]]+$/, "", buf)
+
+                        # Strip "release" metadata field (non-MCP config).
+                        # Uses brace-counting to correctly remove nested objects
+                        # regardless of depth (e.g. repo + asset sub-objects).
+                        while (match(buf, /"release"[[:space:]]*:[[:space:]]*\{/)) {
+                            rstart = RSTART
+                            rpos = RSTART + RLENGTH - 1
+                            rlevel = 1
+                            while (rlevel > 0 && rpos < length(buf)) {
+                                rpos++
+                                c = substr(buf, rpos, 1)
+                                if (c == "{") rlevel++
+                                if (c == "}") rlevel--
+                            }
+                            before = substr(buf, 1, rstart - 1)
+                            after = substr(buf, rpos + 1)
+                            sub(/[[:space:]]*,[[:space:]]*$/, "", before)
+                            sub(/^[[:space:]]*,[[:space:]]*/, "", after)
+                            buf = before after
+                        }
+
                         printf "vibe:core-%s\t%s\n", server, buf
                         server = ""; buf = ""
                     }

@@ -335,7 +335,7 @@ install_mcp_binaries() {
 
     local found_any=false
 
-    for json_file in $(find "$vibe_home/domains" -path "*/mcp/*.json" ! -name "README.md" 2>/dev/null | sort); do
+    for json_file in $( (find "$vibe_home/domains" -path "*/mcp/*.json" ! -name "README.md" 2>/dev/null; find "$vibe_home/core/mcp" -maxdepth 1 -name "*.json" ! -name "README.md" 2>/dev/null) | sort); do
         [ ! -f "$json_file" ] && continue
         grep -q '"release"' "$json_file" 2>/dev/null || continue
 
@@ -360,8 +360,14 @@ install_mcp_binaries() {
 
         # Track release block FIRST — must appear before server-entry regex
         # so that "release": { sets in_release before being consumed as a server entry.
-        /"release"/ { in_release = 1 }
-        in_release && /^\}[[:space:]]*,?[[:space:]]*$/ { in_release = 0 }
+        # Depth-based tracking handles nested objects (e.g. "asset": { ... }) correctly.
+        /"release"/ { in_release = 1; rel_depth = 0 }
+        in_release {
+            n_open = gsub(/{/, "{", $0)
+            n_close = gsub(/}/, "}", $0)
+            rel_depth += n_open - n_close
+            if (rel_depth <= 0) { in_release = 0; rel_depth = 0 }
+        }
 
         # Server entry — must only match at top level, not nested inside release/asset
         /^"[^"]+"[[:space:]]*:[[:space:]]*\{$/ {
@@ -412,9 +418,10 @@ install_mcp_binaries() {
             }
         }
 
+        # End of blocks — in_release exit handled by depth tracking above
         /^\}[[:space:]]*,?[[:space:]]*$/ {
-            if (in_release) { in_release = 0 }
-            else { flush(); srv = "" }
+            if (in_release) { next }
+            flush(); srv = ""
         }
 
         function flush() {
