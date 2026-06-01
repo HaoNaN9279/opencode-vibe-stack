@@ -1,33 +1,33 @@
-# MCP Python Build Skill
+# MCP Python 构建技能
 
-**Base directory**: ${PROJECT_ROOT}
+**基础目录**：${PROJECT_ROOT}
 
-## Skill: mcp_py_build
+## 技能：mcp_py_build
 
-You are a packaging specialist for Python MCP (Model Context Protocol) servers. You produce standalone executables using uv + PyInstaller, targeting **Linux** and **Windows**.
-
----
-
-## CAPABILITY
-
-Package a Python MCP server project into self-contained, single-file executables. The output binaries are named `{project}-linux` (Linux, no extension) and `{project}.exe` (Windows). No Python or dependency installation is required on the target machine.
+你是一名 Python MCP (Model Context Protocol) 服务器的打包专家。你使用 uv + PyInstaller 生成独立的可执行文件，目标平台为 **Linux** 和 **Windows**。
 
 ---
 
-## MODE DETECTION
+## 能力描述
 
-| User Request | Mode | Action |
+将 Python MCP 服务器项目打包成自包含的单个文件可执行文件。输出二进制文件命名为 `{project}-linux`（Linux，无扩展名）和 `{project}.exe`（Windows）。目标机器上无需安装 Python 或依赖。
+
+---
+
+## 模式检测
+
+| 用户请求 | 模式 | 操作 |
 |---|---|---|
-| "package", "build", "打包", "빌드" | **LOCAL_BUILD** | Build on the current machine |
-| "CI build", "GitHub Actions build", "workflow build" | **CI_BUILD** | Set up or trigger CI pipeline |
-| "hook", "PyInstaller hook" | **HOOK_FIX** | Fix or create PyInstaller hook |
-| Build error, import error after packaging | **TROUBLESHOOT** | Diagnose and fix |
+| "package", "build", "打包", "빌드" | **LOCAL_BUILD** | 在当前机器上构建 |
+| "CI build", "GitHub Actions build", "workflow build" | **CI_BUILD** | 设置或触发 CI 流水线 |
+| "hook", "PyInstaller hook" | **HOOK_FIX** | 修复或创建 PyInstaller hook |
+| 构建错误，打包后导入错误 | **TROUBLESHOOT** | 诊断并修复 |
 
 ---
 
-## PHASE 1: Pre-Build Verification
+## 阶段 1：构建前验证
 
-### 1.1 Required Project Structure
+### 1.1 必需的项目结构
 
 ```
 project-root/
@@ -42,14 +42,14 @@ project-root/
 └── uv.lock
 ```
 
-### 1.2 Verify Entry Point (main.py)
+### 1.2 验证入口点 (main.py)
 
-The `src/{package}/main.py` MUST:
-- Import the MCP server's `main()` function
-- Call it under `if __name__ == "__main__":`
-- **NOT** use any interactive console features
+`src/{package}/main.py` **必须**：
+- 导入 MCP 服务器的 `main()` 函数
+- 在 `if __name__ == "__main__":` 下调用它
+- **不能**使用任何交互式控制台功能
 
-**Canonical template:**
+**标准模板：**
 ```python
 """Project name MCP Server — single-file packaging entry point."""
 
@@ -61,9 +61,9 @@ if __name__ == "__main__":
     main()
 ```
 
-### 1.3 Verify pyproject.toml
+### 1.3 验证 pyproject.toml
 
-Required sections:
+必需的配置段：
 ```toml
 [project]
 name = "{project-name}"
@@ -83,9 +83,9 @@ dev = [
 {project-name}-mcp = "{package_name}.mcp.server:main"
 ```
 
-### 1.4 Verify PyInstaller Hook (hook-mcp.py)
+### 1.4 验证 PyInstaller 钩子 (hook-mcp.py)
 
-**REQUIRED** in project root:
+**必需**在项目根目录：
 ```python
 """PyInstaller hook to collect hidden imports from the mcp package."""
 
@@ -102,13 +102,13 @@ def _filter(name: str) -> bool:
 datas, binaries, hiddenimports = collect_all("mcp", filter_submodules=_filter)
 ```
 
-**Why the filter**: `mcp.cli` imports `typer` which may not be installed. The MCP server only needs `mcp.server.fastmcp` at runtime. Excluding the CLI avoids a `ModuleNotFoundError: No module named 'typer'` crash during `collect_all()`.
+**为什么需要过滤**：`mcp.cli` 导入了 `typer`，而 `typer` 可能未安装。MCP 服务器在运行时只需要 `mcp.server.fastmcp`。排除 CLI 可以避免 `collect_all()` 过程中因 `ModuleNotFoundError: No module named 'typer'` 导致的崩溃。
 
 ---
 
-## PHASE 2: Local Build (Windows)
+## 阶段 2：本地构建（Windows）
 
-### 2.1 Prerequisites
+### 2.1 前置条件
 
 ```powershell
 # Ensure uv is installed
@@ -118,7 +118,7 @@ uv --version
 uv sync --dev
 ```
 
-### 2.2 Build Command
+### 2.2 构建命令
 
 ```powershell
 uv run pyinstaller `
@@ -133,20 +133,20 @@ uv run pyinstaller `
   src/{package_name}/main.py
 ```
 
-**Output**: `dist/{project-name}.exe`
+**输出**：`dist/{project-name}.exe`
 
-**Critical parameters explained:**
-| Parameter | Purpose |
+**关键参数说明：**
+| 参数 | 目的 |
 |---|---|
-| `--onefile` | Single executable output |
-| `--console` | **MANDATORY** — MCP needs stdio; NEVER use `--windowed` or `--noconsole` |
-| `--noconfirm` | Overwrite without prompt |
-| `--clean` | Clear PyInstaller cache before build |
-| `--additional-hooks-dir .` | Load `hook-mcp.py` from project root |
-| `--hidden-import mcp` | Explicitly include mcp package |
-| `--hidden-import mcp.server.fastmcp` | Explicitly include FastMCP |
+| `--onefile` | 单个可执行文件输出 |
+| `--console` | **必须** — MCP 需要 stdio；绝不要使用 `--windowed` 或 `--noconsole` |
+| `--noconfirm` | 覆盖时不提示 |
+| `--clean` | 构建前清除 PyInstaller 缓存 |
+| `--additional-hooks-dir .` | 从项目根目录加载 `hook-mcp.py` |
+| `--hidden-import mcp` | 显式包含 mcp 包 |
+| `--hidden-import mcp.server.fastmcp` | 显式包含 FastMCP |
 
-### 2.3 Verify Build
+### 2.3 验证构建
 
 ```powershell
 # Check binary exists and size
@@ -158,13 +158,13 @@ Start-Sleep -Seconds 2
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 ```
 
-A successful smoke test means the binary starts without `ModuleNotFoundError`. The MCP server will appear to "hang" — this is normal, it's waiting for stdio protocol messages.
+成功的冒烟测试意味着二进制文件启动时没有 `ModuleNotFoundError`。MCP 服务器看起来会"挂起"——这是正常的，它正在等待 stdio 协议消息。
 
 ---
 
-## PHASE 3: Local Build (Linux)
+## 阶段 3：本地构建（Linux）
 
-### 3.1 Prerequisites
+### 3.1 前置条件
 
 ```bash
 # System dependencies (Ubuntu/Debian)
@@ -174,7 +174,7 @@ sudo apt update && sudo apt install -y build-essential python3-dev
 uv sync --dev
 ```
 
-### 3.2 Build Command
+### 3.2 构建命令
 
 ```bash
 uv run pyinstaller \
@@ -194,14 +194,14 @@ mv dist/{project-name} dist/{project-name}-linux
 chmod +x dist/{project-name}-linux
 ```
 
-**Output**: `dist/{project-name}-linux`
+**输出**：`dist/{project-name}-linux`
 
-**Linux-specific additions:**
-| Parameter | Purpose |
+**Linux 特有参数：**
+| 参数 | 目的 |
 |---|---|
-| `--strip` | Remove debug symbols, reduce binary size |
+| `--strip` | 移除调试符号，减小二进制体积 |
 
-### 3.3 Verify Build
+### 3.3 验证构建
 
 ```bash
 # Check binary
@@ -215,11 +215,11 @@ timeout 2 ./dist/{project-name}-linux || true
 
 ---
 
-## PHASE 4: CI/CD Build (GitHub Actions)
+## 阶段 4：CI/CD 构建（GitHub Actions）
 
-### 4.1 Workflow File
+### 4.1 工作流文件
 
-Create `.github/workflows/build.yml`:
+创建 `.github/workflows/build.yml`：
 
 ```yaml
 name: Build {Project Name} MCP Server
@@ -302,59 +302,59 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### 4.2 Naming Convention
+### 4.2 命名规范
 
-| Platform | PyInstaller Output | Final Name |
+| 平台 | PyInstaller 输出 | 最终名称 |
 |---|---|---|
-| Windows | `dist/{project-name}.exe` | `dist/{project-name}.exe` (no rename) |
-| Linux | `dist/{project-name}` | `dist/{project-name}-linux` (renamed) |
+| Windows | `dist/{project-name}.exe` | `dist/{project-name}.exe`（不重命名） |
+| Linux | `dist/{project-name}` | `dist/{project-name}-linux`（已重命名） |
 
-**Rule**: Windows binary uses `.exe` extension (platform-identifying); Linux binary appends `-linux` suffix (no extension on Linux).
+**规则**：Windows 二进制文件使用 `.exe` 扩展名（平台标识）；Linux 二进制文件添加 `-linux` 后缀（Linux 上无扩展名）。
 
 ---
 
-## PHASE 5: Troubleshooting
+## 阶段 5：故障排除
 
 ### 5.1 "typer is required" / ModuleNotFoundError: No module named 'typer'
 
-**Cause**: The `hook-mcp.py` is calling `collect_all("mcp")` without filtering `mcp.cli`.
+**原因**：`hook-mcp.py` 在调用 `collect_all("mcp")` 时没有过滤 `mcp.cli`。
 
-**Fix**: Add the `_filter` function (see Phase 1.4) to exclude `mcp.cli` and `mcp.server.cli` subpackages.
+**修复**：添加 `_filter` 函数（见阶段 1.4）以排除 `mcp.cli` 和 `mcp.server.cli` 子包。
 
-### 5.2 Client cannot connect to packaged MCP server
+### 5.2 客户端无法连接到打包后的 MCP 服务器
 
-**Cause**: Used `--windowed` or `--noconsole` instead of `--console`.
+**原因**：使用了 `--windowed` 或 `--noconsole` 而非 `--console`。
 
-**Fix**: **ALWAYS** use `--console`. MCP servers communicate over stdio; without a console they cannot receive or send data.
+**修复**：**始终**使用 `--console`。MCP 服务器通过 stdio 通信；没有控制台就无法接收或发送数据。
 
-### 5.3 Missing modules at runtime
+### 5.3 运行时缺少模块
 
-**Symptom**: `ModuleNotFoundError` when running the packaged binary.
+**症状**：运行打包后的二进制文件时出现 `ModuleNotFoundError`。
 
-**Fix**:
-1. Add `--hidden-import {module_name}` for each missing module
-2. Check that all runtime dependencies are in `pyproject.toml` `[project] dependencies`
-3. Run `uv sync` to ensure lock file is current
+**修复**：
+1. 为每个缺失的模块添加 `--hidden-import {module_name}`
+2. 检查所有运行时依赖是否在 `pyproject.toml` 的 `[project] dependencies` 中
+3. 运行 `uv sync` 确保 lock 文件是最新的
 
-### 5.4 Binary too large
+### 5.4 二进制文件过大
 
-**Mitigations**:
-- Use `--strip` on Linux (removes debug symbols)
-- Review dependencies — remove unused packages from `pyproject.toml`
-- Consider UPX compression: add `--upx-dir /path/to/upx` (⚠️ may cause MCP communication issues, test thoroughly)
+**缓解措施**：
+- 在 Linux 上使用 `--strip`（移除调试符号）
+- 审查依赖项——从 `pyproject.toml` 中移除未使用的包
+- 考虑 UPX 压缩：添加 `--upx-dir /path/to/upx`（⚠️ 可能导致 MCP 通信问题，请彻底测试）
 
-### 5.5 Windows Defender flags binary
+### 5.5 Windows Defender 标记二进制文件
 
-**Reality**: PyInstaller-packaged executables are commonly flagged. 
-- Add project directory to Windows Defender exclusions during build
-- Note in README that this is a false positive
-- Provide source code for self-compilation as alternative
+**实际情况**：PyInstaller 打包的可执行文件经常被标记。
+- 构建时将项目目录添加到 Windows Defender 排除列表
+- 在 README 中说明这是误报
+- 提供源码供自行编译作为替代方案
 
 ---
 
-## QUICK REFERENCE
+## 快速参考
 
-### Minimal Build (after initial setup)
+### 最小化构建（初始设置完成后）
 
 ```powershell
 # Windows
@@ -367,7 +367,7 @@ uv run pyinstaller --onefile --name {project-name} --console --noconfirm --clean
 mv dist/{project-name} dist/{project-name}-linux && chmod +x dist/{project-name}-linux
 ```
 
-### File Checklist Before Build
+### 构建前的文件检查清单
 
 ```
 [] src/{package_name}/main.py          — entry point exists
@@ -376,7 +376,7 @@ mv dist/{project-name} dist/{project-name}-linux && chmod +x dist/{project-name}
 [] .gitignore includes: build/, *.spec  — build artifacts ignored
 ```
 
-### Cleanup
+### 清理
 
 ```powershell
 # Remove all build artifacts

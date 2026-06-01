@@ -1,37 +1,37 @@
-# `/photoshop-generate` — Photoshop Code Generation
+# `/photoshop-generate` — Photoshop 代码生成
 
-Generates Photoshop ExtendScript/UXP code templates for common operations. Wraps `opencode generate photoshop-*` invocations from 方案.md Section 2.2.
+生成常见操作的 Photoshop ExtendScript/UXP 代码模板。封装了来自方案.md 第 2.2 节的 `opencode generate photoshop-*` 调用。
 
-## Usage
+## 用法
 
 ```
-/photoshop-generate <category> [options]
+/photoshop-generate <类别> [选项]
 ```
 
-Aliases: `/ps-generate`, `/ps-gen`
+别名：`/ps-generate`、`/ps-gen`
 
 ---
 
-## Categories
+## 类别
 
-### 1. Layer Operations (`layer` / `layer-op`)
+### 1. 图层操作 (`layer` / `layer-op`)
 
-Generate ExtendScript (.jsx) layer manipulation code.
+生成 ExtendScript (.jsx) 图层操作代码。
 
-**Options:**
-- `--action` (required): comma-separated list of operations
+**选项：**
+- `--action`（必需）：逗号分隔的操作列表
 
-**Supported actions and templates:**
+**支持的操作和模板：**
 
 #### `create`
 ```javascript
 // @target photoshop
 (function () {
-    if (app.documents.length === 0) { alert("No document open."); return; }
+    if (app.documents.length === 0) { alert("没有打开的文档。"); return; }
     var doc = app.activeDocument;
     var newLayer = doc.artLayers.add();
     newLayer.name = "New Layer";
-    // Set properties after creation
+    // 创建后设置属性
     newLayer.opacity = 100;
     newLayer.blendMode = BlendMode.NORMAL;
 })();
@@ -76,7 +76,7 @@ Generate ExtendScript (.jsx) layer manipulation code.
     var doc = app.activeDocument;
     var layerSet = doc.layerSets.add();
     layerSet.name = "New Group";
-    // Move active layer into group
+    // 将活动图层移入组
     doc.activeLayer.move(layerSet, ElementPlacement.PLACEATEND);
 })();
 ```
@@ -86,10 +86,10 @@ Generate ExtendScript (.jsx) layer manipulation code.
 (function () {
     if (app.documents.length === 0) return;
     var doc = app.activeDocument;
-    // Merge visible layers (equivalent to Ctrl+Shift+E)
+    // 合并可见图层（等效于 Ctrl+Shift+E）
     doc.mergeVisibleLayers();
-    // Or merge linked layers: doc.mergeLinkedLayers()
-    // Or merge a specific group: layerSet.merged()
+    // 或合并链接图层：doc.mergeLinkedLayers()
+    // 或合并特定组：layerSet.merged()
 })();
 ```
 
@@ -104,35 +104,35 @@ Generate ExtendScript (.jsx) layer manipulation code.
 
 ---
 
-### 2. Batch Processing (`batch`)
+### 2. 批处理 (`batch`)
 
-Generate ExtendScript (.jsx) for batch file processing across a folder.
+生成用于跨文件夹批处理文件的 ExtendScript (.jsx)。
 
-**Options:**
-- `--input-folder` (required): source directory path
-- `--output-format` (required): target format — `jpg`, `png`, `tiff`, `psd`
-- `--resize` (optional): target dimensions, e.g. `1920x1080`
+**选项：**
+- `--input-folder`（必需）：源目录路径
+- `--output-format`（必需）：目标格式——`jpg`、`png`、`tiff`、`psd`
+- `--resize`（可选）：目标尺寸，例如 `1920x1080`
 
-**Template:**
+**模板：**
 
 ```javascript
 // @target photoshop
 (function () {
     if (app.documents.length > 0) { app.activeDocument.close(SaveOptions.DONOTSAVECHANGES); }
 
-    var inputFolder = Folder("INPUT_FOLDER_PATH_HERE");
-    var outputFolder = Folder("OUTPUT_FOLDER_PATH_HERE");
-    if (!inputFolder.exists) { alert("Input folder not found."); return; }
+    var inputFolder = Folder("输入文件夹路径");
+    var outputFolder = Folder("输出文件夹路径");
+    if (!inputFolder.exists) { alert("输入文件夹未找到。"); return; }
     if (!outputFolder.exists) outputFolder.create();
 
     var fileList = inputFolder.getFiles(/\.(psd|tif|tiff|jpg|jpeg|png)$/i);
     for (var i = 0; i < fileList.length; i++) {
         var doc = app.open(fileList[i]);
-        // --- optional resize block ---
+        // --- 可选调整大小块 ---
         // if (doc.width > 1920) doc.resizeImage(UnitValue(1920, "px"));
-        // --- end resize block ---
-        var saveFile = new File(outputFolder + "/" + doc.name.replace(/\.\w+$/, ".TARGET_EXT"));
-        var saveOpts = getSaveOptions("TARGET_EXT");
+        // --- 调整大小结束 ---
+        var saveFile = new File(outputFolder + "/" + doc.name.replace(/\.\w+$/, ".目标扩展名"));
+        var saveOpts = getSaveOptions("目标扩展名");
         doc.saveAs(saveFile, saveOpts, true, Extension.LOWERCASE);
         doc.close(SaveOptions.DONOTSAVECHANGES);
     }
@@ -172,72 +172,72 @@ Generate ExtendScript (.jsx) for batch file processing across a folder.
 })();
 ```
 
-**Format conversion notes:**
+**格式转换说明：**
 
-| Output Format | SaveOptions Class     | Key Properties                               |
+| 输出格式 | SaveOptions 类 | 关键属性 |
 |---------------|-----------------------|----------------------------------------------|
-| JPEG          | `JPEGSaveOptions`     | `quality` (0–12), `embedColorProfile`, `matte` |
-| PNG           | `PNGSaveOptions`      | `compression` (0–6), `interlaced`             |
-| TIFF          | `TiffSaveOptions`     | `compression` (LZW/JPEG/ZIP/None), `layers`   |
-| PSD           | `PhotoshopSaveOptions`| `alphaChannels`, `layers`, `spotColors`       |
+| JPEG | `JPEGSaveOptions` | `quality` (0–12), `embedColorProfile`, `matte` |
+| PNG | `PNGSaveOptions` | `compression` (0–6), `interlaced` |
+| TIFF | `TiffSaveOptions` | `compression` (LZW/JPEG/ZIP/None), `layers` |
+| PSD | `PhotoshopSaveOptions` | `alphaChannels`, `layers`, `spotColors` |
 
 ---
 
-### 3. UXP UI Components (`uxp-ui`)
+### 3. UXP UI 组件 (`uxp-ui`)
 
-Generate UXP (.psjs + HTML) UI component stubs for panel plugins.
+生成用于面板插件的 UXP (.psjs + HTML) UI 组件存根。
 
-**Options:**
-- `--component` (required): comma-separated list — `button`, `slider`, `color-picker`, `dropdown`, `checkbox`, `text-input`
+**选项：**
+- `--component`（必需）：逗号分隔列表——`button`、`slider`、`color-picker`、`dropdown`、`checkbox`、`text-input`
 
-**General UXP UI structure:**
+**通用 UXP UI 结构：**
 
 ```html
-<!-- index.html — Panel entry point -->
+<!-- index.html — 面板入口点 -->
 <!DOCTYPE html>
 <html>
 <head>
 <script src="main.psjs"></script>
 <style>
   body { font-family: sans-serif; padding: 12px; }
-  /* Use Spectrum Web Components design tokens for Adobe-native look:
+  /* 使用 Spectrum Web Components 设计令牌以获得 Adobe 原生外观：
      https://opensource.adobe.com/spectrum-css/ */
 </style>
 </head>
 <body>
-  <!-- Components injected here -->
+  <!-- 组件在此注入 -->
 </body>
 </html>
 ```
 
 ```javascript
-// main.psjs — Panel logic entry
+// main.psjs — 面板逻辑入口
 "use strict";
 const app = require('photoshop').app;
 const core = require('photoshop').core;
 ```
 
-**Component stubs:**
+**组件存根：**
 
 #### Button
 ```javascript
-// HTML: <button id="myBtn">Run Action</button>
-// .psjs:
+// HTML：<button id="myBtn">运行操作</button>
+// .psjs：
 document.getElementById("myBtn").addEventListener("click", async function () {
     await core.executeAsModal(async () => {
         const doc = app.activeDocument;
-        if (!doc) { app.showAlert("No document open."); return; }
-        // ... operation ...
+        if (!doc) { app.showAlert("没有打开的文档。"); return; }
+        // ... 操作 ...
     });
 });
 ```
 
 #### Slider
 ```javascript
-// HTML:
-// <label for="opacitySlider">Opacity: <span id="opacityVal">100</span>%</label>
+// HTML：
+// <label for="opacitySlider">不透明度：<span id="opacityVal">100</span>%</label>
 // <input type="range" id="opacitySlider" min="0" max="100" value="100">
-// .psjs:
+// .psjs：
 document.getElementById("opacitySlider").addEventListener("input", function (e) {
     document.getElementById("opacityVal").textContent = e.target.value;
 });
@@ -251,34 +251,34 @@ document.getElementById("applyOpacity").addEventListener("click", async function
 
 #### Color Picker
 ```javascript
-// HTML: <input type="color" id="colorPicker" value="#ff0000">
-// .psjs:
+// HTML：<input type="color" id="colorPicker" value="#ff0000">
+// .psjs：
 document.getElementById("colorPicker").addEventListener("input", function (e) {
     var hex = e.target.value; // "#ff0000"
-    // Convert hex to RGB for Photoshop API
+    // 将十六进制转换为 RGB 供 Photoshop API 使用
     var r = parseInt(hex.slice(1,3), 16);
     var g = parseInt(hex.slice(3,5), 16);
     var b = parseInt(hex.slice(5,7), 16);
-    // Use with batchPlay() to set foreground color
-    // Reference: require('photoshop').action
+    // 配合 batchPlay() 设置前景色
+    // 参考：require('photoshop').action
 });
 ```
 
 #### Dropdown
 ```javascript
-// HTML:
+// HTML：
 // <select id="blendModeSelect">
-//   <option value="normal">Normal</option>
-//   <option value="multiply">Multiply</option>
-//   <option value="screen">Screen</option>
+//   <option value="normal">正常</option>
+//   <option value="multiply">正片叠底</option>
+//   <option value="screen">滤色</option>
 // </select>
-// .psjs:
+// .psjs：
 document.getElementById("blendModeSelect").addEventListener("change", async function (e) {
     var mode = e.target.value;
     await core.executeAsModal(async () => {
         if (app.activeDocument) {
-            // BlendMode enum is accessed via app.blendModes or batchPlay
-            // ExtendScript: var blendEnum = eval("BlendMode." + mode.toUpperCase());
+            // BlendMode 枚举通过 app.blendModes 或 batchPlay 访问
+            // ExtendScript：var blendEnum = eval("BlendMode." + mode.toUpperCase());
         }
     });
 });
@@ -286,23 +286,23 @@ document.getElementById("blendModeSelect").addEventListener("change", async func
 
 #### Checkbox
 ```javascript
-// HTML:
-// <label><input type="checkbox" id="visibleCheck" checked> Keep Visible</label>
-// .psjs:
+// HTML：
+// <label><input type="checkbox" id="visibleCheck" checked> 保持可见</label>
+// .psjs：
 document.getElementById("visibleCheck").addEventListener("change", function (e) {
     var isChecked = e.target.checked;
-    // Use value in subsequent operations
+    // 在后续操作中使用该值
 });
 ```
 
 #### Text Input
 ```javascript
-// HTML:
-// <label>Layer Name: <input type="text" id="layerNameInput" value="New Layer"></label>
-// .psjs:
+// HTML：
+// <label>图层名称：<input type="text" id="layerNameInput" value="新图层"></label>
+// .psjs：
 document.getElementById("applyNameBtn").addEventListener("click", async function () {
     var name = document.getElementById("layerNameInput").value;
-    if (!name) { app.showAlert("Name cannot be empty."); return; }
+    if (!name) { app.showAlert("名称不能为空。"); return; }
     await core.executeAsModal(async () => {
         if (app.activeDocument) app.activeDocument.activeLayer.name = name;
     });
@@ -311,16 +311,16 @@ document.getElementById("applyNameBtn").addEventListener("click", async function
 
 ---
 
-### 4. manifest.json Generation (`manifest`)
+### 4. manifest.json 生成 (`manifest`)
 
-Generate UXP `manifest.json` files for v4, v5, or v6.
+生成 v4、v5 或 v6 的 UXP `manifest.json` 文件。
 
-**Options:**
-- `--version` (required): manifest version — `4`, `5`, or `6`
-- `--host-min` (required): minimum Photoshop version, e.g. `24.0`
-- `--permissions` (optional): comma-separated UXP permissions
+**选项：**
+- `--version`（必需）：manifest 版本——`4`、`5` 或 `6`
+- `--host-min`（必需）：最低 Photoshop 版本，例如 `24.0`
+- `--permissions`（可选）：逗号分隔的 UXP 权限
 
-**Templates:**
+**模板：**
 
 #### v4 (PS 2022–2023, `apiVersion: 2`)
 ```json
@@ -333,7 +333,7 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
         {
             "type": "command",
             "id": "run",
-            "label": "Run My Plugin"
+            "label": "运行我的插件"
         }
     ],
     "host": [
@@ -345,7 +345,7 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
 }
 ```
 
-#### v5 (PS 2023+ — adds `requiredPermissions`)
+#### v5 (PS 2023+ — 新增 `requiredPermissions`)
 ```json
 {
     "manifestVersion": 5,
@@ -356,7 +356,7 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
         {
             "type": "panel",
             "id": "mainPanel",
-            "label": "My Plugin",
+            "label": "我的插件",
             "icons": [
                 { "width": 23, "height": 23, "path": "icons/dark.png" },
                 { "width": 46, "height": 46, "path": "icons/dark@2x.png" }
@@ -377,7 +377,7 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
 }
 ```
 
-#### v6 (PS 2024+ — enhanced permissions model)
+#### v6 (PS 2024+ — 增强的权限模型)
 ```json
 {
     "manifestVersion": 6,
@@ -388,7 +388,7 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
         {
             "type": "panel",
             "id": "mainPanel",
-            "label": "My Plugin",
+            "label": "我的插件",
             "icons": [
                 { "width": 23, "height": 23, "path": "icons/dark.png" },
                 { "width": 46, "height": 46, "path": "icons/dark@2x.png" }
@@ -414,44 +414,44 @@ Generate UXP `manifest.json` files for v4, v5, or v6.
 }
 ```
 
-**Permission reference:**
+**权限参考：**
 
-| Permission              | Values                    | Description                          |
+| 权限 | 值 | 描述 |
 |-------------------------|---------------------------|--------------------------------------|
-| `localFileSystem`       | `none`, `read`, `readWrite`| File open/save dialogs, folder access |
-| `network`               | `none`, `enabled`, `disabled`| HTTP/HTTPS requests                  |
-| `creativeCloud`         | `none`, `enabled`, `disabled`| CC library access                    |
-| `clipboard`             | `none`, `readWrite`       | System clipboard (v6+)               |
-| `openWithDefaultApp`    | `none`, `enabled`         | Open files in OS default app (v6+)   |
+| `localFileSystem` | `none`、`read`、`readWrite` | 文件打开/保存对话框、文件夹访问 |
+| `network` | `none`、`enabled`、`disabled` | HTTP/HTTPS 请求 |
+| `creativeCloud` | `none`、`enabled`、`disabled` | CC 库访问 |
+| `clipboard` | `none`、`readWrite` | 系统剪贴板 (v6+) |
+| `openWithDefaultApp` | `none`、`enabled` | 在 OS 默认应用中打开文件 (v6+) |
 
 ---
 
-### 5. `.atn` to ExtendScript Conversion (`atn` / `action-to-script`)
+### 5. `.atn` 到 ExtendScript 转换 (`atn` / `action-to-script`)
 
-Generate guidance for converting Photoshop Action (.atn) files to ExtendScript (.jsx).
+生成将 Photoshop Action (.atn) 文件转换为 ExtendScript (.jsx) 的指导。
 
-**Options:**
-- `--input` (required): path to `.atn` file
+**选项：**
+- `--input`（必需）：`.atn` 文件路径
 
-**Important: `.atn` is a binary format** — this command does NOT parse `.atn` files directly. Instead, it provides the recommended workflow and code scaffolding.
+**重要说明：`.atn` 是二进制格式**——此命令不直接解析 `.atn` 文件。而是提供推荐的工作流程和代码脚手架。
 
-**Conversion workflow:**
+**转换工作流程：**
 
-1. **Load the Action in Photoshop** — File > Open or double-click the `.atn`
-2. **Open the Actions panel** (Window > Actions)
-3. **Select the action** and click the panel menu > **"Batch Playback Settings..."**
-4. **Record as Script** using the Scripting Listener plugin (Adobe's official logging plug-in):
-   - Install Scripting Listener from Adobe's developer resources
-   - Enable via Photoshop menu: Plugins > Scripting Listener > Enable Logging
-   - Play the action once — the listener outputs JavaScript equivalents to the ESTK Console
-5. **Extract the output** and wrap in an ExtendScript function:
+1. **在 Photoshop 中加载动作** — 文件 > 打开或双击 `.atn`
+2. **打开动作面板**（窗口 > 动作）
+3. **选择动作**并点击面板菜单 > **"回放设置..."**
+4. **使用 Scripting Listener 插件录制为脚本**（Adobe 的官方日志插件）：
+   - 从 Adobe 开发者资源安装 Scripting Listener
+   - 通过 Photoshop 菜单启用：Plugins > Scripting Listener > Enable Logging
+   - 播放一次动作——监听器将 JavaScript 等效项输出到 ESTK Console
+5. **提取输出**并包裹在 ExtendScript 函数中：
 
 ```javascript
 // @target photoshop
 (function () {
-    // Paste listener output here — typically a series of
-    // executeAction() calls with descriptor objects.
-    // Example structure (not a real action):
+    // 在此粘贴监听器输出——通常是带描述符对象的
+    // 一系列 executeAction() 调用。
+    // 示例结构（非真实动作）：
     try {
         var desc = new ActionDescriptor();
         var ref = new ActionReference();
@@ -459,50 +459,50 @@ Generate guidance for converting Photoshop Action (.atn) files to ExtendScript (
         desc.putReference(charIDToTypeID("null"), ref);
         executeAction(charIDToTypeID("Mk  "), desc, DialogModes.NO);
     } catch (e) {
-        alert("Action step failed: " + e.toString());
+        alert("动作步骤失败：" + e.toString());
     }
 })();
 ```
 
-**Key conversion patterns:**
+**关键转换模式：**
 
-| Action Panel Step       | ExtendScript Equivalent                        |
+| 动作面板步骤 | ExtendScript 等效项 |
 |-------------------------|------------------------------------------------|
-| New Layer               | `app.activeDocument.artLayers.add()`           |
-| Set Foreground Color    | `app.foregroundColor.rgb = [R, G, B]`          |
-| Fill Selection          | `app.activeDocument.selection.fill(fillColor)`  |
-| Apply Filter            | `app.activeDocument.activeLayer.applyFilter()` |
-| Save Document           | `app.activeDocument.saveAs()` / `save()`       |
-| Close Document          | `app.activeDocument.close(SaveOptions.xxxxx)`  |
-| Select Layer by Name    | `app.activeDocument.layers.getByName("name")`  |
-| Resize Image            | `app.activeDocument.resizeImage()`              |
+| 新建图层 | `app.activeDocument.artLayers.add()` |
+| 设置前景色 | `app.foregroundColor.rgb = [R, G, B]` |
+| 填充选区 | `app.activeDocument.selection.fill(fillColor)` |
+| 应用滤镜 | `app.activeDocument.activeLayer.applyFilter()` |
+| 保存文档 | `app.activeDocument.saveAs()` / `save()` |
+| 关闭文档 | `app.activeDocument.close(SaveOptions.xxxxx)` |
+| 按名称选择图层 | `app.activeDocument.layers.getByName("name")` |
+| 调整图像大小 | `app.activeDocument.resizeImage()` |
 
-**Limitations of automatic .atn parsing:**
-- `.atn` stores serialized `PIActionDescriptor` data — it is a proprietary binary format with no published public schema
-- Action steps can contain conditional logic (if/else branches) that are not exposed to the Scripting Listener
-- Action sets with multiple child actions require manual disambiguation
-- Some action steps (e.g., modal dialogs) produce no listener output — these need manual implementation
-- Character encoding in action names varies between Photoshop versions
+**自动 .atn 解析的局限性：**
+- `.atn` 存储序列化的 `PIActionDescriptor` 数据——它是一种专有二进制格式，没有公开的公共 schema
+- 动作步骤可以包含条件逻辑（if/else 分支），这些不会暴露给 Scripting Listener
+- 包含多个子动作的动作集需要手动消歧
+- 某些动作步骤（例如模态对话框）不会产生监听器输出——这些需要手动实现
+- 动作名称中的字符编码在不同 Photoshop 版本之间有所不同
 
-> **Recommendation**: For complex actions, record each step individually using Scripting Listener rather than attempting batch conversion. For simple linear actions, manual transcription from the listener log is reliable.
+> **建议**：对于复杂动作，使用 Scripting Listener 逐个录制每个步骤，而不是尝试批量转换。对于简单的线性动作，从监听器日志手动转录是可靠的。
 
 ---
 
-## Version Map
+## 版本映射
 
-| Generation Category     | ExtendScript | UXP (.psjs) | Notes                              |
+| 生成类别 | ExtendScript | UXP (.psjs) | 说明 |
 |-------------------------|:---:|:---:|------------------------------------|
-| Layer Operations        |  ✓  |  ✓  | UXP needs `executeAsModal` wrapper |
-| Batch Processing        |  ✓  |  —  | Use ExtendScript for headless batch |
-| UXP UI Components       |  —  |  ✓  | HTML panel structure required      |
-| Manifest Generation     |  —  |  ✓  | JSON config, no runtime code       |
-| .atn Conversion Guidance|  ✓  |  —  | Workflow guidance only             |
+| 图层操作 | ✓ | ✓ | UXP 需要 `executeAsModal` 包装器 |
+| 批处理 | ✓ | — | 使用 ExtendScript 进行无头批处理 |
+| UXP UI 组件 | — | ✓ | 需要 HTML 面板结构 |
+| Manifest 生成 | — | ✓ | JSON 配置，无运行时代码 |
+| .atn 转换指导 | ✓ | — | 仅工作流程指导 |
 
 ---
 
-## References
+## 参考
 
 - Adobe Photoshop JavaScript Reference (ExtendScript DOM)
-- Adobe UXP Developer Guide (manifest versions, permissions)
-- Photoshop Scripting Listener plug-in (Adobe developer download)
-- 方案.md Section 2.2 — Code Generation architecture
+- Adobe UXP Developer Guide (manifest 版本、权限)
+- Photoshop Scripting Listener 插件（Adobe 开发者下载）
+- 方案.md 第 2.2 节 — 代码生成架构

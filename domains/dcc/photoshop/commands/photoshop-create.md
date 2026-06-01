@@ -1,33 +1,33 @@
-# `/photoshop-create` — Photoshop Project Scaffolding
+# `/photoshop-create` — Photoshop 项目脚手架搭建
 
-> **This is a guidance document, not an automated execution tool.**  
-> It instructs AI agents on the correct directory structures, file templates, and manifest configurations to generate when scaffolding a new Photoshop development project. No software installation, Photoshop runtime invocation, or build execution is performed.
+> **这是一份指导文档，不是自动化执行工具。**
+> 它指导 AI 代理在搭建新的 Photoshop 开发项目时，应生成正确的目录结构、文件模板和 manifest 配置。不执行软件安装、Photoshop 运行时调用或构建操作。
 
 ---
 
-## 1. Purpose
+## 1. 用途
 
-Scaffold a new Photoshop development project in one of three surface types:
+搭建一个新的 Photoshop 开发项目，可选三种层面类型之一：
 
-| Sub-command | Surface | Use Case |
+| 子命令 | 层面 | 使用场景 |
 |---|---|---|
-| `extendscript` | ExtendScript (.jsx) | Quick scripts, batch processing, legacy automation |
-| `uxp` | UXP (.psjs + manifest.json) | Modern panel/script plugins with UI, permissions model |
-| `cpp` | C++ SDK (.cpp/.h) | High-performance filters, format handlers, hybrid UXP+C++ |
+| `extendscript` | ExtendScript (.jsx) | 快速脚本、批处理、遗留自动化 |
+| `uxp` | UXP (.psjs + manifest.json) | 现代面板/脚本插件，带 UI 和权限模型 |
+| `cpp` | C++ SDK (.cpp/.h) | 高性能滤镜、格式处理器、混合 UXP+C++ |
 
-The AI agent generates the directory tree, entry-point files, and (for UXP) a valid `manifest.json` matching the requested version. The user specifies the project name, surface type, and optional parameters.
+AI 代理生成目录树、入口文件，以及（对于 UXP）与请求版本匹配的有效 `manifest.json`。用户指定项目名称、层面类型和可选参数。
 
 ---
 
-## 2. Usage
+## 2. 用法
 
 ```
-/photoshop-create extendscript --name <project-name> [--version <x.y.z>]
-/photoshop-create uxp --name <project-name> --type <panel|script|headless> [--manifest-version <4|5|6>] [--framework <react|vue|none>] [--host-min <x.y.z>]
-/photoshop-create cpp --name <project-name> [--sdk-version <2025|2026>]
+/photoshop-create extendscript --name <项目名称> [--version <x.y.z>]
+/photoshop-create uxp --name <项目名称> --type <panel|script|headless> [--manifest-version <4|5|6>] [--framework <react|vue|none>] [--host-min <x.y.z>]
+/photoshop-create cpp --name <项目名称> [--sdk-version <2025|2026>]
 ```
 
-### Shorthand form
+### 缩写形式
 
 ```
 /create ps-es --name BatchResize --version 1.0.0
@@ -37,128 +37,128 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
 
 ---
 
-## 3. Parameters
+## 3. 参数
 
-### Global parameters
+### 全局参数
 
-| Parameter | Required | Description |
+| 参数 | 必需 | 描述 |
 |---|---|---|
-| `--name` | Yes | Project name (used for directory name, entry file names, and manifest `id`) |
-| `--version` | No | Semantic version string (`x.y.z`). Default: `1.0.0` |
+| `--name` | 是 | 项目名称（用于目录名、入口文件名和 manifest `id`） |
+| `--version` | 否 | 语义版本号字符串 (`x.y.z`)。默认值：`1.0.0` |
 
-### ExtendScript-specific parameters
+### ExtendScript 特定参数
 
-| Parameter | Required | Description |
+| 参数 | 必需 | 描述 |
 |---|---|---|
-| *(none beyond global)* | — | ExtendScript projects have no additional scaffolding parameters. The `#target photoshop` directive is always added. |
+| *(除全局参数外无其他)* | — | ExtendScript 项目没有额外的脚手架参数。始终会添加 `#target photoshop` 指令。 |
 
-### UXP-specific parameters
+### UXP 特定参数
 
-| Parameter | Required | Description |
+| 参数 | 必需 | 描述 |
 |---|---|---|
-| `--type` | Yes | Plugin type: `panel` (dockable UI panel), `script` (menu-triggered script), `headless` (no UI). |
-| `--manifest-version` | No | Target manifest version: `4`, `5`, or `6`. Default: `5`. See **§6 — manifest.json Template Guide** below. |
-| `--framework` | No | UI framework for panel type: `react`, `vue`, or `none`. Default: `none` (vanilla HTML/CSS/JS with Spectrum Web Components). |
-| `--host-min` | No | Minimum Photoshop version (e.g., `24.0`, `25.0`). Default: `24.0`. |
+| `--type` | 是 | 插件类型：`panel`（可停靠 UI 面板）、`script`（菜单触发的脚本）、`headless`（无 UI）。 |
+| `--manifest-version` | 否 | 目标 manifest 版本：`4`、`5` 或 `6`。默认值：`5`。见下方 **§6 — manifest.json 模板指南**。 |
+| `--framework` | 否 | 面板类型的 UI 框架：`react`、`vue` 或 `none`。默认值：`none`（使用 Spectrum Web Components 的原生 HTML/CSS/JS）。 |
+| `--host-min` | 否 | 最低 Photoshop 版本（例如 `24.0`、`25.0`）。默认值：`24.0`。 |
 
-### C++ SDK-specific parameters
+### C++ SDK 特定参数
 
-| Parameter | Required | Description |
+| 参数 | 必需 | 描述 |
 |---|---|---|
-| `--sdk-version` | No | Target Photoshop SDK version year (e.g. `2025`, `2026`). Default: `2025`. This parameter exists for documentation purposes only — no build configurations or platform toolchain files are generated. |
+| `--sdk-version` | 否 | 目标 Photoshop SDK 版本年份（例如 `2025`、`2026`）。默认值：`2025`。此参数仅用于文档目的——不生成任何构建配置或平台工具链文件。 |
 
 ---
 
-## 4. Execution Steps
+## 4. 执行步骤
 
-### 4.1 ExtendScript project (`extendscript` / `ps-es`)
+### 4.1 ExtendScript 项目 (`extendscript` / `ps-es`)
 
-1. **Create directory structure**
+1. **创建目录结构**
 
    ```
-   <project-name>/
-   ├── scripts/          # Entry-point .jsx files
-   │   └── <project-name>.jsx
-   ├── includes/         # Shared .jsxinc modules
-   │   └── <project-name>.jsxinc    (optional, include if helpers exist)
-   └── docs/             # Usage documentation
+   <项目名称>/
+   ├── scripts/          # 入口 .jsx 文件
+   │   └── <项目名称>.jsx
+   ├── includes/         # 共享的 .jsxinc 模块
+   │   └── <项目名称>.jsxinc    （可选，如有辅助函数则包含）
+   └── docs/             # 使用文档
        └── README.md
    ```
 
-2. **Generate entry script** (`scripts/<project-name>.jsx`)
+2. **生成入口脚本** (`scripts/<项目名称>.jsx`)
 
    ```javascript
    // @target photoshop
-   // @include "includes/<project-name>.jsxinc"
-   // @description <project-name> — <brief description>
-   // @version <version>
+   // @include "includes/<项目名称>.jsxinc"
+   // @description <项目名称> — <简要描述>
+   // @version <版本>
 
    (function() {
        'use strict';
 
-       // Guard: ensure at least one document is open
+       // 保护：确保至少有一个文档打开
        if (app.documents.length === 0) {
-           alert('Please open a document first.');
+           alert('请先打开一个文档。');
            return;
        }
 
        var doc = app.activeDocument;
 
-       // --- Project-specific logic here ---
-       $.writeln('Running <project-name> v<version>');
+       // --- 项目特定逻辑写在这里 ---
+       $.writeln('正在运行 <项目名称> v<版本>');
 
-       // Wrap document-modifying operations in suspendHistory for undo support
-       doc.suspendHistory('<project-name>', '/* action string here */');
+       // 将文档修改操作包裹在 suspendHistory 中以支持撤消
+       doc.suspendHistory('<项目名称>', '/* 动作字符串 */');
 
    })();
    ```
 
-   - Line 1 **must** be `#target photoshop` for cross-platform file-launch compatibility.
-   - Enclose all logic in an IIFE to avoid global-scope pollution (ES3 restriction: `var` only, no `let`/`const`/arrow functions).
-   - Wrap user-facing operations with `doc.suspendHistory()`.
-   - Use `$.writeln()` for debug logging.
+   - 第 1 行**必须**是 `#target photoshop`，以实现跨平台文件启动兼容性。
+   - 将所有逻辑包裹在 IIFE 中以避免全局作用域污染（ES3 限制：仅 `var`，无 `let`/`const`/箭头函数）。
+   - 将面向用户的操作包裹在 `doc.suspendHistory()` 中。
+   - 使用 `$.writeln()` 进行调试日志记录。
 
-3. **Generate include module** (`includes/<project-name>.jsxinc`)
+3. **生成包含模块** (`includes/<项目名称>.jsxinc`)
 
    ```javascript
-   // @include guard — this file is not standalone
-   // Shared helpers for <project-name>
+   // @include guard — 此文件不是独立脚本
+   // <项目名称> 的共享辅助函数
 
    (function() {
-       // Place shared functions here
-       // Use .jsxinc extension — Photoshop's ExtendScript engine
-       // distinguishes these from standalone .jsx files.
+       // 在此放置共享函数
+       // 使用 .jsxinc 扩展名 — Photoshop 的 ExtendScript 引擎
+       // 将其与独立 .jsx 文件区分开。
    })();
    ```
 
-4. **Generate docs** (`docs/README.md`) — brief usage instructions referencing the entry script path.
+4. **生成文档** (`docs/README.md`) — 简短的使用说明，引用入口脚本路径。
 
 ---
 
-### 4.2 UXP project (`uxp` / `ps-uxp`)
+### 4.2 UXP 项目 (`uxp` / `ps-uxp`)
 
-1. **Create directory structure**
+1. **创建目录结构**
 
    ```
-   <project-name>/
-   ├── src/               # Source code
-   │   ├── main.js        # Entry point (required)
-   │   ├── <component>.js # Additional modules (as needed)
-   │   └── style.css      # Styles (panel type)
-   ├── public/            # Static assets
+   <项目名称>/
+   ├── src/               # 源代码
+   │   ├── main.js        # 入口点（必需）
+   │   ├── <组件>.js      # 额外模块（根据需要）
+   │   └── style.css      # 样式（面板类型）
+   ├── public/            # 静态资源
    │   └── icons/
    │       ├── dark-23.png
    │       ├── dark-46.png
    │       ├── light-23.png
    │       └── light-46.png
-   ├── dist/              # Built output (empty at scaffold)
-   └── manifest.json      # Plugin manifest
+   ├── dist/              # 构建输出（搭建时为空）
+   └── manifest.json      # 插件 manifest
    ```
 
-   - **Panel type**: Add `public/icons/` with 23px and 46px PNG icons for dark/light themes.
-   - **Script / headless type**: Omit `public/icons/` (no UI chrome).
+   - **面板类型**：添加 `public/icons/`，包含深色/浅色主题的 23px 和 46px PNG 图标。
+   - **脚本 / 无头类型**：省略 `public/icons/`（无 UI 界面）。
 
-2. **Generate entry script** (`src/main.js`)
+2. **生成入口脚本** (`src/main.js`)
 
    ```javascript
    'use strict';
@@ -166,153 +166,153 @@ The AI agent generates the directory tree, entry-point files, and (for UXP) a va
    const app = require('photoshop').app;
    const core = require('photoshop').core;
 
-   // --- Plugin logic here ---
-   // All document-modifying operations MUST be wrapped in executeAsModal:
+   // --- 插件逻辑写在这里 ---
+   // 所有文档修改操作必须包裹在 executeAsModal 中：
    // await core.executeAsModal(async (executionContext) => { ... });
 
-   // Example: log active document info
+   // 示例：记录活动文档信息
    if (app.activeDocument) {
-       console.log('Active document:', app.activeDocument.name);
+       console.log('活动文档：', app.activeDocument.name);
    }
    ```
 
-   - Every `.psjs` / `.js` file must begin with `"use strict"`.
-   - Import Photoshop DOM via `require('photoshop').app`.
-   - Use `core.executeAsModal()` for any document-modifying operation.
+   - 每个 `.psjs` / `.js` 文件必须以 `"use strict"` 开头。
+   - 通过 `require('photoshop').app` 导入 Photoshop DOM。
+   - 对任何文档修改操作使用 `core.executeAsModal()`。
 
-3. **Generate manifest.json** — See **§6 — manifest.json Template Guide** below for version-specific templates. Generate the appropriate template based on `--manifest-version`.
+3. **生成 manifest.json** — 见下方 **§6 — manifest.json 模板指南**，根据 `--manifest-version` 生成相应版本的模板。
 
-4. **Framework setup** (if `--framework react` or `--framework vue`):
-   - Generate `src/` with framework entry point (e.g., `index.jsx` for React).
-   - Add a `package.json` placeholder with the framework dependency noted.
-   - Do NOT run `npm install` — this is a guidance scaffold.
+4. **框架设置**（如果 `--framework react` 或 `--framework vue`）：
+   - 生成带框架入口点的 `src/`（例如 React 的 `index.jsx`）。
+   - 添加 `package.json` 占位符，注明框架依赖关系。
+   - 不要运行 `npm install`——这是一个指导性脚手架。
 
 ---
 
-### 4.3 C++ SDK project (`cpp` / `ps-cpp`)
+### 4.3 C++ SDK 项目 (`cpp` / `ps-cpp`)
 
-> **⚠ Documentation-only scaffold.** No build configurations, platform toolchain files (`.vcxproj`, `.xcodeproj`), or SDK headers are generated. The user must set up the C++ SDK environment manually. For project structure guidance, see `domains/dcc/photoshop/rules/photoshop.md`.
+> **⚠ 仅文档性质的脚手架。** 不生成构建配置、平台工具链文件（`.vcxproj`、`.xcodeproj`）或 SDK 头文件。用户必须手动设置 C++ SDK 环境。项目结构指导请参考 `domains/dcc/photoshop/rules/photoshop.md`。
 
-1. **Create directory structure**
+1. **创建目录结构**
 
    ```
-   <project-name>/
-   ├── source/            # Source files (.cpp)
-   │   └── <project-name>.cpp
-   ├── include/           # SDK headers and project headers
-   │   └── <project-name>/
+   <项目名称>/
+   ├── source/            # 源文件 (.cpp)
+   │   └── <项目名称>.cpp
+   ├── include/           # SDK 头文件和项目头文件
+   │   └── <项目名称>/
    │       └── Plugin.h
-   ├── resources/         # PiPL resource files, icons, version info
-   │   └── <project-name>.r
-   └── docs/              # Build and architecture notes
+   ├── resources/         # PiPL 资源文件、图标、版本信息
+   │   └── <项目名称>.r
+   └── docs/              # 构建和架构说明
        └── BUILD.md
    ```
 
-2. **Generate source file** (`source/<project-name>.cpp`)
+2. **生成源文件** (`source/<项目名称>.cpp`)
 
    ```cpp
-   // <project-name> — Photoshop C++ SDK Plugin
-   // Target SDK: Photoshop <sdk-version>
+   // <项目名称> — Photoshop C++ SDK 插件
+   // 目标 SDK：Photoshop <sdk-version>
    //
-   // NOTE: This is a structural skeleton. Suite acquisition, descriptor
-   // construction, and error handling are the responsibility of the developer.
+   // 注意：这是一个结构骨架。套件获取、描述符
+   // 构造和错误处理由开发者负责。
 
    #include "PSPlugIn.h"
    #include "PITypes.h"
    #include "PIActionDescriptor.h"
 
-   // Entry point (filter plugin example)
+   // 入口点（滤镜插件示例）
    DLLExport SPAPI PluginMain(const short selector,
                               FilterRecordPtr filterRecord,
                               long* data,
                               short* result) {
-       // Suite acquisition pattern:
+       // 套件获取模式：
        // SPBasicSuite* sSPBasic = filterRecord->sSPBasic;
        // sSPBasic->AcquireSuite(kSomeSuite, kSomeVersion, (const void**)&suitePtr);
        //
-       // Must check kSPNoError return and Free() all acquired suites.
-       // Memory from suite Make() calls must be explicitly released.
+       // 必须检查 kSPNoError 返回值，并 Free() 所有获取的套件。
+       // 通过套件 Make() 调用获取的内存必须显式释放。
    }
    ```
 
-3. **Generate resource file** (`resources/<project-name>.r`)
+3. **生成资源文件** (`resources/<项目名称>.r`)
 
    ```
-   // PiPL resource — defines plugin type and entry functions
-   // Types: filter (.8bf), automation, format, import, export
-   // Entry: PluginMain (filter), AutoPluginMain (automation)
+   // PiPL 资源 — 定义插件类型和入口函数
+   // 类型：filter (.8bf)、automation、format、import、export
+   // 入口：PluginMain (filter)、AutoPluginMain (automation)
    ```
 
-4. **Generate build notes** (`docs/BUILD.md`) — placeholder directing the user to:
-   - Set up the Photoshop C++ SDK environment.
-   - Open the platform project in Visual Studio (Windows) or Xcode (macOS).
-   - Build and copy the resulting `.8bf` / `.plugin` to Photoshop's `Plug-ins/` directory.
+4. **生成构建说明** (`docs/BUILD.md`) — 占位符，指导用户：
+   - 设置 Photoshop C++ SDK 环境。
+   - 在 Visual Studio（Windows）或 Xcode（macOS）中打开平台项目。
+   - 构建并将生成的 `.8bf` / `.plugin` 复制到 Photoshop 的 `Plug-ins/` 目录。
 
 ---
 
-## 5. Output
+## 5. 输出
 
-The command produces a fully-scaffolded directory tree at the user's specified location (default: current working directory). The AI agent explicitly lists every created file and its purpose.
+该命令在用户指定的位置（默认：当前工作目录）生成一个完整的脚手架目录树。AI 代理显式列出每个创建的文件及其用途。
 
-**Example output (ExtendScript):**
-
-```
-Created project "BatchResize" at ./BatchResize/
-├── scripts/BatchResize.jsx        — Entry script (#target photoshop, IIFE wrapper)
-├── includes/BatchResize.jsxinc    — Shared helpers module
-└── docs/README.md                 — Usage documentation
-```
-
-**Example output (UXP):**
+**示例输出 (ExtendScript)：**
 
 ```
-Created project "LayerManager" at ./LayerManager/
+已创建项目 "BatchResize" 于 ./BatchResize/
+├── scripts/BatchResize.jsx        — 入口脚本 (#target photoshop, IIFE 包装器)
+├── includes/BatchResize.jsxinc    — 共享辅助函数模块
+└── docs/README.md                 — 使用文档
+```
+
+**示例输出 (UXP)：**
+
+```
+已创建项目 "LayerManager" 于 ./LayerManager/
 ├── src/
-│   ├── main.js                     — Entry point (executeAsModal-wrapped)
-│   └── style.css                   — Plugin styles (Spectrum Web Components tokens)
+│   ├── main.js                     — 入口点 (executeAsModal 包装)
+│   └── style.css                   — 插件样式 (Spectrum Web Components 令牌)
 ├── public/icons/
-│   ├── dark-23.png                 — Dark theme icon (23px)
-│   ├── dark-46.png                 — Dark theme icon (46px)
-│   ├── light-23.png                — Light theme icon (23px)
-│   └── light-46.png                — Light theme icon (46px)
-├── dist/                           — Build output (empty)
-└── manifest.json                   — Manifest v5 (requiredPermissions block)
+│   ├── dark-23.png                 — 深色主题图标 (23px)
+│   ├── dark-46.png                 — 深色主题图标 (46px)
+│   ├── light-23.png                — 浅色主题图标 (23px)
+│   └── light-46.png                — 浅色主题图标 (46px)
+├── dist/                           — 构建输出 (空)
+└── manifest.json                   — Manifest v5 (requiredPermissions 块)
 ```
 
-**Example output (C++ SDK):**
+**示例输出 (C++ SDK)：**
 
 ```
-Created project "CustomFilter" at ./CustomFilter/
-├── source/CustomFilter.cpp         — Source skeleton (PluginMain entry)
-├── include/CustomFilter/Plugin.h   — Project header
-├── resources/CustomFilter.r        — PiPL resource stub
-└── docs/BUILD.md                   — Build instructions placeholder
+已创建项目 "CustomFilter" 于 ./CustomFilter/
+├── source/CustomFilter.cpp         — 源文件骨架 (PluginMain 入口)
+├── include/CustomFilter/Plugin.h   — 项目头文件
+├── resources/CustomFilter.r        — PiPL 资源存根
+└── docs/BUILD.md                   — 构建说明占位符
 ```
 
 ---
 
-## 6. manifest.json Template Guide
+## 6. manifest.json 模板指南
 
-Generate the appropriate manifest version based on `--manifest-version` parameter.
+根据 `--manifest-version` 参数生成相应版本的 manifest。
 
 ### manifest v4 (Photoshop 2022+, `--manifest-version 4`)
 
 ```json
 {
     "manifestVersion": 4,
-    "id": "<PREFIX>.<PROJECT_NAME>",
-    "name": "<Project Display Name>",
-    "version": "<VERSION>",
+    "id": "<前缀>.<项目名称>",
+    "name": "<项目显示名称>",
+    "version": "<版本>",
     "main": "index.html",
     "host": {
         "app": "PS",
-        "minVersion": "<HOST_MIN>"
+        "minVersion": "<最低主机版本>"
     },
     "entrypoints": [
         {
             "type": "panel",
             "id": "panel",
-            "label": "<Project Display Name>",
+            "label": "<项目显示名称>",
             "minimumSize": { "width": 300, "height": 400 },
             "preferredDockedSize": { "width": 350, "height": 500 }
         }
@@ -326,30 +326,30 @@ Generate the appropriate manifest version based on `--manifest-version` paramete
 }
 ```
 
-**Notes:**
-- `apiVersion` defaults to 2 for `minVersion >= 23.0`.
-- No `requiredPermissions` block — filesystem/network APIs are inaccessible.
-- Suitable for plugins that do not require filesystem or network access.
-- `entrypoints` type is `"panel"` for panel plugins, `"script"` for script plugins, or omitted for headless.
+**注意：**
+- 对于 `minVersion >= 23.0`，`apiVersion` 默认为 2。
+- 没有 `requiredPermissions` 块——文件系统/网络 API 不可访问。
+- 适用于不需要文件系统或网络访问的插件。
+- 面板插件的 `entrypoints` 类型为 `"panel"`，脚本插件为 `"script"`，无头插件则省略。
 
-### manifest v5 (Photoshop 2023+, `--manifest-version 5`, default)
+### manifest v5 (Photoshop 2023+, `--manifest-version 5`, 默认)
 
 ```json
 {
     "manifestVersion": 5,
-    "id": "<PREFIX>.<PROJECT_NAME>",
-    "name": "<Project Display Name>",
-    "version": "<VERSION>",
+    "id": "<前缀>.<项目名称>",
+    "name": "<项目显示名称>",
+    "version": "<版本>",
     "main": "index.html",
     "host": {
         "app": "PS",
-        "minVersion": "<HOST_MIN>"
+        "minVersion": "<最低主机版本>"
     },
     "entrypoints": [
         {
             "type": "panel",
             "id": "panel",
-            "label": "<Project Display Name>",
+            "label": "<项目显示名称>",
             "minimumSize": { "width": 300, "height": 400 },
             "preferredDockedSize": { "width": 350, "height": 500 }
         }
@@ -367,30 +367,30 @@ Generate the appropriate manifest version based on `--manifest-version` paramete
 }
 ```
 
-**Notes:**
-- `requiredPermissions` is **required** in v5. Undeclared permissions are denied at install time with no runtime fallback.
-- Add only the minimum permissions the plugin actually needs (principle of least privilege).
-- `"localFileSystem"` permission is needed for `require('uxp').storage.localFileSystem.getFolder()`.
-- `"network"` permission is needed for any `fetch()` or HTTP communication.
+**注意：**
+- 在 v5 中 `requiredPermissions` 是**必需的**。未声明的权限在安装时被拒绝，无运行时回退。
+- 仅添加插件实际需要的最小权限（最小权限原则）。
+- `require('uxp').storage.localFileSystem.getFolder()` 需要 `"localFileSystem"` 权限。
+- 任何 `fetch()` 或 HTTP 通信需要 `"network"` 权限。
 
 ### manifest v6 (Photoshop 2024+, `--manifest-version 6`)
 
 ```json
 {
     "manifestVersion": 6,
-    "id": "<PREFIX>.<PROJECT_NAME>",
-    "name": "<Project Display Name>",
-    "version": "<VERSION>",
+    "id": "<前缀>.<项目名称>",
+    "name": "<项目显示名称>",
+    "version": "<版本>",
     "main": "index.html",
     "host": {
         "app": "PS",
-        "minVersion": "<HOST_MIN>"
+        "minVersion": "<最低主机版本>"
     },
     "entrypoints": [
         {
             "type": "panel",
             "id": "panel",
-            "label": "<Project Display Name>",
+            "label": "<项目显示名称>",
             "minimumSize": { "width": 300, "height": 400 },
             "preferredDockedSize": { "width": 350, "height": 500 }
         }
@@ -408,25 +408,25 @@ Generate the appropriate manifest version based on `--manifest-version` paramete
 }
 ```
 
-**Notes:**
-- v6 is identical in structure to v5 but may introduce new schema properties in future Photoshop releases.
-- Available from Photoshop 2024 (v25) onward (see compatibility table in `rules/photoshop.md`).
+**注意：**
+- v6 在结构上与 v5 相同，但可能在未来的 Photoshop 版本中引入新的 schema 属性。
+- 从 Photoshop 2024 (v25) 起可用（见 `rules/photoshop.md` 中的兼容性表）。
 
-### Version compatibility reference
+### 版本兼容性参考
 
-| Manifest | Photoshop | apiVersion | Key change |
+| Manifest | Photoshop | apiVersion | 关键变化 |
 |---|---|---|---|
-| v4 | 2022+ (v23) | 2 (auto) | Base UXP manifest |
-| v5 | 2023+ (v24) | 2 (auto) | `requiredPermissions` block mandatory |
-| v6 | 2024+ (v25) | 2 (auto) | Future-proofing, same schema as v5 |
+| v4 | 2022+ (v23) | 2 (自动) | 基础 UXP manifest |
+| v5 | 2023+ (v24) | 2 (自动) | `requiredPermissions` 块为必填 |
+| v6 | 2024+ (v25) | 2 (自动) | 面向未来，schema 与 v5 相同 |
 
 ---
 
-## 7. Notes
+## 7. 说明
 
-- **No software installation.** This command does not install the C++ SDK, Visual Studio, Xcode, or any other development toolchain.
-- **No Photoshop execution.** The command does not run scripts in Photoshop or launch the UXP Developer Tool.
-- **No package management.** `npm install`, `pip install`, or similar dependency installation is not performed.
-- **No build execution.** UXP `dist/` remains empty; C++ projects require manual build configuration.
-- **Cross-surface hybrid projects** (UXP + C++): Run `/photoshop-create uxp` first, then `/photoshop-create cpp` separately, or manually merge the two structures. Hybrid plugins require matching `component ID` fields between UXP `manifest.json` and the C++ `PSDLLMain()` registration.
-- For Marketplace-distributed plugins, the `manifest.json` must ship a single `host` definition, not an array.
+- **不安装软件。** 此命令不安装 C++ SDK、Visual Studio、Xcode 或任何其他开发工具链。
+- **不执行 Photoshop。** 此命令不在 Photoshop 中运行脚本，也不启动 UXP Developer Tool。
+- **不管理包依赖。** 不执行 `npm install`、`pip install` 或类似的依赖安装。
+- **不执行构建。** UXP `dist/` 保持为空；C++ 项目需要手动构建配置。
+- **跨层面混合项目** (UXP + C++)：先运行 `/photoshop-create uxp`，然后单独运行 `/photoshop-create cpp`，或手动合并两个结构。混合插件需要在 UXP `manifest.json` 和 C++ `PSDLLMain()` 注册之间的匹配 `component ID` 字段。
+- 对于面向 Marketplace 分发的插件，`manifest.json` 必须提供单个 `host` 定义，而非数组。

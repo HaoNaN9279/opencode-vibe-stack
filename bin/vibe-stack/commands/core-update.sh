@@ -102,6 +102,12 @@ cmd_core_update() {
                         if (chs[i] == "}") { depth--; if (depth == 0) break }
                     }
                     if (depth == 0) {
+                        # Inject "type": "local" if missing (required by OpenCode schema)
+                        if (buf !~ /"type"[[:space:]]*:/) {
+                            sub(/\{/, "{ \"type\": \"local\", ", buf)
+                        }
+                        # Escape backslashes in Windows paths for safe gsub replacement
+                        if (index(vibe_home, "\\") > 0) gsub(/\\/, "\\\\", vibe_home)
                         gsub(/\$\{VIBE_STACK_HOME\}/, vibe_home, buf)
                         gsub(/[[:space:]]+$/, "", buf)
                         printf "vibe:core-%s\t%s\n", server, buf
@@ -128,7 +134,7 @@ cmd_core_update() {
                 }
                 !in_mcp {
                     if ($0 ~ /^[[:space:]]*"mcp"/) {
-                        in_mcp = 1; depth = 0
+                        found_mcp = 1; in_mcp = 1; depth = 0
                         if ($0 ~ /\{/) depth++
                         next
                     }
@@ -175,6 +181,10 @@ cmd_core_update() {
                         }
                         print "  }"
                         print "}"
+                    }
+                    else if (!in_mcp && found_mcp && found_end) {
+                        # MCP was found and rebuilt — close the root object
+                        print end_line
                     }
                 }
                 ' "$user_config" > "${user_config}.tmp" 2>/dev/null

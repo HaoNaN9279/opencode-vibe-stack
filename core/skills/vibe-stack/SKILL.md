@@ -1,27 +1,27 @@
-# Vibe Stack - Domain Configuration Manager
+# Vibe Stack - 领域配置管理器
 
-Manage domain-specific configurations for AI agent toolchains.
+管理 AI 智能体工具链的领域特定配置。
 
-## Overview
+## 概述
 
-Vibe Stack provides a layered configuration system for OpenCode + OhMyOpenAgent (OMO).
-It isolates rules, agents, MCPs, commands, and skills per domain (e.g., Unity, Unreal, Blender).
+Vibe Stack 为 OpenCode + OhMyOpenAgent (OMO) 提供分层配置系统。
+它按领域隔离规则、智能体、MCP、命令和技能（例如 Unity、Unreal、Blender）。
 
-Domain configs are stored in a central git repository and activated per project via symlinks.
+领域配置存储在一个中央 Git 仓库中，并通过符号链接按项目激活。
 
-## Key Locations
+## 关键位置
 
-| Path | Purpose |
+| 路径 | 用途 |
 |------|---------|
-| `~/.opencode-vibe-stack/core/` | Always-loaded resident configs |
-| `~/.opencode-vibe-stack/domains/<category>/<domain>/` | Domain-specific configs |
-| `~/.opencode-vibe-stack/stacks/` | Preset domain combinations |
-| `~/.config/opencode/` | User-level config (symlinks to core/) |
-| `.opencode/` | Project-level config (symlinks to domains/) |
+| `~/.opencode-vibe-stack/core/` | 始终加载的常驻配置 |
+| `~/.opencode-vibe-stack/domains/<category>/<domain>/` | 领域特定配置 |
+| `~/.opencode-vibe-stack/stacks/` | 预设领域组合 |
+| `~/.config/opencode/` | 用户级配置（符号链接到 core/） |
+| `.opencode/` | 项目级配置（符号链接到 domains/） |
 
-## Usage Commands
+## 使用命令
 
-When you need to manage domain configs, use the `vibe-stack` CLI:
+当你需要管理领域配置时，使用 `vibe-stack` CLI：
 
 ```bash
 # List all available domains
@@ -40,40 +40,40 @@ vibe-stack deactivate game-dev/unity
 vibe-stack use-stack game-dev
 ```
 
-## Adding New Domains
+## 添加新领域
 
-1. Create directory: `domains/<category>/<domain>/`
-2. Add required subdirectories: `rules/`, `agents/`, `commands/`, `mcp/`, `skills/`
-3. Configure domain-specific rules, agents, etc.
-4. Commit and push to the repository
+1. 创建目录：`domains/<category>/<domain>/`
+2. 添加必要的子目录：`rules/`、`agents/`、`commands/`、`mcp/`、`skills/`
+3. 配置领域特定的规则、智能体等
+4. 提交并推送到仓库
 
-## Configuration Layering
+## 配置分层
 
-When a project is opened, configs are loaded in this order:
-1. **Core** (always loaded) - from `~/.config/opencode/` (symlinked to core/)
-2. **Project** - from `.opencode/` in the project root
-3. **Domain** - from symlinks created by `vibe-stack activate`
+当打开项目时，按以下顺序加载配置：
+1. **核心**（始终加载）- 来自 `~/.config/opencode/`（符号链接到 core/）
+2. **项目** - 来自项目根目录的 `.opencode/`
+3. **领域** - 来自 `vibe-stack activate` 创建的符号链接
 
-OMO's native config walking (`.opencode/` up to `$HOME`) handles merging automatically.
+OMO 的原生配置遍历（从 `.opencode/` 到 `$HOME`）会自动处理合并。
 
-## MCP Server Management
+## MCP 服务器管理
 
-Domain MCP servers are loaded **only when the domain is activated** — no global MCP clutter.
+领域 MCP 服务器 **仅在领域被激活时** 加载 —— 无全局 MCP 杂乱。
 
-### How It Works
+### 工作原理
 
-1. Each domain's `mcp/` directory contains one or more JSON definition files in OpenCode native format
-2. On `vibe-stack activate`, the CLI:
-   - Reads all `mcp/*.json` files from the domain
-   - Resolves `${VIBE_STACK_HOME}` and `${PROJECT_ROOT}` placeholders
-   - Adds `vibe:` namespace prefix to server names (e.g., `vibe:data-forge`)
-   - Merges entries into `.opencode/opencode.json` under the `mcp` key
-3. OpenCode auto-discovers `.opencode/opencode.json` on startup and connects to the MCP servers
-4. On `vibe-stack deactivate`, the `vibe:*` entries are removed
+1. 每个领域的 `mcp/` 目录包含一个或多个 OpenCode 原生格式的 JSON 定义文件
+2. 执行 `vibe-stack activate` 时，CLI：
+   - 读取领域中所有 `mcp/*.json` 文件
+   - 解析 `${VIBE_STACK_HOME}` 和 `${PROJECT_ROOT}` 占位符
+   - 为服务器名称添加 `vibe:` 命名空间前缀（例如 `vibe:data-forge`）
+   - 将条目合并到 `.opencode/opencode.json` 的 `mcp` 键下
+3. OpenCode 在启动时自动发现 `.opencode/opencode.json` 并连接到 MCP 服务器
+4. 执行 `vibe-stack deactivate` 时，`vibe:*` 条目被移除
 
-### MCP Definition Format
+### MCP 定义格式
 
-Use OpenCode native `mcp` format in domain definition files:
+在领域定义文件中使用 OpenCode 原生 `mcp` 格式：
 
 ```json
 {
@@ -90,7 +90,7 @@ Use OpenCode native `mcp` format in domain definition files:
 }
 ```
 
-### Directory Structure
+### 目录结构
 
 ```
 domains/<category>/<domain>/
@@ -101,9 +101,9 @@ domains/<category>/<domain>/
       src/server.py
 ```
 
-### Key Rules
+### 关键规则
 
-- **No user config modified** — all MCP config writes to `.opencode/opencode.json` (project-level)
-- **Namespace isolation** — `vibe:` prefix prevents collision with user/Claude Code MCPs
-- **Placeholder resolution** — `${VIBE_STACK_HOME}` and `${PROJECT_ROOT}` resolved at activation time
-- **Per-domain lifecycle** — MCPs activate/deactivate with their domain
+- **不修改用户配置** —— 所有 MCP 配置写入 `.opencode/opencode.json`（项目级）
+- **命名空间隔离** —— `vibe:` 前缀防止与用户/Claude Code MCP 冲突
+- **占位符解析** —— `${VIBE_STACK_HOME}` 和 `${PROJECT_ROOT}` 在激活时解析
+- **按领域生命周期** —— MCP 随其领域一起激活/停用

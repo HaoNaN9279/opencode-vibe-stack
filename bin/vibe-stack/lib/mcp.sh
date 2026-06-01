@@ -27,8 +27,21 @@ activate_mcp() {
 
     for f in $json_files; do
         local normalized_home
-        normalized_home=$(echo "$vibe_home" | sed 's/\\/\//g')
-        awk -v vibe_home="$normalized_home" -v project_root="$project_root" '
+        normalized_home="$vibe_home"
+        # On MSYS2/Cygwin, convert POSIX /d/... paths to Windows D:\... format
+        # so OpenCode (native Windows app) can find the MCP binary.
+        case "$OSTYPE" in
+            msys|cygwin)
+                if command -v cygpath &>/dev/null; then
+                    normalized_home=$(cygpath -wa "$vibe_home" 2>/dev/null)
+                fi
+                ;;
+        esac
+        # Escape backslashes for awk -v: awk interprets \x sequences
+        # (e.g. \w, \o, \U) which strips backslashes from Windows paths.
+        local awk_home="${normalized_home//\\/\\\\}"
+        local awk_root="${project_root//\\/\\\\}"
+        awk -v vibe_home="$awk_home" -v project_root="$awk_root" '
         BEGIN { in_mcp=0; server=""; depth=0; buf="" }
 
         # Strip comments and leading whitespace only.
@@ -58,9 +71,37 @@ activate_mcp() {
                 if (chs[i] == "}") { depth--; if (depth == 0) break }
             }
             if (depth == 0) {
+                # Inject "type": "local" if missing (required by OpenCode schema)
+                if (buf !~ /"type"[[:space:]]*:/) {
+                    sub(/\{/, "{ \"type\": \"local\", ", buf)
+                }
+                # Escape backslashes in Windows paths for safe gsub replacement
+                if (index(vibe_home, "\\") > 0) gsub(/\\/, "\\\\", vibe_home)
+                if (index(project_root, "\\") > 0) gsub(/\\/, "\\\\", project_root)
                 gsub(/\$\{VIBE_STACK_HOME\}/, vibe_home, buf)
                 gsub(/\$\{PROJECT_ROOT\}/, project_root, buf)
                 gsub(/[[:space:]]+$/, "", buf)
+
+                # Strip "release" metadata field (non-MCP config).
+                # Uses brace-counting to correctly remove nested objects
+                # regardless of depth (e.g. repo + asset sub-objects).
+                while (match(buf, /"release"[[:space:]]*:[[:space:]]*\{/)) {
+                    rstart = RSTART
+                    rpos = RSTART + RLENGTH - 1
+                    rlevel = 1
+                    while (rlevel > 0 && rpos < length(buf)) {
+                        rpos++
+                        c = substr(buf, rpos, 1)
+                        if (c == "{") rlevel++
+                        if (c == "}") rlevel--
+                    }
+                    before = substr(buf, 1, rstart - 1)
+                    after = substr(buf, rpos + 1)
+                    sub(/[[:space:]]*,[[:space:]]*$/, "", before)
+                    sub(/^[[:space:]]*,[[:space:]]*/, "", after)
+                    buf = before after
+                }
+
                 printf "vibe:%s\t%s\n", server, buf
                 server = ""; buf = ""
             }
@@ -93,12 +134,13 @@ activate_mcp() {
     }
 
     !in_mcp {
-        if ($0 ~ /^[[:space:]]*"mcp"/) {
-            in_mcp = 1
-            depth = 0
-            if ($0 ~ /\{/) depth++
-            # Skip the original mcp opening line
-            next
+                if ($0 ~ /^[[:space:]]*"mcp"/) {
+                    found_mcp = 1
+                    in_mcp = 1
+                    depth = 0
+                    if ($0 ~ /\{/) depth++
+                    # Skip the original mcp opening line
+                    next
         }
         else if ($0 ~ /^[[:space:]]*\}/ && !found_end && !in_mcp) {
             # Last closing brace — possible insertion point if no mcp exists
@@ -150,6 +192,10 @@ activate_mcp() {
             }
             print "  }"
             print "}"
+        }
+        else if (!in_mcp && found_mcp && found_end) {
+            # MCP was found and rebuilt — close the root object
+            print end_line
         }
     }
     ' "$project_config" > "${project_config}.tmp" 2>/dev/null
@@ -297,8 +343,17 @@ install_mcp_binaries() {
         content=$(sed 's/[[:space:]]*\/\/.*$//' "$json_file")
 
         local normalized_home
-        normalized_home=$(echo "$vibe_home" | sed 's/\\/\//g')
-        echo "$content" | awk -v plat="$plat_key" -v home="$normalized_home" '
+        normalized_home="$vibe_home"
+        case "$OSTYPE" in
+            msys|cygwin)
+                if command -v cygpath &>/dev/null; then
+                    normalized_home=$(cygpath -wa "$vibe_home" 2>/dev/null)
+                fi
+                ;;
+        esac
+        # Escape backslashes for awk -v (same reason as activate_mcp)
+        local awk_home="${normalized_home//\\/\\\\}"
+        echo "$content" | awk -v plat="$plat_key" -v home="$awk_home" '
         BEGIN { OFS="\t"; srv=""; cmd=""; repo=""; asset=""; in_release=0; in_cmd=0 }
 
         { gsub(/^[[:space:]]+/, ""); gsub(/,[[:space:]]*$/, "") }
@@ -324,6 +379,7 @@ install_mcp_binaries() {
                 rest = substr($0, start+1)
                 if (match(rest, /"([^"]+)"/)) {
                     cmd = substr(rest, RSTART+1, RLENGTH-2)
+                    if (index(home, "\\") > 0) gsub(/\\/, "\\\\", home)
                     gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
                     in_cmd = 0
                 }
@@ -334,6 +390,7 @@ install_mcp_binaries() {
         in_cmd && /^[[:space:]]*"/ {
             gsub(/^[[:space:]]*"/, ""); gsub(/".*/, "")
             cmd = $0
+            if (index(home, "\\") > 0) gsub(/\\/, "\\\\", home)
             gsub(/\$\{VIBE_STACK_HOME\}/, home, cmd)
             in_cmd = 0
         }

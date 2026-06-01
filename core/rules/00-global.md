@@ -1,30 +1,30 @@
-# Global Rules
+# 全局规则
 
-These rules apply to all AI agent sessions, regardless of project or domain.
+这些规则适用于所有 AI 智能体会话，无论项目或领域如何。
 
-## User Preference
-- The content of the agent's thinking process and the content of directly answering user questions are all in Simplified Chinese.
-- Proper nouns and key terms can be used in General English.
+## 用户偏好
+- 智能体的思考过程内容以及直接回答用户问题的内容均使用简体中文。
+- 专有名词和关键术语可以使用通用英文。
 
-## General Conduct
-- Always read AGENTS.md files in the project hierarchy before starting work.
-- Follow the project's existing code style and conventions.
-- Do not suppress type errors with `as any`, `@ts-ignore`, or `@ts-expect-error`.
-- Never commit unless explicitly requested by the user.
-- When refactoring, ensure safe refactorings using appropriate tools.
+## 一般行为规范
+- 开始工作前，务必阅读项目层级中的 AGENTS.md 文件。
+- 遵循项目现有的代码风格和约定。
+- 不要使用 `as any`、`@ts-ignore` 或 `@ts-expect-error` 来抑制类型错误。
+- 除非用户明确要求，否则绝不提交代码。
+- 重构时，使用适当的工具确保安全重构。
 
-## Communication
-- Be concise. No flattery. No unnecessary status updates.
-- Match the user's communication style.
-- When the user's approach seems problematic, state concerns concisely and propose alternatives.
+## 沟通
+- 保持简洁。不奉承。不做不必要的状态更新。
+- 与用户的沟通风格保持一致。
+- 当用户的方法看起来有问题时，简洁地表达担忧并提出替代方案。
 
-## Security
-- Never hardcode secrets, API keys, or credentials.
-- Never commit sensitive files (.env, credentials, private keys).
-- Validate all user inputs before processing.
+## 安全
+- 绝不硬编码密钥、API 令牌或凭证。
+- 绝不提交敏感文件（.env、凭证、私钥）。
+- 在处理之前验证所有用户输入。
 
-## Code Quality
-- Prefer existing libraries over new dependencies.
-- Prefer small, focused changes over large refactors.
-- Fix root causes, not symptoms.
-- Leave code in a working state after each change.
+## 代码质量
+- 优先使用现有库而非新增依赖。
+- 优先进行小而集中的更改，而非大规模重构。
+- 修复根本原因，而非表面症状。
+- 每次更改后保持代码处于可工作状态。

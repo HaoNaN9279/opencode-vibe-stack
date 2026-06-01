@@ -1,24 +1,24 @@
-# `/data-forge-prompt` — Prompt & Caption Management
+# `/data-forge-prompt` — 提示与描述管理
 
-> **This is a guidance document, not an automated execution tool.**
-> It instructs AI agents on how to manage prompts and captions for LLM-based image description in AI training pipelines. No LLM inference, API calls, or automated generation is performed by this command directly.
+> **这是一份指导文档，而非自动化执行工具。**
+> 它指导 AI 智能体如何管理 AI 训练流水线中基于 LLM 的图像描述的提示和描述。此命令不直接执行任何 LLM 推理、API 调用或自动生成。
 
 ---
 
-## 1. Purpose
+## 1. 用途
 
-Manage the full lifecycle of LLM prompts and captions: generating captions via cloud or local LLMs, refining and cleaning existing captions, executing batch caption operations, and managing prompt templates.
+管理 LLM 提示和描述的完整生命周期：通过云端或本地 LLM 生成描述、优化和清理现有描述、执行批量描述操作以及管理提示模板。
 
-| Sub-command | Description |
+| 子命令 | 描述 |
 |---|---|
-| `generate` | Generate captions for images via LLM (cloud or local) |
-| `refine` | Clean, improve, or reformat existing captions |
-| `batch` | Execute batch caption operations (search, replace, deduplicate) |
-| `template` | Manage prompt templates (create, list, compare) |
+| `generate` | 通过 LLM（云端或本地）为图像生成描述 |
+| `refine` | 清理、改进或重新格式化现有描述 |
+| `batch` | 执行批量描述操作（搜索、替换、去重） |
+| `template` | 管理提示模板（创建、列出、比较） |
 
 ---
 
-## 2. Usage
+## 2. 用法
 
 ```
 /data-forge-prompt generate --directory <path> --provider openai|deepseek|ollama [--model <name>] [--keyfile <path>]
@@ -27,7 +27,7 @@ Manage the full lifecycle of LLM prompts and captions: generating captions via c
 /data-forge-prompt template <action> [--name <template-name>] [--provider openai|deepseek|ollama]
 ```
 
-### Aliases
+### 别名
 
 ```
 /df-prompt generate --directory ./images --provider ollama --model llava
@@ -38,46 +38,46 @@ Manage the full lifecycle of LLM prompts and captions: generating captions via c
 
 ---
 
-## 3. Parameters
+## 3. 参数
 
-### `generate` parameters
+### `generate` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--directory` | Yes | Directory containing images to describe. |
-| `--provider` | Yes | LLM provider: `openai`, `deepseek`, or `ollama`. |
-| `--model` | No | Model name. For Ollama: model tag (e.g., `llava:13b`). For cloud: model ID. Default: provider-specific default. |
-| `--keyfile` | No (cloud) | Path to API keyfile. Required for `openai`/`deepseek` providers. Format: JSON with `provider`, `api_key`, `api_base` fields. |
-| `--output-dir` | No | Directory for generated captions. Default: `--directory/captions/`. |
+| `--directory` | 是 | 包含需要描述的图像的目录。 |
+| `--provider` | 是 | LLM 供应商：`openai`、`deepseek` 或 `ollama`。 |
+| `--model` | 否 | 模型名称。对于 Ollama：模型标签（例如 `llava:13b`）。对于云端：模型 ID。默认值：供应商特定默认值。 |
+| `--keyfile` | 否（云端） | API keyfile 路径。`openai`/`deepseek` 供应商必需。格式：包含 `provider`、`api_key`、`api_base` 字段的 JSON。 |
+| `--output-dir` | 否 | 生成描述的目录。默认值：`--directory/captions/`。 |
 
-### `refine` parameters
+### `refine` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--directory` | Yes | Directory containing captions to refine. |
-| `--query` | No | Regex pattern for `caption_search` to find captions needing refinement. If omitted, all captions are processed. |
-| `--replace` | No | Replacement text for `caption_batch_replace`. Requires `--query`. |
-| `--re-generate` | No | Re-generate captions matching `--query` via the LLM instead of text replacement. Requires `--provider`. |
+| `--directory` | 是 | 包含需要优化描述的目录。 |
+| `--query` | 否 | 用于 `caption_search` 的正则表达式模式，用于查找需要优化的描述。如果省略，则处理所有描述。 |
+| `--replace` | 否 | `caption_batch_replace` 的替换文本。需要 `--query`。 |
+| `--re-generate` | 否 | 通过 LLM 重新生成匹配 `--query` 的描述，而非文本替换。需要 `--provider`。 |
 
-### `batch` parameters
+### `batch` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--directory` | Yes | Directory containing captions. |
-| `<operation>` | Yes | One of: `search`, `replace`, `deduplicate`, `stats`, `export`. |
-| `--query` | Conditional | Regex pattern for `caption_search`. Required for `search` and `replace`. |
-| `--replace-with` | Conditional | Replacement text for `caption_batch_replace`. Required for `replace`. |
-| `--strategy` | No | Deduplication strategy: `keep-first` or `keep-last`. Default: `keep-first`. Used with `deduplicate`. |
-| `--format` | No | Export format: `json` or `csv`. Default: `json`. Used with `export`. |
+| `--directory` | 是 | 包含描述的目录。 |
+| `<operation>` | 是 | 以下之一：`search`、`replace`、`deduplicate`、`stats`、`export`。 |
+| `--query` | 条件性 | 用于 `caption_search` 的正则表达式模式。`search` 和 `replace` 需要此参数。 |
+| `--replace-with` | 条件性 | `caption_batch_replace` 的替换文本。`replace` 需要此参数。 |
+| `--strategy` | 否 | 去重策略：`keep-first` 或 `keep-last`。默认值：`keep-first`。用于 `deduplicate`。 |
+| `--format` | 否 | 导出格式：`json` 或 `csv`。默认值：`json`。用于 `export`。 |
 
-### `template` parameters
+### `template` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `<action>` | Yes | One of: `create`, `list`, `compare`, `test`. |
-| `--name` | Conditional | Template name. Required for `create`; optional for `compare`/`test`. |
-| `--provider` | No | Target provider for the template: `openai`, `deepseek`, or `ollama`. Determines prompt structure. |
-| `--style` | No | Prompt style: `factual`, `creative`, or `technical`. Default: `factual`. |
+| `<action>` | 是 | 以下之一：`create`、`list`、`compare`、`test`。 |
+| `--name` | 条件性 | 模板名称。`create` 必需；`compare`/`test` 可选。 |
+| `--provider` | 否 | 模板的目标供应商：`openai`、`deepseek` 或 `ollama`。决定提示结构。 |
+| `--style` | 否 | 提示风格：`factual`、`creative` 或 `technical`。默认值：`factual`。 |
 
 ---
 

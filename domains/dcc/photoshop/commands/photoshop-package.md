@@ -1,246 +1,246 @@
-## `/photoshop-package` — Package & Publish Photoshop Plugins
+## `/photoshop-package` — 打包与发布 Photoshop 插件
 
-**Operational guidance command** for packaging UXP plugins into `.zxp` archives, applying digital signatures, preparing Adobe Creative Cloud Marketplace submission materials, and cleaning up project build artifacts.
+**操作指导命令**，用于将 UXP 插件打包成 `.zxp` 归档、应用数字签名、准备 Adobe Creative Cloud Marketplace 提交材料以及清理项目构建产物。
 
-> **Capability statement**: This is an operational guide, not automated packaging. All commands provide step-by-step instructions for the AI agent to follow — they do not invoke build tools, execute signing operations, or submit to Adobe Marketplace. The agent acts as a guided assistant walking the developer through each procedure.
+> **能力说明**：这是一份操作指南，不是自动化打包。所有命令提供逐步指导供 AI 代理遵循——它们不调用构建工具、不执行签名操作，也不向 Adobe Marketplace 提交。代理作为一个引导助手，引导开发者完成每个流程。
 
 ---
 
-### 1. Build — Package UXP Plugin as .ZXP
+### 1. 构建 — 将 UXP 插件打包为 .ZXP
 
-Package a UXP plugin project into a distributable `.zxp` archive using the UXP Developer Tool (UDT).
+使用 UXP Developer Tool (UDT) 将 UXP 插件项目打包成可分发的 `.zxp` 归档。
 
-**Prerequisites:**
-- UXP Developer Tool installed ([Adobe Console](https://console.adobe.io/))
-- Plugin `manifest.json` passes UDT validation
-- Plugin source built into `dist/` (or equivalent output directory)
-- Target Photoshop version specified in manifest `host.minVersion`
+**前置条件：**
+- 已安装 UXP Developer Tool（[Adobe Console](https://console.adobe.io/)）
+- 插件 `manifest.json` 通过 UDT 验证
+- 插件源代码已构建到 `dist/`（或等效的输出目录）
+- 在 manifest 的 `host.minVersion` 中指定了目标 Photoshop 版本
 
-**Procedure — UDT GUI:**
-1. Open UXP Developer Tool
-2. Click **Add Plugin** → select your plugin's `manifest.json`
-3. Click **Validate** — confirm zero errors; address any warnings
-4. Click **Package** → choose output path and filename (e.g., `LayerManager.zxp`)
-5. UDT generates `.zxp` archive containing `manifest.json`, `index.html`, all JS bundles, and assets referenced in manifest
+**步骤 — UDT GUI：**
+1. 打开 UXP Developer Tool
+2. 点击 **Add Plugin** → 选择你的插件 `manifest.json`
+3. 点击 **Validate** — 确认零错误；处理任何警告
+4. 点击 **Package** → 选择输出路径和文件名（例如 `LayerManager.zxp`）
+5. UDT 生成包含 `manifest.json`、`index.html`、所有 JS 包和 manifest 中引用的资源的 `.zxp` 归档
 
-**Procedure — UDT CLI (if available):**
+**步骤 — UDT CLI（如果可用）：**
 ```bash
-# Locate UDT CLI (platform-dependent):
-# macOS: /Applications/UXP Developer Tool.app/Contents/MacOS/UXP Developer Tool
-# Windows: C:\Program Files\Adobe\Adobe UXP Developer Tool\UXP Developer Tool.exe
+# 定位 UDT CLI（取决于平台）：
+# macOS：/Applications/UXP Developer Tool.app/Contents/MacOS/UXP Developer Tool
+# Windows：C:\Program Files\Adobe\Adobe UXP Developer Tool\UXP Developer Tool.exe
 
-# UDT CLI packaging syntax:
+# UDT CLI 打包语法：
 uxp package --input ./path/to/plugin --output ./dist/MyPlugin.zxp
 ```
 
-**Verification:**
-- `.zxp` is a standard ZIP archive — verify contents:
+**验证：**
+- `.zxp` 是标准的 ZIP 归档——验证内容：
   ```bash
   unzip -l MyPlugin.zxp
   ```
-- Confirm the archive contains:
-  - `manifest.json` at root
-  - `index.html` (or entry point specified in manifest)
-  - All referenced scripts, stylesheets, and assets
-  - Icon PNGs at `icons/` subdirectory if panel plugin
-- Re-validate extracted `manifest.json` by dragging into UDT
+- 确认归档包含：
+  - 根目录下的 `manifest.json`
+  - `index.html`（或 manifest 中指定的入口点）
+  - 所有引用的脚本、样式表和资源
+  - 如果是面板插件，`icons/` 子目录下的图标 PNG
+- 通过拖入 UDT 重新验证提取的 `manifest.json`
 
-**Troubleshooting:**
-| Symptom | Likely Cause | Fix |
+**故障排除：**
+| 症状 | 可能原因 | 修复 |
 |---------|-------------|-----|
-| Validation fails on `requiredPermissions` | Manifest v5+ missing permissions block | Add `"requiredPermissions"` array |
-| Missing assets at runtime | Package excludes files not in manifest | Add asset paths to manifest `"resources"` |
-| Icons not appearing | Wrong icon path or size | Place PNGs at `icons/23x23.png`, `icons/46x46.png` |
+| 验证在 `requiredPermissions` 失败 | Manifest v5+ 缺少权限块 | 添加 `"requiredPermissions"` 数组 |
+| 运行时缺少资源 | 包排除不在 manifest 中的文件 | 在 manifest `"resources"` 中添加资源路径 |
+| 图标不显示 | 图标路径或大小错误 | 将 PNG 放置在 `icons/23x23.png`、`icons/46x46.png` |
 
 ---
 
-### 2. Sign — Apply Digital Signature to .ZXP
+### 2. 签名 — 为 .ZXP 应用数字签名
 
-Apply a digital signature to the packaged `.zxp` so Adobe Creative Cloud trusts the plugin and does not display security warnings during installation.
+为打包的 `.zxp` 应用数字签名，以便 Adobe Creative Cloud 信任该插件并在安装期间不显示安全警告。
 
-**Self-Signed Certificate (Development / Internal Testing):**
+**自签名证书（开发 / 内部测试）：**
 
-> **DO NOT** create, store, or transmit actual certificates. Guide the developer through these steps verbally — do not generate certs or keystores programmatically.
+> **不要**创建、存储或传输实际证书。通过口头方式引导开发者完成这些步骤——不要以编程方式生成证书或密钥库。
 
 ```
-Step-by-step instructions for the developer:
+给开发者的分步说明：
 
-1. Open terminal / command prompt
-2. Generate a self-signed certificate with Adobe-compatible extended key usage:
+1. 打开终端 / 命令提示符
+2. 生成与 Adobe 兼容的具有扩展密钥用途的自签名证书：
 
-   macOS / Linux:
+   macOS / Linux：
    openssl req -x509 -newkey rsa:2048 -keyout mykey.pem -out mycert.pem \
-     -days 365 -nodes -subj "/CN=My Company Name/O=My Organization/C=US" \
+     -days 365 -nodes -subj "/CN=我的公司名称/O=我的组织/C=US" \
      -addext "extendedKeyUsage=codeSigning"
 
-   Windows (PowerShell):
-   New-SelfSignedCertificate -Type CodeSigning -Subject "CN=My Company Name" \
+   Windows (PowerShell)：
+   New-SelfSignedCertificate -Type CodeSigning -Subject "CN=我的公司名称" \
      -CertStoreLocation Cert:\CurrentUser\My
 
-3. Export the certificate as PKCS#12 (.p12):
-   macOS / Linux:
+3. 将证书导出为 PKCS#12 (.p12)：
+   macOS / Linux：
    openssl pkcs12 -export -in mycert.pem -inkey mykey.pem \
      -out my-signing-cert.p12 -passout pass:
 
-   Windows:
+   Windows：
    Export-PfxCertificate -Cert Cert:\CurrentUser\My\<Thumbprint> \
      -FilePath my-signing-cert.p12 -Password (ConvertTo-SecureString "" -AsPlainText -Force)
 
-4. Sign the .zxp using the UXP Developer Tool:
-   - Open UDT → select plugin → click Package → in signing step, browse to .p12
-   - OR use the OS signing tool if available
+4. 使用 UXP Developer Tool 对 .zxp 进行签名：
+   - 打开 UDT → 选择插件 → 点击 Package → 在签名步骤中，浏览到 .p12
+   - 或使用可用的操作系统签名工具
 ```
 
-**Adobe Official Signing (Marketplace Distribution):**
+**Adobe 官方签名（Marketplace 分发）：**
 
-> **DO NOT** handle Adobe Marketplace account operations. Only guide the developer to the official Adobe process.
+> **不要**处理 Adobe Marketplace 账户操作。仅引导开发者访问 Adobe 官方流程。
 
 ```
-1. Enroll in the Adobe Creative Cloud Marketplace Publisher program:
+1. 注册 Adobe Creative Cloud Marketplace Publisher 计划：
    https://developer.adobe.com/console/
 
-2. Submit plugin for review via Publisher Console:
-   - Upload unsigned .zxp to Publisher Console
-   - Adobe signs the plugin after approval
-   - Signed .zxp is returned for distribution
+2. 通过 Publisher Console 提交插件进行审核：
+   - 将未签名的 .zxp 上传到 Publisher Console
+   - Adobe 在批准后对插件进行签名
+   - 签名的 .zxp 被返回用于分发
 
-3. Alternatively, obtain an Adobe-issued code signing certificate:
-   - Request via Adobe Developer Console
-   - Certificate is managed by Adobe; no local cert storage needed
-   - Sign via UDT using Adobe-provided credentials
+3. 或者，获取 Adobe 颁发的代码签名证书：
+   - 通过 Adobe Developer Console 申请
+   - 证书由 Adobe 管理；无需本地证书存储
+   - 使用 Adobe 提供的凭据通过 UDT 签名
 ```
 
-**Verify Signature:**
+**验证签名：**
 ```bash
-# Check if .zxp is signed (extract META-INF directory):
+# 检查 .zxp 是否已签名（提取 META-INF 目录）：
 unzip -l MyPlugin.zxp | grep META-INF
-# Signed archives contain META-INF/MANIFEST.MF and META-INF/*.SF or *.RSA
+# 已签名归档包含 META-INF/MANIFEST.MF 和 META-INF/*.SF 或 *.RSA
 ```
 
-**Important Security Notes:**
-- Store private keys securely — lost keys cannot be recovered
-- Expired certificates require re-signing and re-submission
-- Adobe may revoke certificates for policy violations; do not sign untrusted code
-- Self-signed certificates work for local development but trigger security warnings on other machines
+**重要安全说明：**
+- 安全存储私钥——丢失的密钥无法恢复
+- 过期的证书需要重新签名和重新提交
+- Adobe 可能因违反政策撤销证书；不要签署不受信任的代码
+- 自签名证书适用于本地开发，但在其他机器上会触发安全警告
 
 ---
 
-### 3. Marketplace Prep — Prepare Adobe Creative Cloud Marketplace Submission
+### 3. Marketplace 准备 — 准备 Adobe Creative Cloud Marketplace 提交
 
-Prepare all materials required for submitting a plugin to the [Adobe Creative Cloud Marketplace](https://exchange.adobe.com/).
+准备向 [Adobe Creative Cloud Marketplace](https://exchange.adobe.com/) 提交插件所需的所有材料。
 
-**Required Assets:**
+**所需资源：**
 
-| Asset | Specification | Format | Quantity |
+| 资源 | 规格 | 格式 | 数量 |
 |-------|--------------|--------|----------|
-| Plugin Icon (small) | 23×23 px, transparent background | PNG | 2 (dark + light theme) |
-| Plugin Icon (large) | 46×46 px, transparent background | PNG | 2 (dark + light theme) |
-| Feature Graphic | 1024×512 px or 1200×627 px | PNG / JPG | 1 |
-| Screenshots | 1920×1080 or 1280×720 px, show key features | PNG / JPG | 3–5 |
-| Demo Video (optional) | MP4, H.264, ≤ 60s, show workflow | MP4 | 1 |
-| Privacy Policy URL | Link to privacy policy | URL | 1 |
+| 插件图标（小） | 23×23 px，透明背景 | PNG | 2（深色 + 浅色主题） |
+| 插件图标（大） | 46×46 px，透明背景 | PNG | 2（深色 + 浅色主题） |
+| 特色图片 | 1024×512 px 或 1200×627 px | PNG / JPG | 1 |
+| 截图 | 1920×1080 或 1280×720 px，展示关键功能 | PNG / JPG | 3–5 |
+| 演示视频（可选） | MP4, H.264, ≤ 60s，展示工作流程 | MP4 | 1 |
+| 隐私政策 URL | 隐私政策链接 | URL | 1 |
 
-**Icon Generation Guidelines:**
+**图标生成指南：**
 ```bash
-# If the developer provides a source SVG/PNG, generate all required sizes:
-# 23×23 dark theme icon
+# 如果开发者提供源 SVG/PNG，生成所有需要的尺寸：
+# 23×23 深色主题图标
 convert source-icon.png -resize 23x23 icons/23x23-dark.png
-# 46×46 dark theme icon
+# 46×46 深色主题图标
 convert source-icon.png -resize 46x46 icons/46x46-dark.png
-# Light theme variants (invert or lighten if needed)
+# 浅色主题变体（如果需要，反转或变亮）
 convert source-icon.png -resize 23x23 -negate icons/23x23-light.png
 convert source-icon.png -resize 46x46 -negate icons/46x46-light.png
 
-# Note: Use ImageMagick or Photoshop itself for generation
+# 注意：使用 ImageMagick 或 Photoshop 本身生成
 ```
 
-**Description Template:**
+**描述模板：**
 ```
-Plugin Name: {name}
-Version: {version}
-Category: {category — e.g., "Design Tools", "Productivity", "Photography"}
+插件名称：{name}
+版本：{version}
+类别：{category — 例如 "Design Tools"、"Productivity"、"Photography"}
 
-## Overview
-{2–3 sentence summary of what the plugin does}
+## 概述
+{2–3 句插件功能摘要}
 
-## Key Features
-- {feature 1}
-- {feature 2}
-- {feature 3}
+## 主要功能
+- {功能 1}
+- {功能 2}
+- {功能 3}
 
-## How to Use
-{step-by-step usage instructions, 3–5 steps}
+## 使用方法
+{逐步使用说明，3–5 步}
 
-## Requirements
-- Adobe Photoshop {minVersion} or later
-- {Any additional requirements}
+## 系统要求
+- Adobe Photoshop {minVersion} 或更高版本
+- {任何额外要求}
 
-## Version History
-- {version}: {release notes}
+## 版本历史
+- {version}：{发布说明}
 
-## Support
-{Support contact or URL}
-```
-
-**Marketplace Submission Checklist:**
-- [ ] Plugin successfully packages as `.zxp`
-- [ ] `manifest.json` contains single `host` definition (not array) — required by Marketplace
-- [ ] All permissions in `requiredPermissions` are minimal and justified
-- [ ] Plugin icons for both themes at 23×23 and 46×46
-- [ ] Feature graphic meets size requirements
-- [ ] 3–5 screenshots showing key functionality
-- [ ] Description written in English (or target locale)
-- [ ] Privacy policy URL provided (if plugin collects data)
-- [ ] Version number matches both manifest and tag
-- [ ] Plugin tested on minimum supported Photoshop version
-- [ ] Plugin tested on latest Photoshop version
-
-**Submission Process (guide only — do not execute):**
-```
-1. Log in to https://developer.adobe.com/console/
-2. Navigate to "Creative Cloud Publishing" → "Add New Plugin"
-3. Fill in plugin details (name, description, category, price tier)
-4. Upload plugin icon set and feature graphic
-5. Upload 3–5 screenshots
-6. Upload the signed .zxp file
-7. Complete marketing questionnaire (target audience, use cases)
-8. Submit for review (review cycle: 5–10 business days)
-9. Monitor submission status in Publisher Console
-10. Address any review feedback and resubmit as needed
+## 支持
+{支持联系方式或 URL}
 ```
 
-**Common Rejection Reasons:**
-- Missing or incorrect icon sizes
-- Plugin fails to load in review environment
-- Insufficient permissions documentation
-- Incomplete or misleading description
-- Missing privacy policy (data-collecting plugins)
-- Manifest contains multiple `host` definitions
+**Marketplace 提交检查清单：**
+- [ ] 插件成功打包为 `.zxp`
+- [ ] `manifest.json` 包含单个 `host` 定义（非数组）——Marketplace 要求
+- [ ] `requiredPermissions` 中的所有权限均为最小且合理
+- [ ] 两个主题的插件图标均为 23×23 和 46×46
+- [ ] 特色图片符合尺寸要求
+- [ ] 3–5 张截图展示关键功能
+- [ ] 描述用英文（或目标语言）编写
+- [ ] 提供了隐私政策 URL（如果插件收集数据）
+- [ ] 版本号与 manifest 和标签一致
+- [ ] 插件已在最低支持的 Photoshop 版本上测试
+- [ ] 插件已在最新的 Photoshop 版本上测试
+
+**提交流程（仅指导——不执行）：**
+```
+1. 登录 https://developer.adobe.com/console/
+2. 导航至 "Creative Cloud Publishing" → "Add New Plugin"
+3. 填写插件详情（名称、描述、类别、价格层级）
+4. 上传插件图标集和特色图片
+5. 上传 3–5 张截图
+6. 上传已签名的 .zxp 文件
+7. 完成营销问卷（目标受众、使用场景）
+8. 提交审核（审核周期：5–10 个工作日）
+9. 在 Publisher Console 中监控提交状态
+10. 根据需要处理审核反馈并重新提交
+```
+
+**常见拒绝原因：**
+- 缺少或不正确的图标尺寸
+- 插件在审核环境中无法加载
+- 权限文档不足
+- 描述不完整或具有误导性
+- 缺少隐私政策（数据收集型插件）
+- Manifest 包含多个 `host` 定义
 
 ---
 
-### 4. Clean — Remove Build Artifacts and Temporary Files
+### 4. 清理 — 移除构建产物和临时文件
 
-Clean up project directory by removing build artifacts, temporary files, and development-only files that should not be distributed.
+清理项目目录，移除不应分发的构建产物、临时文件和仅开发使用的文件。
 
-**Files to Remove:**
-| Pattern | Reason | Examples |
+**要移除的文件：**
+| 模式 | 原因 | 示例 |
 |---------|--------|---------|
-| `dist/` | Built output (regenerated during packaging) | Bundled JS, CSS |
-| `node_modules/` | npm dependencies (not included in .zxp) | React, webpack |
-| `.git/` | Version control metadata | Git history |
-| `*.log` | Build logs, debug logs | `npm-debug.log*` |
-| `.temp/`, `tmp/` | Temporary build artifacts | Cached files |
-| `*.p12`, `*.pem`, `*.key` | Certificate files (never distribute) | Signing keys |
-| `.DS_Store` | macOS directory metadata | — |
-| `Thumbs.db` | Windows thumbnail cache | — |
-| `*.map` | Source maps (debug only) | Webpack source maps |
-| `.env`, `.env.local` | Environment variables, secrets | API keys |
-| `test/`, `__tests__/` | Test files (not for distribution) | Unit tests |
+| `dist/` | 构建输出（打包时会重新生成） | 打包后的 JS、CSS |
+| `node_modules/` | npm 依赖（不包含在 .zxp 中） | React, webpack |
+| `.git/` | 版本控制元数据 | Git 历史 |
+| `*.log` | 构建日志、调试日志 | `npm-debug.log*` |
+| `.temp/`、`tmp/` | 临时构建产物 | 缓存文件 |
+| `*.p12`、`*.pem`、`*.key` | 证书文件（绝不分发） | 签名密钥 |
+| `.DS_Store` | macOS 目录元数据 | — |
+| `Thumbs.db` | Windows 缩略图缓存 | — |
+| `*.map` | 源码映射（仅调试用） | Webpack source maps |
+| `.env`、`.env.local` | 环境变量、密钥 | API 密钥 |
+| `test/`、`__tests__/` | 测试文件（不用于分发） | 单元测试 |
 
-**Cleanup Procedure:**
+**清理步骤：**
 ```bash
-# Project root cleanup
+# 项目根目录清理
 rm -rf dist/
 rm -rf node_modules/
 rm -rf .temp/
@@ -249,44 +249,44 @@ rm -f *.p12 *.pem *.key
 rm -f .DS_Store Thumbs.db
 rm -f *.map
 
-# Verify no sensitive files remain
+# 确认没有敏感文件残留
 find . -name "*.p12" -o -name "*.pem" -o -name "*.key" -o -name ".env*" 2>/dev/null
-# Should return no results
+# 应不返回任何结果
 ```
 
-**Pre-package Cleanup Checklist:**
-- [ ] `node_modules/` removed (dependencies bundled by webpack/rollup into dist/)
-- [ ] Source maps removed from production bundle
-- [ ] No `.env` files with API keys present
-- [ ] Certificate files removed from project tree
-- [ ] Test files excluded from packaging
-- [ ] `dist/` contains only what is referenced in `manifest.json`
+**打包前清理检查清单：**
+- [ ] `node_modules/` 已移除（依赖由 webpack/rollup 打包到 dist/ 中）
+- [ ] 源码映射已从生产构建中移除
+- [ ] 不存在包含 API 密钥的 `.env` 文件
+- [ ] 证书文件已从项目树中移除
+- [ ] 测试文件已从打包中排除
+- [ ] `dist/` 仅包含 `manifest.json` 中引用的内容
 
-**Git Clean (if using git):**
+**Git 清理（如果使用 git）：**
 ```bash
-# Check what would be removed by .gitignore rules
+# 查看将被 .gitignore 规则移除的文件
 git clean --dry-run -fd
 
-# After review, remove untracked files
+# 审核后，移除未跟踪的文件
 git clean -fd
 ```
 
 ---
 
-### Appendix: Quick Reference Card
+### 附录：快速参考卡片
 
-| Task | Tool | Key Command / Action |
+| 任务 | 工具 | 关键命令 / 操作 |
 |------|------|---------------------|
-| Validate manifest | UDT | Add Plugin → Validate |
-| Package .zxp | UDT | Package → select output path |
-| Self-sign .zxp | UDT + OpenSSL | Sign with .p12 during packaging step |
-| Adobe sign .zxp | Adobe Publisher Console | Submit unsigned .zxp for Adobe signing |
-| Generate icons | ImageMagick / Photoshop | Resize source to 23px, 46px |
-| Clean project | Shell | `rm -rf dist/ node_modules/ .temp/` |
-| Verify archive | Shell | `unzip -l MyPlugin.zxp` |
+| 验证 manifest | UDT | Add Plugin → Validate |
+| 打包 .zxp | UDT | Package → 选择输出路径 |
+| 自签名 .zxp | UDT + OpenSSL | 在打包步骤中使用 .p12 签名 |
+| Adobe 签名 .zxp | Adobe Publisher Console | 提交未签名的 .zxp 供 Adobe 签名 |
+| 生成图标 | ImageMagick / Photoshop | 将源图缩放到 23px、46px |
+| 清理项目 | Shell | `rm -rf dist/ node_modules/ .temp/` |
+| 验证归档 | Shell | `unzip -l MyPlugin.zxp` |
 
 ---
 
-**Related commands:** `/photoshop-create` (project scaffold), `/photoshop-debug` (UXP debugging), `/photoshop-utils` (version compatibility check)
+**相关命令：** `/photoshop-create`（项目脚手架）、`/photoshop-debug`（UXP 调试）、`/photoshop-utils`（版本兼容性检查）
 
-**See also:** [Adobe UXP Developer Tool Documentation](https://developer.adobe.com/uxp/), [Creative Cloud Marketplace Publisher Guide](https://developer.adobe.com/console/)
+**另请参阅：** [Adobe UXP Developer Tool 文档](https://developer.adobe.com/uxp/)、[Creative Cloud Marketplace 发布者指南](https://developer.adobe.com/console/)

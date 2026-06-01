@@ -6,6 +6,7 @@
         "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge.exe"
       ],
       "enabled": true,
+      "timeout": 120000,
       "release": {
         "repo": "HaoNaN9279/data_forge",
         "asset": {
