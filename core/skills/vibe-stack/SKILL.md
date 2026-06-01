@@ -1,3 +1,7 @@
+---
+name: vibe-stack
+description: 管理 AI 智能体工具链的领域特定配置，提供分层配置系统和 MCP 管理
+---
 # Vibe Stack - 领域配置管理器
 
 管理 AI 智能体工具链的领域特定配置。

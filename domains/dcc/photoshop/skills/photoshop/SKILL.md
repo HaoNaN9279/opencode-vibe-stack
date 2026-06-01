@@ -1,3 +1,7 @@
+---
+name: photoshop
+description: 面向 ExtendScript、UXP 和 C++ SDK 的专家级 Photoshop 开发，涵盖插件开发、管线自动化和工具构建
+---
 # Adobe Photoshop DCC 开发
 
 面向 ExtendScript (JSX)、UXP (Unified Extensibility Platform) 和 C++ SDK 的专家级 Photoshop 开发，涵盖 Adobe Photoshop 生态系统中的插件开发、管线自动化和工具构建。

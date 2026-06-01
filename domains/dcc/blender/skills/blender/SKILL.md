@@ -1,3 +1,7 @@
+---
+name: blender
+description: Blender 生态系统中用于插件开发、流程工具和资产管理的专业级 Blender Python 脚本
+---
 # Blender DCC 开发
 
 Blender 生态系统中用于插件开发、流程工具和资产管理的专业级 Blender Python 脚本。

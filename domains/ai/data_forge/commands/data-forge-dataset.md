@@ -1,24 +1,28 @@
-# `/data-forge-dataset` — Dataset Management
+---
+description: 管理 AI 训练数据集的完整生命周期：列表、检查、创建和清理
+---
 
-> **This is a guidance document, not an automated execution tool.**
-> It instructs AI agents on how to manage AI training datasets using the Data Forge MCP tools. No software installation, runtime invocation, or automated execution is performed.
+# `/data-forge-dataset` — 数据集管理
+
+> **这是一份指导文档，而非自动化执行工具。**
+> 它指导 AI 智能体如何使用 Data Forge MCP 工具管理 AI 训练数据集。此命令不执行任何软件安装、运行时调用或自动化执行。
 
 ---
 
-## 1. Purpose
+## 1. 用途
 
-Manage AI training datasets through the full lifecycle: listing, inspecting, creating, and cleaning. Each sub-command maps to specific Data Forge MCP tools.
+管理 AI 训练数据集的全生命周期：列表、检查、创建和清理。每个子命令映射到特定的 Data Forge MCP 工具。
 
-| Sub-command | Description |
+| 子命令 | 描述 |
 |---|---|
-| `list` | List datasets in a directory, showing image and caption counts |
-| `inspect` | Show dataset profile with statistics (word counts, distribution, quality metrics) |
-| `create` | Scaffold a new dataset directory structure with conventional layout |
-| `clean` | Deduplicate captions and validate dataset integrity |
+| `list` | 列出目录中的数据集，显示图像和描述文件数量 |
+| `inspect` | 展示数据集概况及统计数据（词数、分布、质量指标） |
+| `create` | 使用常规布局搭建新的数据集目录结构 |
+| `clean` | 去重描述并验证数据集完整性 |
 
 ---
 
-## 2. Usage
+## 2. 用法
 
 ```
 /data-forge-dataset list --directory <path> [--recursive]
@@ -27,7 +31,7 @@ Manage AI training datasets through the full lifecycle: listing, inspecting, cre
 /data-forge-dataset clean --directory <path> [--strategy keep-first|keep-last]
 ```
 
-### Aliases
+### 别名
 
 ```
 /df-dataset list --directory ./input
@@ -38,93 +42,93 @@ Manage AI training datasets through the full lifecycle: listing, inspecting, cre
 
 ---
 
-## 3. Parameters
+## 3. 参数
 
-### Global parameters
+### 全局参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--directory` | Yes | Path to the dataset directory. Must exist for `list`, `inspect`, `clean`; will be created for `create`. |
+| `--directory` | 是 | 数据集目录的路径。对 `list`、`inspect`、`clean` 必须已存在；对 `create` 将被创建。 |
 
-### `list` parameters
+### `list` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--recursive` | No | Recursively list subdirectories. Default: `false` (top-level only). |
-| `--format` | No | Output format: `json` or `csv`. Default: terminal table. |
+| `--recursive` | 否 | 递归列出子目录。默认值：`false`（仅顶层）。 |
+| `--format` | 否 | 输出格式：`json` 或 `csv`。默认值：终端表格。 |
 
-### `inspect` parameters
+### `inspect` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--format` | No | Profile output format: `json` or `csv`. Default: `json`. |
+| `--format` | 否 | 概况输出格式：`json` 或 `csv`。默认值：`json`。 |
 
-### `create` parameters
+### `create` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--name` | No | Dataset name. Used for the directory name if different from `--directory`. Default: basename of `--directory`. |
+| `--name` | 否 | 数据集名称。如果与 `--directory` 不同，用于目录名。默认值：`--directory` 的基本名称。 |
 
-### `clean` parameters
+### `clean` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--strategy` | No | Deduplication keep strategy: `keep-first` or `keep-last`. Default: `keep-first`. |
+| `--strategy` | 否 | 去重保留策略：`keep-first` 或 `keep-last`。默认值：`keep-first`。 |
 
 ---
 
-## 4. Execution Steps
+## 4. 执行步骤
 
-### 4.1 `list` — List Datasets
+### 4.1 `list` — 列出数据集
 
-1. **Validate directory** — Confirm `--directory` exists and is accessible.
-2. **Enumerate contents with `caption_list`** — Call `caption_list` on the target directory to retrieve all caption files and associated metadata.
-3. **Report** — Present image count, caption count, and any orphaned files (captions without images, images without captions). If `--recursive`, enumerate subdirectories.
-4. **Format output** — Table format by default; JSON/CSV if `--format` specified.
+1. **验证目录** — 确认 `--directory` 存在且可访问。
+2. **使用 `caption_list` 枚举内容** — 对目标目录调用 `caption_list`，检索所有描述文件及相关元数据。
+3. **报告** — 呈现图像数量、描述数量以及任何孤立文件（无对应图像的描述、无对应描述的图像）。如果指定了 `--recursive`，则枚举子目录。
+4. **格式化输出** — 默认使用表格格式；如果指定了 `--format`，则为 JSON/CSV。
 
-### 4.2 `inspect` — Dataset Profiling
+### 4.2 `inspect` — 数据集概况分析
 
-1. **Run `caption_stats`** — Call `caption_stats` on the target directory to compute:
-   - Total captions
-   - Word count distribution (min, max, mean, median, stddev)
-   - Character distribution
-   - Empty caption count
-   - Vocabulary diversity metrics
-2. **Run `caption_search` for anomalies** — Search for empty files, encoding issues, and format violations with appropriate regex patterns.
-3. **Cross-reference with `caption_read_all`** — Read all captions to verify every image has a caption and vice versa.
-4. **Generate quality scorecard** — Compile metrics into a structured report: format compliance, deduplication estimate, vocabulary coverage.
+1. **运行 `caption_stats`** — 对目标目录调用 `caption_stats` 计算：
+   - 描述总数
+   - 词数分布（最小值、最大值、均值、中位数、标准差）
+   - 字符数分布
+   - 空描述计数
+   - 词汇多样性指标
+2. **运行 `caption_search` 检测异常** — 使用适当的正则表达式模式搜索空文件、编码问题和格式违规。
+3. **使用 `caption_read_all` 交叉验证** — 读取所有描述，验证每张图像都有对应描述，反之亦然。
+4. **生成质量评分卡** — 将各项指标汇总为结构化报告：格式合规性、去重估算值、词汇覆盖率。
 
-### 4.3 `create` — Scaffold New Dataset
+### 4.3 `create` — 搭建新数据集
 
-1. **Create directory structure:**
+1. **创建目录结构：**
    ```
    <dataset-name>/
-   ├── images/            # Source images
-   ├── captions/          # Caption files (.txt, .json, .csv)
-   ├── output/            # Processed output (resized, bg-removed)
-   ├── exports/           # Export artifacts (JSON/CSV dumps)
-   └── workflow/          # ComfyUI workflow JSONs (optional)
+   ├── images/            # 源图像
+   ├── captions/          # 描述文件（.txt、.json、.csv）
+   ├── output/            # 处理后的输出（调整大小、背景移除）
+   ├── exports/           # 导出产物（JSON/CSV 转储）
+   └── workflow/          # ComfyUI 工作流 JSON（可选）
    ```
-2. **Initialize with `caption_import`** — If the user provides initial captions (JSON/CSV), import them into the `captions/` directory.
-3. **Report** — List created directories and their intended purpose.
+2. **使用 `caption_import` 初始化** — 如果用户提供了初始描述（JSON/CSV），将其导入到 `captions/` 目录。
+3. **报告** — 列出创建的目录及其预期用途。
 
-### 4.4 `clean` — Deduplicate and Validate
+### 4.4 `clean` — 去重与验证
 
-1. **Backup recommendation** — ALWAYS recommend the user back up the dataset before running destructive operations.
-2. **Run `caption_deduplicate`** — Execute deduplication with the specified `--strategy`:
-   - `keep-first`: Retain the first occurrence of each caption, remove subsequent duplicates.
-   - `keep-last`: Retain the last occurrence, remove earlier duplicates.
-3. **Run `caption_stats` post-clean** — Verify deduplication results: reduced count, unchanged distribution profile for retained captions.
-4. **Validate format consistency** — Check all remaining captions have consistent file extensions, encoding, and structure.
-5. **Report** — Present before/after statistics: captions removed, captions retained, deduplication rate.
+1. **备份建议** — 始终建议用户在执行破坏性操作之前备份数据集。
+2. **运行 `caption_deduplicate`** — 使用指定的 `--strategy` 执行去重：
+   - `keep-first`：保留每个描述的首次出现，移除后续重复项。
+   - `keep-last`：保留最后一次出现，移除较早的重复项。
+3. **清理后运行 `caption_stats`** — 验证去重结果：减少的数量、保留描述的分布概况不变。
+4. **验证格式一致性** — 检查所有剩余描述是否具有一致的文件扩展名、编码和结构。
+5. **报告** — 呈现清理前后统计数据：移除的描述数、保留的描述数、去重率。
 
 ---
 
-## 5. Output
+## 5. 输出
 
-The command produces a structured report at each stage. Reports include tool call results with `{"status": "ok"|"error", "message": "..."}` responses.
+该命令在每个阶段生成结构化报告。报告包含工具调用结果及 `{"status": "ok"|"error", "message": "..."}` 响应。
 
-**Example output (`list`):**
+**示例输出（`list`）：**
 
 ```
 Dataset: ./my-dataset
@@ -133,7 +137,7 @@ Dataset: ./my-dataset
 └── ORPHANS:    — 2 images without captions, 0 captions without images
 ```
 
-**Example output (`inspect`):**
+**示例输出（`inspect`）：**
 
 ```
 Dataset Profile: ./my-dataset
@@ -145,7 +149,7 @@ Dataset Profile: ./my-dataset
 └── Vocabulary Size:    2,847 unique words
 ```
 
-**Example output (`clean`):**
+**示例输出（`clean`）：**
 
 ```
 Clean Report: ./my-dataset
@@ -158,9 +162,9 @@ Clean Report: ./my-dataset
 
 ---
 
-## 6. Notes
+## 6. 说明
 
-- **No automated execution.** This command provides guidance only. The AI agent instructs the user on which MCP tools to invoke and interprets their output.
-- **Tool dependency order.** `inspect` must precede `clean` — never clean without profiling first.
-- **`caption_deduplicate` is destructive.** Always recommend backup before execution. The Data Curator agent enforces this rule.
-- **Directory validation.** All `--directory` values must be absolute paths or relative to the current working directory. Paths are passed directly to MCP tools.
+- **不执行自动化操作。** 此命令仅提供指导。AI 智能体会指导用户调用哪些 MCP 工具并解释其输出。
+- **工具依赖顺序。** `inspect` 必须在 `clean` 之前执行——切勿在未进行概况分析的情况下清理。
+- **`caption_deduplicate` 是破坏性操作。** 执行前始终建议备份。Data Curator 智能体会强制执行此规则。
+- **目录验证。** 所有 `--directory` 值必须为绝对路径或相对于当前工作目录的路径。路径直接传递给 MCP 工具。

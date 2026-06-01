@@ -1,3 +1,7 @@
+---
+name: unity
+description: 专家级 Unity C# 开发，深入了解引擎 API、优化模式和编辑器工具
+---
 # Unity 游戏引擎开发
 
 专家级 Unity C# 开发，深入了解引擎 API、优化模式和编辑器工具。

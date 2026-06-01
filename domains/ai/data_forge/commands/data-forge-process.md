@@ -1,23 +1,27 @@
-# `/data-forge-process` — Image Processing Pipeline
+---
+description: 执行 AI 训练数据集的图像处理操作：调整大小、背景移除和批量流水线
+---
 
-> **This is a guidance document, not an automated execution tool.**
-> It instructs AI agents on how to execute image processing pipelines using Data Forge MCP tools. No image processing, GPU operations, or model inference is performed directly by this command.
+# `/data-forge-process` — 图像处理流水线
+
+> **这是一份指导文档，而非自动化执行工具。**
+> 它指导 AI 智能体如何使用 Data Forge MCP 工具执行图像处理流水线。此命令不直接执行任何图像处理、GPU 操作或模型推理。
 
 ---
 
-## 1. Purpose
+## 1. 用途
 
-Execute image processing operations on AI training datasets: resizing, background removal, and full batch pipelines. Each sub-command represents a processing stage that can be run independently or chained.
+对 AI 训练数据集执行图像处理操作：调整大小、背景移除和全量批量流水线。每个子命令代表一个处理阶段，可独立运行或串联执行。
 
-| Sub-command | Description |
+| 子命令 | 描述 |
 |---|---|
-| `resize` | Batch resize images to target dimensions with fit/pad modes |
-| `remove-bg` | Remove backgrounds from images using BiRefNet models |
-| `batch` | Execute full pipeline: resize → background removal → caption → describe → export |
+| `resize` | 批量将图像调整为目标尺寸，支持 fit/pad 模式 |
+| `remove-bg` | 使用 BiRefNet 模型移除图像背景 |
+| `batch` | 执行完整流水线：调整大小 → 背景移除 → 描述生成 → 描述优化 → 导出 |
 
 ---
 
-## 2. Usage
+## 2. 用法
 
 ```
 /data-forge-process resize --input-dir <path> --output-dir <path> --width <px> --height <px> [--mode fit|pad]
@@ -25,7 +29,7 @@ Execute image processing operations on AI training datasets: resizing, backgroun
 /data-forge-process batch --input-dir <path> --output-dir <path> [--width <px>] [--height <px>] [--bg-model <model-name>] [--caption-provider openai|deepseek|ollama] [--export-format json|csv]
 ```
 
-### Aliases
+### 别名
 
 ```
 /df-process resize --input-dir ./images --output-dir ./resized --width 512 --height 512
@@ -35,96 +39,96 @@ Execute image processing operations on AI training datasets: resizing, backgroun
 
 ---
 
-## 3. Parameters
+## 3. 参数
 
-### `resize` parameters
+### `resize` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--input-dir` | Yes | Directory containing source images. |
-| `--output-dir` | Yes | Directory for resized output images. Created if it does not exist. |
-| `--width` | Yes | Target width in pixels. |
-| `--height` | Yes | Target height in pixels. |
-| `--mode` | No | Resize mode: `fit` (scale to fit within dimensions, preserving aspect ratio) or `pad` (scale and pad to exact dimensions). Default: `fit`. |
+| `--input-dir` | 是 | 包含源图像的目录。 |
+| `--output-dir` | 是 | 调整大小后输出图像的目录。如不存在则创建。 |
+| `--width` | 是 | 目标宽度（像素）。 |
+| `--height` | 是 | 目标高度（像素）。 |
+| `--mode` | 否 | 调整模式：`fit`（缩放以适应尺寸，保持宽高比）或 `pad`（缩放并填充到精确尺寸）。默认值：`fit`。 |
 
-### `remove-bg` parameters
+### `remove-bg` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--input-dir` | Yes | Directory containing source images. |
-| `--output-dir` | Yes | Directory for background-removed output images. |
-| `--model` | No | BiRefNet model variant. Options depend on installed `rembg` version. Default: latest available. |
+| `--input-dir` | 是 | 包含源图像的目录。 |
+| `--output-dir` | 是 | 背景移除后输出图像的目录。 |
+| `--model` | 否 | BiRefNet 模型变体。选项取决于已安装的 `rembg` 版本。默认值：最新可用版本。 |
 
-### `batch` parameters
+### `batch` 参数
 
-| Parameter | Required | Description |
+| 参数 | 是否必需 | 描述 |
 |---|---|---|
-| `--input-dir` | Yes | Directory containing source images. |
-| `--output-dir` | Yes | Root output directory. Subdirectories created per stage. |
-| `--width` | No | Resize target width. Default: `512`. |
-| `--height` | No | Resize target height. Default: `512`. |
-| `--bg-model` | No | BiRefNet model for background removal. Default: latest available. |
-| `--caption-provider` | No | LLM provider for image description: `openai`, `deepseek`, or `ollama`. Default: `ollama`. |
-| `--export-format` | No | Final export format: `json` or `csv`. Default: `json`. |
+| `--input-dir` | 是 | 包含源图像的目录。 |
+| `--output-dir` | 是 | 根输出目录。各阶段子目录在此创建。 |
+| `--width` | 否 | 调整大小的目标宽度。默认值：`512`。 |
+| `--height` | 否 | 调整大小的目标高度。默认值：`512`。 |
+| `--bg-model` | 否 | 背景移除的 BiRefNet 模型。默认值：最新可用版本。 |
+| `--caption-provider` | 否 | 图像描述的 LLM 供应商：`openai`、`deepseek` 或 `ollama`。默认值：`ollama`。 |
+| `--export-format` | 否 | 最终导出格式：`json` 或 `csv`。默认值：`json`。 |
 
 ---
 
-## 4. Execution Steps
+## 4. 执行步骤
 
-### 4.1 `resize` — Batch Image Resize
+### 4.1 `resize` — 批量图像调整
 
-1. **Validate input** — Confirm `--input-dir` exists and contains image files. Report file count and formats detected.
-2. **Invoke `resize_images`** — Pass `input_dir`, `output_dir`, `width`, `height`, and `mode` parameters.
-3. **Validate response** — Check `{"status": "ok"}` before proceeding. On error, report `message` and halt.
-4. **Report** — Output resized count, dimensions applied, mode used, output location.
+1. **验证输入** — 确认 `--input-dir` 存在且包含图像文件。报告检测到的文件数和格式。
+2. **调用 `resize_images`** — 传递 `input_dir`、`output_dir`、`width`、`height` 和 `mode` 参数。
+3. **验证响应** — 在继续之前检查 `{"status": "ok"}`。出错时报告 `message` 并停止。
+4. **报告** — 输出调整后的数量、应用的尺寸、使用的模式、输出位置。
 
-### 4.2 `remove-bg` — Background Removal
+### 4.2 `remove-bg` — 背景移除
 
-1. **Validate input** — Confirm `--input-dir` contains images (preferably pre-resized). Verify `rembg` package with BiRefNet models is installed.
-2. **Choose tool** — `remove_background` for single images; `remove_background_batch` for directories. Prefer batch.
-3. **Invoke `remove_background_batch`** — Pass `input_dir`, `output_dir`, and optionally `model`.
-4. **Validate response** — Check `{"status": "ok"}`. Background removal is GPU-intensive; errors often indicate missing models or CUDA issues.
-5. **Report** — Output processed count, model used, output location.
+1. **验证输入** — 确认 `--input-dir` 包含图像（最好已预先调整大小）。验证已安装带 BiRefNet 模型的 `rembg` 包。
+2. **选择工具** — 单张图像使用 `remove_background`；目录使用 `remove_background_batch`。优先使用批处理。
+3. **调用 `remove_background_batch`** — 传递 `input_dir`、`output_dir`，可选 `model`。
+4. **验证响应** — 检查 `{"status": "ok"}`。背景移除是 GPU 密集型操作；错误通常表示缺少模型或 CUDA 问题。
+5. **报告** — 输出处理数量、使用的模型、输出位置。
 
-### 4.3 `batch` — Full Pipeline
+### 4.3 `batch` — 完整流水线
 
-The batch pipeline executes five stages sequentially, validating each before proceeding.
+批量流水线按顺序执行五个阶段，每个阶段验证通过后才继续。
 
-**Stage 1: Resize**
-1. Create `output-dir/resized/` subdirectory.
-2. Invoke `resize_images` with `--width` and `--height` parameters.
-3. Validate `{"status": "ok"}`. Halt on failure.
+**阶段 1：调整大小**
+1. 创建 `output-dir/resized/` 子目录。
+2. 使用 `--width` 和 `--height` 参数调用 `resize_images`。
+3. 验证 `{"status": "ok"}`。失败时停止。
 
-**Stage 2: Background Removal**
-1. Create `output-dir/no-bg/` subdirectory.
-2. Invoke `remove_background_batch` using resized images as input, with `--bg-model` if specified.
-3. Validate `{"status": "ok"}`. Halt on failure.
+**阶段 2：背景移除**
+1. 创建 `output-dir/no-bg/` 子目录。
+2. 以调整大小后的图像作为输入调用 `remove_background_batch`，如指定则使用 `--bg-model`。
+3. 验证 `{"status": "ok"}`。失败时停止。
 
-**Stage 3: Caption Generation**
-1. Determine caption tool based on `--caption-provider`:
-   - `openai` / `deepseek`: Use `llm_batch_describe_images` with appropriate keyfile.
-   - `ollama`: Use `ollama_batch_describe_images` (verify server is running via `ollama_list_models` first).
-2. Invoke the selected tool on background-removed images.
-3. Validate `{"status": "ok"}`. Halt on failure.
+**阶段 3：描述生成**
+1. 根据 `--caption-provider` 确定描述工具：
+   - `openai` / `deepseek`：使用 `llm_batch_describe_images`，配合相应的 keyfile。
+   - `ollama`：使用 `ollama_batch_describe_images`（通过 `ollama_list_models` 先验证服务器正在运行）。
+2. 对背景移除后的图像调用选定的工具。
+3. 验证 `{"status": "ok"}`。失败时停止。
 
-**Stage 4: Caption Quality Check**
-1. Run `caption_stats` on generated captions.
-2. Run `caption_search` for anomalies (empty captions, encoding issues).
-3. If quality metrics are unacceptable, recommend prompt refinement (see `/data-forge-prompt`) and re-run Stage 3.
+**阶段 4：描述质量检查**
+1. 对生成的描述运行 `caption_stats`。
+2. 运行 `caption_search` 检测异常（空描述、编码问题）。
+3. 如果质量指标不达标，建议优化提示词（参见 `/data-forge-prompt`）并重新运行阶段 3。
 
-**Stage 5: Export**
-1. Create `output-dir/exports/` subdirectory.
-2. Invoke `caption_export` with the specified `--export-format` (json/csv).
-3. Validate `{"status": "ok"}`.
-4. Report final pipeline summary.
+**阶段 5：导出**
+1. 创建 `output-dir/exports/` 子目录。
+2. 使用指定的 `--export-format`（json/csv）调用 `caption_export`。
+3. 验证 `{"status": "ok"}`。
+4. 报告最终流水线摘要。
 
 ---
 
-## 5. Output
+## 5. 输出
 
-Each stage produces a status report with tool response data.
+每个阶段生成包含工具响应数据的状态报告。
 
-**Example output (`resize`):**
+**示例输出（`resize`）：**
 
 ```
 Resize Complete
@@ -136,7 +140,7 @@ Resize Complete
 └── Status:       ok
 ```
 
-**Example output (`batch`):**
+**示例输出（`batch`）：**
 
 ```
 Batch Pipeline Complete
@@ -150,7 +154,7 @@ Batch Pipeline Complete
 
 ---
 
-## 6. Pipeline Stage Dependencies
+## 6. 流水线阶段依赖
 
 ```
 resize ──→ remove-bg ──→ caption ──→ export
@@ -158,16 +162,16 @@ resize ──→ remove-bg ──→ caption ──→ export
   └─ optional standalone    └─ requires prior stages
 ```
 
-- `resize`: Standalone — can run independently on raw images.
-- `remove-bg`: Standalone — can run independently, but optimal when preceded by `resize` for consistent input dimensions.
-- `batch`: All-in-one — executes all stages sequentially with dependency validation.
+- `resize`：独立运行 — 可对原始图像独立执行。
+- `remove-bg`：独立运行 — 可独立执行，但建议在 `resize` 之后运行以获得一致的输入尺寸。
+- `batch`：一体化 — 按顺序执行所有阶段并进行依赖验证。
 
 ---
 
-## 7. Notes
+## 7. 说明
 
-- **No GPU execution.** This command provides guidance only. Actual image processing runs on the user's machine via Data Forge MCP tools.
-- **Background removal requires `rembg`** with BiRefNet models. Verify installation before suggesting `remove-bg` or `batch`.
-- **LLM caption generation requires either:** a valid keyfile (cloud LLM) or a running Ollama server with the target model pulled (local LLM).
-- **Pipeline stages are atomic.** If any stage fails, the pipeline halts. The user can resume from the failure point.
-- **Disk space.** Batch pipelines generate intermediate directories. Ensure sufficient disk space for `resized/`, `no-bg/`, and `exports/` outputs.
+- **不执行 GPU 操作。** 此命令仅提供指导。实际图像处理通过 Data Forge MCP 工具在用户机器上运行。
+- **背景移除需要 `rembg`** 配合 BiRefNet 模型。在建议 `remove-bg` 或 `batch` 之前，请验证安装。
+- **LLM 描述生成需要：** 有效的 keyfile（云端 LLM）或正在运行且已拉取目标模型的 Ollama 服务器（本地 LLM）。
+- **流水线阶段是原子性的。** 如果任何阶段失败，流水线将停止。用户可以从失败点恢复。
+- **磁盘空间。** 批量流水线会生成中间目录。确保有足够的磁盘空间用于 `resized/`、`no-bg/` 和 `exports/` 输出。

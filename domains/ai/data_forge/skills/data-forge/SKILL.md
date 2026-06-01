@@ -1,3 +1,7 @@
+---
+name: data-forge
+description: 使用 Data Forge MCP 工具包进行 AI 训练数据流水线的图像预处理、描述管理和 LLM 描述生成
+---
 # AI 训练数据流水线 (Data Forge)
 
 使用 Data Forge MCP 工具包进行图像预处理、描述管理、基于 LLM 的描述生成和 ComfyUI 图像合成流水线的专家级 AI 训练数据工程。

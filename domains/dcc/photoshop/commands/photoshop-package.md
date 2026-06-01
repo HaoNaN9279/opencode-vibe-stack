@@ -1,3 +1,7 @@
+---
+description: 将 UXP 插件打包为 .ZXP 归档、应用数字签名、准备 Adobe Marketplace 提交材料
+---
+
 ## `/photoshop-package` — 打包与发布 Photoshop 插件
 
 **操作指导命令**，用于将 UXP 插件打包成 `.zxp` 归档、应用数字签名、准备 Adobe Creative Cloud Marketplace 提交材料以及清理项目构建产物。

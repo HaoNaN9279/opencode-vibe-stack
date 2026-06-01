@@ -1,3 +1,7 @@
+---
+name: maya
+description: Autodesk Maya 生态系统中用于工具开发、流程集成和插件编写的专业级 Maya Python 和 C++ 开发
+---
 # Autodesk Maya DCC 开发
 
 Autodesk Maya 生态系统中用于工具开发、流程集成和插件编写的专业级 Maya Python 和 C++ 开发。

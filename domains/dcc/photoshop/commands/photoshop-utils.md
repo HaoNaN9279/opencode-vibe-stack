@@ -1,3 +1,7 @@
+---
+description: 快速访问 Photoshop API 文档、版本兼容性检查、ExtendScript→UXP 迁移参考和代码片段
+---
+
 ## /photoshop-utils — Photoshop 工具与参考指南
 
 斜杠命令，用于快速访问 API 文档、版本兼容性检查、ExtendScript→UXP 迁移参考以及跨所有 Photoshop 开发层面（ExtendScript/JSX、UXP/PSJS、C++ SDK）的可复用代码片段。

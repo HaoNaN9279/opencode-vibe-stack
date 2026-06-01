@@ -1,3 +1,7 @@
+---
+name: houdini
+description: 用于程序化内容创建、特效和流程自动化的专业级 Houdini 开发，涉及 Python、VEX 和 HDA 创作
+---
 # SideFX Houdini DCC 开发
 
 用于程序化内容创建、特效和流程自动化的专业级 Houdini 开发，涉及 Python、VEX 和 HDA 创作。

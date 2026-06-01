@@ -12,3 +12,5 @@ deploy.lock
 
 # OMO session artifacts
 .omo/
+
+**/mcp/**/*.exe

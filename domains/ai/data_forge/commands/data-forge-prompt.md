@@ -1,3 +1,7 @@
+---
+description: 管理 LLM 提示和描述的完整生命周期：生成、优化、批量操作和提示模板管理
+---
+
 # `/data-forge-prompt` — 提示与描述管理
 
 > **这是一份指导文档，而非自动化执行工具。**
@@ -81,81 +85,81 @@
 
 ---
 
-## 4. Execution Steps
+## 4. 执行步骤
 
-### 4.1 `generate` — Generate Captions via LLM
+### 4.1 `generate` — 通过 LLM 生成描述
 
-**Cloud LLM (openai/deepseek):**
-1. **Validate keyfile** — Confirm `--keyfile` exists and contains valid JSON with `provider`, `api_key`, `api_base`.
-2. **Select tool** — `llm_describe_image` for single image; `llm_batch_describe_images` for directory. Prefer batch.
-3. **Invoke batch tool** — Pass `input_dir`, `output_dir`, `model`, and `keyfile` parameters.
-4. **Validate response** — Check `{"status": "ok"}`. On `"error"`, inspect `message` for API key issues, rate limits, or model availability.
-5. **Quality check** — Run `caption_stats` on generated output. Flag empty captions, outlier word counts.
+**云端 LLM（openai/deepseek）：**
+1. **验证 keyfile** — 确认 `--keyfile` 存在且包含有效的 JSON，包含 `provider`、`api_key`、`api_base` 字段。
+2. **选择工具** — 单张图像使用 `llm_describe_image`；目录使用 `llm_batch_describe_images`。优先使用批处理。
+3. **调用批处理工具** — 传递 `input_dir`、`output_dir`、`model` 和 `keyfile` 参数。
+4. **验证响应** — 检查 `{"status": "ok"}`。如果返回 `"error"`，检查 `message` 中是否有 API 密钥问题、速率限制或模型不可用。
+5. **质量检查** — 对生成的输出运行 `caption_stats`。标记空描述和异常词数。
 
-**Local Ollama:**
-1. **Check server** — Call `ollama_list_models` to verify Ollama is running and target model is available.
-2. **Select tool** — `ollama_describe_image` for single image; `ollama_batch_describe_images` for directory. Prefer batch.
-3. **Invoke batch tool** — Pass `input_dir`, `output_dir`, and `model` parameters.
-4. **Validate response** — Check `{"status": "ok"}`. On `"error"`, `message` may indicate model not pulled or server connection refused.
-5. **Quality check** — Run `caption_stats` on generated output.
+**本地 Ollama：**
+1. **检查服务器** — 调用 `ollama_list_models` 验证 Ollama 正在运行且目标模型可用。
+2. **选择工具** — 单张图像使用 `ollama_describe_image`；目录使用 `ollama_batch_describe_images`。优先使用批处理。
+3. **调用批处理工具** — 传递 `input_dir`、`output_dir` 和 `model` 参数。
+4. **验证响应** — 检查 `{"status": "ok"}`。如果返回 `"error"`，`message` 可能指示模型未拉取或服务器连接被拒绝。
+5. **质量检查** — 对生成的输出运行 `caption_stats`。
 
-### 4.2 `refine` — Clean and Improve Captions
+### 4.2 `refine` — 清理和改进描述
 
-1. **Scope identification** — If `--query` provided, run `caption_search` to identify captions matching the pattern. Report match count.
-2. **Text replacement** — If `--replace` provided, run `caption_batch_replace` on matched captions. Preview changes before confirming.
-3. **LLM re-generation** — If `--re-generate` specified, identify matched captions' corresponding images and re-run `llm_describe_image` or `ollama_describe_image` with an improved prompt.
-4. **Quality check** — Run `caption_stats` post-refinement to verify improvement.
-5. **Report** — Present before/after: captions modified, patterns found, quality metrics delta.
+1. **范围识别** — 如果提供了 `--query`，运行 `caption_search` 识别匹配该模式的描述。报告匹配数量。
+2. **文本替换** — 如果提供了 `--replace`，对匹配的描述运行 `caption_batch_replace`。确认前预览更改。
+3. **LLM 重新生成** — 如果指定了 `--re-generate`，识别匹配描述对应的图像，使用改进的提示词重新运行 `llm_describe_image` 或 `ollama_describe_image`。
+4. **质量检查** — 优化后运行 `caption_stats` 以验证改进效果。
+5. **报告** — 呈现前后对比：修改的描述数、找到的模式、质量指标变化。
 
-### 4.3 `batch` — Batch Caption Operations
+### 4.3 `batch` — 批量描述操作
 
-**`search`:**
-1. Run `caption_search` with `--query` regex pattern.
-2. Report matching captions with surrounding context.
+**`search`：**
+1. 使用 `--query` 正则表达式模式运行 `caption_search`。
+2. 报告匹配的描述及上下文。
 
-**`replace`:**
-1. Run `caption_search` with `--query` to confirm matches.
-2. Run `caption_batch_replace` with `--query` and `--replace-with`.
-3. Report replacements made and affected files.
+**`replace`：**
+1. 使用 `--query` 运行 `caption_search` 确认匹配项。
+2. 使用 `--query` 和 `--replace-with` 运行 `caption_batch_replace`。
+3. 报告所做的替换和受影响的文件。
 
-**`deduplicate`:**
-1. Run `caption_deduplicate` with `--strategy`.
-2. Report captions removed and retention rate.
+**`deduplicate`：**
+1. 使用 `--strategy` 运行 `caption_deduplicate`。
+2. 报告移除的描述数和保留率。
 
-**`stats`:**
-1. Run `caption_stats` on the directory.
-2. Report full distribution: word count, character count, vocabulary, empty files.
+**`stats`：**
+1. 对目录运行 `caption_stats`。
+2. 报告完整分布：词数、字符数、词汇量、空文件。
 
-**`export`:**
-1. Run `caption_export` with `--format` (json/csv).
-2. Report output file path and record count.
+**`export`：**
+1. 使用 `--format`（json/csv）运行 `caption_export`。
+2. 报告输出文件路径和记录数。
 
-### 4.4 `template` — Prompt Template Management
+### 4.4 `template` — 提示模板管理
 
-**`create`:**
-1. Design a prompt template for the specified `--provider` and `--style`.
-2. Document the template with: version label, provider, style, creation date, design rationale.
-3. Store template (recommend `.md` or `.json` in a `templates/` directory).
+**`create`：**
+1. 为指定的 `--provider` 和 `--style` 设计一个提示模板。
+2. 文档化模板：版本标签、供应商、风格、创建日期、设计理由。
+3. 存储模板（建议在与命令文件同级的 `.md` 或 `.json` 文件中）。
 
-**`list`:**
-1. Enumerate available prompt templates with their metadata (provider, style, version, date).
+**`list`：**
+1. 枚举可用的提示模板及其元数据（供应商、风格、版本、日期）。
 
-**`compare`:**
-1. Select two prompt templates and a test image set.
-2. Generate captions with both templates via `llm_batch_describe_images` or `ollama_batch_describe_images`.
-3. Run `caption_stats` on both outputs and compare: word count distribution, vocabulary diversity, format compliance.
+**`compare`：**
+1. 选择两个提示模板和一组测试图像。
+2. 通过 `llm_batch_describe_images` 或 `ollama_batch_describe_images` 使用两个模板分别生成描述。
+3. 对两个输出运行 `caption_stats` 并比较：词数分布、词汇多样性、格式合规性。
 
-**`test`:**
-1. Select a prompt template and a small test image set (10-50 images).
-2. Generate captions via the appropriate LLM tool.
-3. Run `caption_stats` and `caption_search` on output.
-4. Report quality metrics and recommend adjustments.
+**`test`：**
+1. 选择一个提示模板和一小批测试图像（10-50 张）。
+2. 通过相应的 LLM 工具生成描述。
+3. 对输出运行 `caption_stats` 和 `caption_search`。
+4. 报告质量指标并建议调整。
 
 ---
 
-## 5. Output
+## 5. 输出
 
-**Example output (`generate`):**
+**示例输出（`generate`）：**
 
 ```
 Caption Generation Complete
@@ -171,7 +175,7 @@ Caption Generation Complete
 └── Status:       ok
 ```
 
-**Example output (`batch search`):**
+**示例输出（`batch search`）：**
 
 ```
 Search Results: ./captions/
@@ -180,7 +184,7 @@ Search Results: ./captions/
 └── See above for matching lines with context
 ```
 
-**Example output (`template create`):**
+**示例输出（`template create`）：**
 
 ```
 Template Created: factual-v1
@@ -196,23 +200,23 @@ Template Created: factual-v1
 
 ---
 
-## 6. Provider Selection Guide
+## 6. 供应商选择指南
 
-| Factor | Cloud LLM (OpenAI/DeepSeek) | Local Ollama |
+| 因素 | 云端 LLM（OpenAI/DeepSeek） | 本地 Ollama |
 |---|---|---|
-| **Quality** | Higher (state-of-the-art models) | Varies by model (llava, bakllava) |
-| **Cost** | Per-token API pricing | Free (local compute) |
-| **Speed** | API-dependent, may have rate limits | Local GPU/CPU dependent |
-| **Privacy** | Data sent to external API | All data stays local |
-| **Setup** | Keyfile required | Ollama server + model pull |
-| **Best for** | Production datasets, high quality | Development, experimentation, sensitive data |
+| **质量** | 更高（最先进模型） | 因模型而异（llava、bakllava） |
+| **成本** | 按 Token 计费的 API 定价 | 免费（本地计算） |
+| **速度** | 依赖 API，可能有速率限制 | 依赖本地 GPU/CPU |
+| **隐私** | 数据发送至外部 API | 所有数据保留在本地 |
+| **设置** | 需要 Keyfile | Ollama 服务器 + 模型拉取 |
+| **最适合** | 生产数据集、高质量 | 开发、实验、敏感数据 |
 
 ---
 
-## 7. Notes
+## 7. 说明
 
-- **No LLM execution.** This command provides guidance only. All LLM inference runs via Data Forge MCP tools on the user's machine.
-- **Keyfile format:** JSON with `provider`, `api_key`, and `api_base` fields. The user must create this file — the AI agent must never generate API keys.
-- **Ollama setup:** Ollama must be running locally with the target model pulled (`ollama pull <model>`). Verify with `ollama_list_models`.
-- **Prompt templates are guidance.** They inform the AI agent how to construct prompts for LLM tools; they are not runtime configurations.
-- **Batch operations are preferred.** Always recommend `llm_batch_describe_images` and `ollama_batch_describe_images` over single-image tools for efficiency.
+- **不执行 LLM。** 此命令仅提供指导。所有 LLM 推理通过 Data Forge MCP 工具在用户机器上运行。
+- **Keyfile 格式：** 包含 `provider`、`api_key` 和 `api_base` 字段的 JSON。用户必须自行创建此文件——AI 智能体绝不能生成 API 密钥。
+- **Ollama 设置：** Ollama 必须在本地运行且已拉取目标模型（`ollama pull <model>`）。使用 `ollama_list_models` 验证。
+- **提示模板是指导性的。** 它们告知 AI 智能体如何为 LLM 工具构建提示词，而非运行时配置。
+- **优先使用批量操作。** 始终推荐 `llm_batch_describe_images` 和 `ollama_batch_describe_images` 而非单张图像工具以提高效率。

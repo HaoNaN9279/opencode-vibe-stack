@@ -1,3 +1,7 @@
+---
+description: 提供 Photoshop 脚本与插件的运行和调试指导，涵盖 ExtendScript、UXP 和 C++ SDK
+---
+
 ## `/photoshop-debug` — Photoshop 运行与调试指导
 
 > **⚠️ 能力说明**：此命令提供关于如何运行和调试 Photoshop 脚本与插件的**文档指导**。它**不**直接在 Photoshop 中运行脚本、不附加到进程，也不提供实时断点调试。所有调试操作需要开发者在本地机器上使用适当的 Adobe 工具。

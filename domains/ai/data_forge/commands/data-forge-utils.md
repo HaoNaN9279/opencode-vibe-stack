@@ -1,10 +1,14 @@
-# `/data-forge-utils` — Utility & Reference Guide
+---
+description: 快速访问 Data Forge MCP 工具文档、依赖版本检查、服务器状态诊断和故障排除
+---
 
-Slash command for quick access to tool documentation, dependency version checks, server status diagnostics, code snippet reference, and troubleshooting guidance across all Data Forge MCP tools.
+# `/data-forge-utils` — 工具与参考指南
+
+用于快速访问 Data Forge MCP 所有工具文档、依赖版本检查、服务器状态诊断、代码片段参考和故障排除指导的斜杠命令。
 
 ---
 
-## 1. Usage
+## 1. 用法
 
 ```
 /data-forge-utils docs <tool-name>              — Look up tool documentation
@@ -14,7 +18,7 @@ Slash command for quick access to tool documentation, dependency version checks,
 /data-forge-utils help                         — Show this help
 ```
 
-### Aliases
+### 别名
 
 ```
 /df-utils docs resize_images
@@ -25,94 +29,94 @@ Slash command for quick access to tool documentation, dependency version checks,
 
 ---
 
-## 2. Tool Documentation Lookup (`docs`)
+## 2. 工具文档查询（`docs`）
 
-Look up the signature, parameters, and return format for any Data Forge MCP tool.
+查询任何 Data Forge MCP 工具的签名、参数和返回格式。
 
 ```
 /data-forge-utils docs <tool-name>
 ```
 
-The AI agent responds with:
-- Tool name and category
-- Full parameter list with types and descriptions
-- Return format: `{"status": "ok"|"error", "message": "..."}`
-- Usage example
-- Common error scenarios
+AI 智能体回应以下内容：
+- 工具名称和类别
+- 完整的参数列表及类型和描述
+- 返回格式：`{"status": "ok"|"error", "message": "..."}`
+- 使用示例
+- 常见错误场景
 
 ---
 
-## 3. Version Check (`version`)
+## 3. 版本检查（`version`）
 
-Check installed dependency versions for the Data Forge toolchain.
+检查 Data Forge 工具链已安装的依赖版本。
 
 ```
 /data-forge-utils version [--all]
 ```
 
-| Dependency | Minimum Version | Check Command |
+| 依赖项 | 最低版本 | 检查命令 |
 |---|---|---|
 | Python | 3.12+ | `python --version` |
-| uv | Latest | `uv --version` |
-| FastMCP | Latest | `uv pip list | grep fastmcp` |
-| rembg | Latest (with BiRefNet) | `pip show rembg` |
-| Ollama | Latest | `ollama --version` |
-| ComfyUI | Latest | Check via `comfyui_status` |
+| uv | 最新版 | `uv --version` |
+| FastMCP | 最新版 | `uv pip list | grep fastmcp` |
+| rembg | 最新版（含 BiRefNet） | `pip show rembg` |
+| Ollama | 最新版 | `ollama --version` |
+| ComfyUI | 最新版 | 通过 `comfyui_status` 检查 |
 
-**Usage:**
+**用法：**
 
 ```
-/df-utils version          — Show Python and core dependency versions
-/df-utils version --all    — Show all dependencies including rembg, Ollama, ComfyUI
+/df-utils version          — 显示 Python 及核心依赖版本
+/df-utils version --all    — 显示所有依赖，包括 rembg、Ollama、ComfyUI
 ```
 
 ---
 
-## 4. Server Status (`status`)
+## 4. 服务器状态（`status`）
 
-Check whether external services required by Data Forge are running and accessible.
+检查 Data Forge 所需的外部服务是否正在运行并可访问。
 
 ```
 /data-forge-utils status comfyui
 /data-forge-utils status ollama
 ```
 
-### ComfyUI Status (`status comfyui`)
+### ComfyUI 状态（`status comfyui`）
 
-1. Invoke `comfyui_status` MCP tool.
-2. Report: server reachability, available workflows, GPU availability, queue state.
-3. If unreachable, provide troubleshooting steps (see §7 — Troubleshooting).
+1. 调用 `comfyui_status` MCP 工具。
+2. 报告：服务器可达性、可用工作流、GPU 可用性、队列状态。
+3. 如果不可达，提供故障排除步骤（参见 §7 — 故障排除）。
 
-### Ollama Status (`status ollama`)
+### Ollama 状态（`status ollama`）
 
-1. Invoke `ollama_list_models` MCP tool.
-2. Report: server reachability, installed models with tags, model sizes.
-3. If unreachable, provide troubleshooting steps (see §7 — Troubleshooting).
+1. 调用 `ollama_list_models` MCP 工具。
+2. 报告：服务器可达性、已安装模型及标签、模型大小。
+3. 如果不可达，提供故障排除步骤（参见 §7 — 故障排除）。
 
 ---
 
-## 5. Code Snippets (`snippets`)
+## 5. 代码片段（`snippets`）
 
-Quick reference for common Data Forge tool invocation patterns.
+常见 Data Forge 工具调用模式的快速参考。
 
 ```
 /data-forge-utils snippets <topic>
 ```
 
-### Snippet Index
+### 片段索引
 
-| Topic | Description |
+| 主题 | 描述 |
 |---|---|
-| `resize-batch` | Batch resize images with fit/pad modes |
-| `bg-remove` | Single and batch background removal |
-| `caption-search` | Regex search across captions |
-| `caption-stats` | Full dataset profiling |
-| `caption-dedup` | Deduplicate captions |
-| `caption-export-import` | Format conversion workflows |
-| `llm-batch` | Batch LLM image description |
-| `ollama-batch` | Batch Ollama image description |
-| `comfyui-workflow` | Run ComfyUI workflows |
-| `pipeline-end-to-end` | Full pipeline: resize → bg → caption → export |
+| `resize-batch` | 使用 fit/pad 模式批量调整图像大小 |
+| `bg-remove` | 单张和批量背景移除 |
+| `caption-search` | 跨描述的正则表达式搜索 |
+| `caption-stats` | 完整数据集概况分析 |
+| `caption-dedup` | 去重描述 |
+| `caption-export-import` | 格式转换工作流 |
+| `llm-batch` | 批量 LLM 图像描述 |
+| `ollama-batch` | 批量 Ollama 图像描述 |
+| `comfyui-workflow` | 运行 ComfyUI 工作流 |
+| `pipeline-end-to-end` | 完整流水线：调整大小 → 背景移除 → 描述 → 导出 |
 
 ### Snippet: `resize-batch`
 
@@ -171,81 +175,81 @@ Returns: {"status": "ok"|"error", "message": "..."}
 
 ---
 
-## 6. Complete MCP Tool Reference
+## 6. 完整 MCP 工具参考
 
-All 24 Data Forge MCP tools organized by category.
+全部 24 个 Data Forge MCP 工具，按类别组织。
 
-### Resize (1 tool)
+### 调整大小（1 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `resize_images` | `input_dir`, `output_dir`, `width`, `height`, `mode` | Batch resize images with fit/pad modes |
+| `resize_images` | `input_dir`、`output_dir`、`width`、`height`、`mode` | 使用 fit/pad 模式批量调整图像大小 |
 
-### Background Removal (2 tools)
+### 背景移除（2 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `remove_background` | `input_path`, `output_path`, `model` (optional) | Remove background from single image |
-| `remove_background_batch` | `input_dir`, `output_dir`, `model` (optional) | Batch background removal |
+| `remove_background` | `input_path`、`output_path`、`model`（可选） | 移除单张图像背景 |
+| `remove_background_batch` | `input_dir`、`output_dir`、`model`（可选） | 批量背景移除 |
 
-### Captions (9 tools)
+### 描述（9 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `caption_list` | `directory`, `recursive` (optional) | List all caption files in directory |
-| `caption_read` | `file_path` | Read a single caption file |
-| `caption_read_all` | `directory` | Read all captions in directory |
-| `caption_search` | `directory`, `query` (regex), `case_sensitive` (optional) | Search captions by regex pattern |
-| `caption_batch_replace` | `directory`, `query` (regex), `replace_with` | Batch regex replace across captions |
-| `caption_export` | `input_dir`, `output_path`, `format` (json/csv/jsonl) | Export captions to file |
-| `caption_import` | `input_file`, `output_dir`, `format` (json/csv) | Import captions from file |
-| `caption_stats` | `directory` | Compute caption statistics |
-| `caption_deduplicate` | `directory`, `strategy` (keep-first/keep-last) | Deduplicate captions |
+| `caption_list` | `directory`、`recursive`（可选） | 列出目录中所有描述文件 |
+| `caption_read` | `file_path` | 读取单个描述文件 |
+| `caption_read_all` | `directory` | 读取目录中所有描述 |
+| `caption_search` | `directory`、`query`（正则表达式）、`case_sensitive`（可选） | 通过正则表达式模式搜索描述 |
+| `caption_batch_replace` | `directory`、`query`（正则表达式）、`replace_with` | 跨描述批量正则替换 |
+| `caption_export` | `input_dir`、`output_path`、`format`（json/csv/jsonl） | 导出描述至文件 |
+| `caption_import` | `input_file`、`output_dir`、`format`（json/csv） | 从文件导入描述 |
+| `caption_stats` | `directory` | 计算描述统计信息 |
+| `caption_deduplicate` | `directory`、`strategy`（keep-first/keep-last） | 去重描述 |
 
-### LLM Cloud (4 tools)
+### LLM 云端（4 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `llm_chat` | `prompt`, `model`, `keyfile` | Single-turn LLM chat |
-| `llm_describe_image` | `image_path`, `prompt`, `model`, `keyfile` | Describe a single image |
-| `llm_batch_chat` | `prompts` (list), `model`, `keyfile` | Batch LLM chat |
-| `llm_batch_describe_images` | `input_dir`, `output_dir`, `model`, `keyfile` | Batch image description |
+| `llm_chat` | `prompt`、`model`、`keyfile` | 单轮 LLM 对话 |
+| `llm_describe_image` | `image_path`、`prompt`、`model`、`keyfile` | 描述单张图像 |
+| `llm_batch_chat` | `prompts`（列表）、`model`、`keyfile` | 批量 LLM 对话 |
+| `llm_batch_describe_images` | `input_dir`、`output_dir`、`model`、`keyfile` | 批量图像描述 |
 
-### Ollama Local (5 tools)
+### Ollama 本地（5 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `ollama_generate` | `prompt`, `model` | Single text generation via Ollama |
-| `ollama_list_models` | _(none)_ | List available Ollama models |
-| `ollama_describe_image` | `image_path`, `prompt`, `model` | Describe single image via Ollama |
-| `ollama_batch_generate` | `prompts` (list), `model` | Batch text generation |
-| `ollama_batch_describe_images` | `input_dir`, `output_dir`, `model` | Batch image description via Ollama |
+| `ollama_generate` | `prompt`、`model` | 通过 Ollama 进行单次文本生成 |
+| `ollama_list_models` | _（无）_ | 列出可用的 Ollama 模型 |
+| `ollama_describe_image` | `image_path`、`prompt`、`model` | 通过 Ollama 描述单张图像 |
+| `ollama_batch_generate` | `prompts`（列表）、`model` | 批量文本生成 |
+| `ollama_batch_describe_images` | `input_dir`、`output_dir`、`model` | 通过 Ollama 批量描述图像 |
 
-### ComfyUI (3 tools)
+### ComfyUI（3 个工具）
 
-| Tool | Parameters | Description |
+| 工具 | 参数 | 描述 |
 |---|---|---|
-| `comfyui_status` | _(none)_ | Check ComfyUI server status |
-| `comfyui_run_workflow` | `workflow` (dict), `parameters` (dict, optional) | Run single ComfyUI workflow |
-| `comfyui_run_batch` | `workflow` (dict), `parameter_sets` (list[dict]) | Run batch ComfyUI workflows with parameter sweeps |
+| `comfyui_status` | _（无）_ | 检查 ComfyUI 服务器状态 |
+| `comfyui_run_workflow` | `workflow`（字典）、`parameters`（字典，可选） | 运行单个 ComfyUI 工作流 |
+| `comfyui_run_batch` | `workflow`（字典）、`parameter_sets`（字典列表） | 使用参数扫描运行批量 ComfyUI 工作流 |
 
-### Response Format (All Tools)
+### 响应格式（所有工具）
 
-Every tool returns:
+每个工具返回：
 ```json
 {"status": "ok"|"error", "message": "..."}
 ```
 
-On `"ok"`, additional fields may be present (e.g., `data` for `caption_stats`, `count` for batch operations).
-On `"error"`, `message` contains the error description.
+当返回 `"ok"` 时，可能包含额外字段（例如 `caption_stats` 返回 `data`，批量操作返回 `count`）。
+当返回 `"error"` 时，`message` 包含错误描述。
 
 ---
 
-## 7. Configuration Reference
+## 7. 配置参考
 
-### Keyfile Format (Cloud LLM)
+### Keyfile 格式（云端 LLM）
 
-Path to a JSON file with the following structure:
+具有以下结构的 JSON 文件路径：
 
 ```json
 {
@@ -255,19 +259,19 @@ Path to a JSON file with the following structure:
 }
 ```
 
-| Field | Required | Description |
+| 字段 | 是否必需 | 描述 |
 |---|---|---|
-| `provider` | Yes | Provider identifier: `openai` or `deepseek` |
-| `api_key` | Yes | API key string |
-| `api_base` | No | Custom API base URL (for proxies or self-hosted endpoints) |
+| `provider` | 是 | 供应商标识符：`openai` 或 `deepseek` |
+| `api_key` | 是 | API 密钥字符串 |
+| `api_base` | 否 | 自定义 API 基础 URL（用于代理或自托管端点） |
 
-**Notes:**
-- The AI agent must **never** generate API keys or keyfiles. Only guide users to create their own.
-- Keyfile paths must be absolute or relative to the working directory.
+**说明：**
+- AI 智能体**绝不**生成 API 密钥或 keyfile。仅指导用户自行创建。
+- Keyfile 路径必须为绝对路径或相对于工作目录的路径。
 
-### ComfyUI Workflow Format
+### ComfyUI 工作流格式
 
-ComfyUI workflows are JSON objects in the ComfyUI API format:
+ComfyUI 工作流是 ComfyUI API 格式的 JSON 对象：
 
 ```json
 {
@@ -281,107 +285,107 @@ ComfyUI workflows are JSON objects in the ComfyUI API format:
 }
 ```
 
-**Notes:**
-- Node IDs are string keys (`"1"`, `"2"`, etc.).
-- Node references are `[source_node_id, output_index]`.
-- `comfyui_run_batch` accepts `parameter_sets` as a list of dicts, where each dict overrides node inputs for one batch iteration.
+**说明：**
+- 节点 ID 为字符串键（`"1"`、`"2"` 等）。
+- 节点引用格式为 `[source_node_id, output_index]`。
+- `comfyui_run_batch` 接受 `parameter_sets` 作为字典列表，每个字典覆盖一次批量迭代的节点输入。
 
-### Ollama Setup
+### Ollama 设置
 
-1. Install Ollama: `curl -fsSL https://ollama.com/install.sh | sh`
-2. Pull a vision-capable model: `ollama pull llava:13b`
-3. Verify: `ollama list`
-4. The Data Forge MCP tools connect to `http://localhost:11434` by default.
-
----
-
-## 8. Troubleshooting
-
-### Scenario 1: `comfyui_status` returns error
-
-**Symptom:** `{"status": "error", "message": "Connection refused"}`
-
-**Cause:** ComfyUI server is not running or is on a different port.
-
-**Steps:**
-1. Verify ComfyUI is running: check terminal window for the ComfyUI process.
-2. Default URL: `http://127.0.0.1:8188`. Verify that port is not blocked by firewall.
-3. Restart ComfyUI and re-run `comfyui_status`.
-
-### Scenario 2: `ollama_list_models` returns error
-
-**Symptom:** `{"status": "error", "message": "Failed to connect to Ollama"}`
-
-**Cause:** Ollama service is not running.
-
-**Steps:**
-1. Start Ollama: `ollama serve`
-2. Verify: `ollama list`
-3. If no models installed: `ollama pull llava:13b`
-4. Re-run `ollama_list_models`.
-
-### Scenario 3: `llm_batch_describe_images` fails with 401
-
-**Symptom:** `{"status": "error", "message": "401 Unauthorized"}`
-
-**Cause:** Invalid or missing API key in keyfile.
-
-**Steps:**
-1. Verify keyfile exists and contains valid `api_key` field.
-2. Check the key has not been revoked or expired.
-3. Verify `api_base` URL is correct (especially for DeepSeek or proxy setups).
-4. Test with a minimal single-image call: `llm_describe_image`.
-
-### Scenario 4: `remove_background_batch` fails
-
-**Symptom:** `{"status": "error", "message": "No module named 'rembg'"}`
-
-**Cause:** `rembg` Python package not installed or BiRefNet models not downloaded.
-
-**Steps:**
-1. Install rembg: `uv pip install rembg`
-2. Download BiRefNet models: `rembg download` (or equivalent)
-3. Verify: `python -c "from rembg import remove"` succeeds.
-4. For GPU acceleration: ensure CUDA toolkit and `onnxruntime-gpu` are installed.
-
-### Scenario 5: `caption_import` fails on CSV
-
-**Symptom:** `{"status": "error", "message": "Missing required fields"}`
-
-**Cause:** CSV file has incorrect column headers or missing data.
-
-**Steps:**
-1. Required columns: `image` (filename), `caption` (text).
-2. Optional columns: `timestamp`, `tags`.
-3. Verify no empty rows or unescaped commas in caption text.
-4. Try importing as JSON instead of CSV if the data is complex.
-
-### Scenario 6: `caption_search` returns no matches
-
-**Symptom:** No results found for a valid regex pattern.
-
-**Cause:** Case sensitivity mismatch or file encoding issues.
-
-**Steps:**
-1. Verify `case_sensitive` parameter (default may vary).
-2. Check caption file encoding — non-UTF-8 files may cause silent failures.
-3. Test with a simple literal pattern first, then add regex complexity.
-4. Run `caption_read_all` to verify captions are accessible.
-
-### Scenario 7: Batch pipeline out of disk space
-
-**Symptom:** Tool returns `{"status": "error", "message": "No space left on device"}`
-
-**Cause:** Intermediate pipeline stages (resized/, no-bg/, exports/) consume significant disk.
-
-**Steps:**
-1. Estimate space needed: original_size × 3 (resized + no-bg + exports).
-2. Clean intermediate directories after each stage if space is tight.
-3. Use `--output-dir` on a different volume if available.
+1. 安装 Ollama：`curl -fsSL https://ollama.com/install.sh | sh`
+2. 拉取支持视觉的模型：`ollama pull llava:13b`
+3. 验证：`ollama list`
+4. Data Forge MCP 工具默认连接到 `http://localhost:11434`。
 
 ---
 
-## 9. External Resources
+## 8. 故障排除
+
+### 场景 1：`comfyui_status` 返回错误
+
+**症状：** `{"status": "error", "message": "Connection refused"}`
+
+**原因：** ComfyUI 服务器未运行或使用了其他端口。
+
+**步骤：**
+1. 验证 ComfyUI 是否正在运行：检查终端窗口中是否有 ComfyUI 进程。
+2. 默认 URL：`http://127.0.0.1:8188`。验证该端口未被防火墙阻止。
+3. 重启 ComfyUI，然后重新运行 `comfyui_status`。
+
+### 场景 2：`ollama_list_models` 返回错误
+
+**症状：** `{"status": "error", "message": "Failed to connect to Ollama"}`
+
+**原因：** Ollama 服务未运行。
+
+**步骤：**
+1. 启动 Ollama：`ollama serve`
+2. 验证：`ollama list`
+3. 如果未安装模型：`ollama pull llava:13b`
+4. 重新运行 `ollama_list_models`。
+
+### 场景 3：`llm_batch_describe_images` 失败，返回 401
+
+**症状：** `{"status": "error", "message": "401 Unauthorized"}`
+
+**原因：** Keyfile 中的 API 密钥无效或缺失。
+
+**步骤：**
+1. 验证 keyfile 存在且包含有效的 `api_key` 字段。
+2. 检查密钥是否未被吊销或过期。
+3. 验证 `api_base` URL 是否正确（尤其对于 DeepSeek 或代理设置）。
+4. 使用最小的单张图像调用进行测试：`llm_describe_image`。
+
+### 场景 4：`remove_background_batch` 失败
+
+**症状：** `{"status": "error", "message": "No module named 'rembg'"}`
+
+**原因：** 未安装 `rembg` Python 包或未下载 BiRefNet 模型。
+
+**步骤：**
+1. 安装 rembg：`uv pip install rembg`
+2. 下载 BiRefNet 模型：`rembg download`（或等效命令）
+3. 验证：`python -c "from rembg import remove"` 成功执行。
+4. GPU 加速：确保已安装 CUDA toolkit 和 `onnxruntime-gpu`。
+
+### 场景 5：`caption_import` 在 CSV 上失败
+
+**症状：** `{"status": "error", "message": "Missing required fields"}`
+
+**原因：** CSV 文件列标题不正确或数据缺失。
+
+**步骤：**
+1. 必需列：`image`（文件名）、`caption`（文本）。
+2. 可选列：`timestamp`、`tags`。
+3. 验证无空行，描述文本中无未转义的逗号。
+4. 如果数据复杂，尝试以 JSON 而非 CSV 格式导入。
+
+### 场景 6：`caption_search` 无匹配结果
+
+**症状：** 对有效的正则表达式模式找不到结果。
+
+**原因：** 大小写敏感不匹配或文件编码问题。
+
+**步骤：**
+1. 验证 `case_sensitive` 参数（默认值可能有所不同）。
+2. 检查描述文件编码——非 UTF-8 文件可能导致静默失败。
+3. 先用简单的字面模式测试，然后增加正则表达式复杂度。
+4. 运行 `caption_read_all` 验证描述是否可访问。
+
+### 场景 7：批量流水线磁盘空间不足
+
+**症状：** 工具返回 `{"status": "error", "message": "No space left on device"}`
+
+**原因：** 中间流水线阶段（resized/、no-bg/、exports/）占用大量磁盘空间。
+
+**步骤：**
+1. 估算所需空间：原始大小 × 3（resized + no-bg + exports）。
+2. 如果空间紧张，在每个阶段后清理中间目录。
+3. 如可用，在其他卷上使用 `--output-dir`。
+
+---
+
+## 9. 外部资源
 
 | Resource | URL |
 |---|---|
@@ -396,6 +400,6 @@ ComfyUI workflows are JSON objects in the ComfyUI API format:
 
 ---
 
-**Related commands:** `/data-forge-dataset`, `/data-forge-process`, `/data-forge-prompt`, `/data-forge-export`
+**相关命令：** `/data-forge-dataset`、`/data-forge-process`、`/data-forge-prompt`、`/data-forge-export`
 
-**Related agents:** Data Forge Development Assistant, Data Forge Data Curator, Data Forge Prompt Engineer
+**相关智能体：** Data Forge Development Assistant、Data Forge Data Curator、Data Forge Prompt Engineer

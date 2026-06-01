@@ -1,3 +1,7 @@
+---
+name: mcp-py-build
+description: 使用 uv + PyInstaller 将 Python MCP 服务器项目打包成独立可执行文件，支持 Linux 和 Windows 平台
+---
 # MCP Python 构建技能
 
 **基础目录**：${PROJECT_ROOT}

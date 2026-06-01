@@ -1,3 +1,7 @@
+---
+name: mcp-py-release
+description: 管理已打包 MCP 服务器的完整发布生命周期：版本升级、Git 标签管理、推送和 GitHub Release 创建
+---
 # MCP Python 发布技能
 
 **基础目录**：${PROJECT_ROOT}
