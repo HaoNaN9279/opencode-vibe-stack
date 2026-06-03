@@ -83,7 +83,7 @@ _jsonc_nested_array_add() {
     [ ! -f "$file" ] && return 1
     if ! grep -q "\"$parent_key\"" "$file" 2>/dev/null; then return 1; fi
     awk -v pk="$parent_key" -v ck="$child_key" -v val="$val" '
-    BEGIN { s=0; d=0; hc=0; ins=0; e=0 }
+    BEGIN { s=0; d=0; hc=0; ins=0; e=0; ia=0; ad=0 }
     {
         if (!ins && !e) {
             if (s==0 && $0 ~ "\"" pk "\"") { s=1; d=0 }
@@ -91,9 +91,12 @@ _jsonc_nested_array_add() {
                 if (s==1 && $0 ~ "\"" ck "\"") { s=2; hc=1 }
                 n=split($0,c,""); for(i=1;i<=n;i++){ if(c[i]=="{") d++; if(c[i]=="}") d-- }
                 if (s==2) {
-                    if (hc==1 && $0 ~ /\]/) {
-                        if (match($0, /\[[^]]*\]/)) { ac=substr($0,RSTART+1,RLENGTH-2); if (index(ac,val)>0) e=1 }
-                    } else if (index($0,val)>0 && $0 !~ "\"" ck "\"") { e=1 }
+                    if (hc==1 && $0 ~ /\[/) ia=1
+                    if (ia && index($0,val)>0) e=1
+                    if (ia && $0 ~ /\]/) {
+                        n2=split($0,c2,""); for(i=1;i<=n2;i++){ if(c2[i]=="[") ad++; if(c2[i]=="]") ad-- }
+                        if (ad<=0) ia=0
+                    }
                     if (!ins && !e) {
                         if ($0 ~ /^[[:space:]]*][[:space:]]*,?[[:space:]]*$/) { print "      " val ","; ins=1 }
                         else if ($0 ~ /\]/) {
