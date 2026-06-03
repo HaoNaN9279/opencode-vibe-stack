@@ -8,9 +8,9 @@ cmd_core_update() {
     echo -e "${BOLD}Re-syncing core symlinks...${NC}"
     echo ""
 
+    # ---- Part A: Core → User Config per-item link sync ----
     local config_dir="$HOME/.config/opencode"
     local types=("rules" "agents" "commands" "skills" "mcp")
-    local updated=false
 
     for type in "${types[@]}"; do
         local src="$VIBE_STACK_HOME/core/$type"
@@ -23,30 +23,14 @@ cmd_core_update() {
 
         mkdir -p "$config_dir"
 
-        if [ -L "$dest" ]; then
-            local current
-            current="$(readlink "$dest")"
-            if [ "$current" = "$src" ]; then
-                ok "$type/ -> already up-to-date"
-                continue
-            fi
-        elif [ -d "$dest" ]; then
-            # Might be a junction on Windows (not detected by -L)
-            ok "$type/ -> already linked"
-            continue
+        if link_directory_contents "$src" "$dest"; then
+            ok "$type/ -> per-item links synced"
+        else
+            warn "$type/ -> some links may have failed"
         fi
-
-        # Remove existing and re-link (create_dir_link handles junctions safely)
-        if ! create_dir_link "$src" "$dest"; then
-            warn "Failed to link $type/"
-            continue
-        fi
-        ok "$type/ -> linked"
-        updated=true
     done
 
     # Update ~/.config/opencode/opencode.json instructions
-    # Path is relative to the config directory (where rules/ symlink lives)
     local opencode_json="$config_dir/opencode.json"
     info "Updating core rules in $opencode_json ..."
     sync_opencode_instructions "$opencode_json" "rules/**/*.md"
@@ -57,10 +41,6 @@ cmd_core_update() {
         ok "Registered core skills in skills.paths"
     else
         _jsonc_nested_array_add "$opencode_json" "skills" "paths" '"skills"'
-    fi
-
-    if [ "$updated" = true ]; then
-        ok "Core symlinks updated."
     fi
 
     # Re-download MCP binaries (idempotent – skips already-installed)
@@ -226,5 +206,94 @@ cmd_core_update() {
 
             rm -f "$mcp_tmp"
         fi
+    fi
+
+    # ---- Part B: Domain → Project Config Sync (manifest-driven) ----
+    local manifest_file=".opencode/.vibe-stack-active.json"
+    if [ -f "$manifest_file" ] && command -v python3 &>/dev/null; then
+        info "Syncing domain links..."
+
+        python3 -c "
+import json, os, sys
+
+manifest_file = '$manifest_file'
+vibe_home = '$VIBE_STACK_HOME'
+cwd = os.getcwd()
+
+with open(manifest_file) as f:
+    data = json.load(f)
+domains = data.get('domains', {})
+
+for domain_key, info in list(domains.items()):
+    links = info.get('links', {})
+    updated_links = {}
+    changes_detected = False
+
+    for dest_rel, src_rel in links.items():
+        src_full = os.path.join(vibe_home, src_rel)
+        dest_full = os.path.join(cwd, '.opencode', dest_rel)
+
+        if os.path.exists(src_full):
+            # Source exists — verify/recreate symlink
+            if os.path.islink(dest_full):
+                current_target = os.readlink(dest_full)
+                if current_target != src_full:
+                    # Wrong target — fix it
+                    os.unlink(dest_full)
+                    os.symlink(src_full, dest_full)
+                    changes_detected = True
+                    print(f'FIXED: {dest_rel}')
+            elif not os.path.exists(dest_full):
+                # Missing — create it
+                os.makedirs(os.path.dirname(dest_full), exist_ok=True)
+                os.symlink(src_full, dest_full)
+                changes_detected = True
+                print(f'CREATED: {dest_rel}')
+            else:
+                # Exists but not a symlink — leave it (user file)
+                print(f'SKIP (not symlink): {dest_rel}')
+            updated_links[dest_rel] = src_rel
+        else:
+            # Source deleted — this is a stale link
+            if os.path.islink(dest_full) or os.path.exists(dest_full):
+                os.unlink(dest_full)
+                changes_detected = True
+                print(f'REMOVED (stale): {dest_rel}')
+            # Don't add to updated_links — it's deleted
+            changes_detected = True
+
+    # Check for new items in source directories that aren't in manifest
+    category = domain_key.split('/')[0]
+    domain_name = '/'.join(domain_key.split('/')[1:])
+    domain_root = os.path.join(vibe_home, 'domains', category, domain_name)
+
+    for type_dir in ['rules', 'agents', 'commands', 'mcp', 'skills']:
+        type_path = os.path.join(domain_root, type_dir)
+        if not os.path.isdir(type_path):
+            continue
+
+        prefix = domain_name
+        for item_name in os.listdir(type_path):
+            prefixed_name = f'{prefix}-{item_name}'
+            dest_rel = f'{type_dir}/{prefixed_name}'
+            src_rel = f'domains/{category}/{domain_name}/{type_dir}/{item_name}'
+
+            if dest_rel not in updated_links:
+                # New item — create link
+                src_full = os.path.join(vibe_home, src_rel)
+                dest_full = os.path.join(cwd, '.opencode', dest_rel)
+                os.makedirs(os.path.dirname(dest_full), exist_ok=True)
+                os.symlink(src_full, dest_full)
+                updated_links[dest_rel] = src_rel
+                changes_detected = True
+                print(f'NEW: {dest_rel}')
+
+    # Update manifest if changes were made
+    if changes_detected:
+        info['links'] = updated_links
+        with open(manifest_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f'UPDATED: {domain_key}')
+" 2>/dev/null || warn "Domain link sync encountered errors"
     fi
 }
