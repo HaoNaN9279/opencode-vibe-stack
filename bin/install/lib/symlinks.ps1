@@ -1,47 +1,73 @@
-# ---- Helper: Create symbolic link (with junction fallback) ----
-function New-SafeSymlink {
+# ---- Helper: Create per-item symlinks from source directory into dest directory ----
+# Replaces the old directory-level junction approach with individual item links.
+# Removes an old junction at DestDir if present, creates DestDir as a real directory,
+# then creates per-item links: file symlinks for files, junctions for subdirectories.
+# Falls back to copy for files when symlinks are unavailable (no Developer Mode).
+function New-PerItemDirectoryLink {
     param(
-        [string]$Target,
-        [string]$Link
+        [string]$SourceDir,
+        [string]$DestDir
     )
 
-    # Remove existing if present
-    if (Test-Path $Link) {
+    Write-Info "Linking items from $(Split-Path $SourceDir -Leaf)/ ..."
+
+    # Remove old junction/reparse-point at DestDir if present (legacy directory-level link)
+    if (Test-Path $DestDir) {
         try {
-            $existing = Get-Item $Link -Force -ErrorAction Stop
+            $existing = Get-Item $DestDir -Force -ErrorAction Stop
             $isReparse = ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
             if ($isReparse) {
-                & cmd.exe /c "rmdir `"$Link`""
-                if ($LASTEXITCODE -ne 0) {
-                    throw "rmdir failed with exit code $LASTEXITCODE"
-                }
-            } else {
-                Remove-Item $Link -Recurse -Force -ErrorAction Stop
+                & cmd.exe /c "rmdir `"$DestDir`"" 2>$null
             }
         } catch {
-            Write-Warn "Could not remove existing: $Link"
-            return $false
+            # Continue — will be overwritten by directory creation below
         }
     }
 
-    # Try symlink first
-    try {
-        New-Item -ItemType SymbolicLink -Path $Link -Target $Target -Force -ErrorAction Stop | Out-Null
-        return $true
-    } catch {
-        # Symlink failed - try junction (directories only)
-        if (Test-Path $Target -PathType Container) {
+    # Ensure DestDir is a real directory
+    New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+
+    $items = Get-ChildItem -Path $SourceDir -Force -ErrorAction SilentlyContinue
+    if (-not $items) {
+        Write-OK "  (empty directory)"
+        return
+    }
+
+    foreach ($item in $items) {
+        $targetPath = $item.FullName
+        $linkPath  = Join-Path $DestDir $item.Name
+
+        if ($item.PSIsContainer) {
+            # Subdirectory → junction (reliable, no admin or Developer Mode needed)
             try {
-                New-Item -ItemType Junction -Path $Link -Target $Target -Force -ErrorAction Stop | Out-Null
-                Write-Warn "Used Junction instead of Symlink for: $Link"
-                return $true
+                if (Test-Path $linkPath) {
+                    $ex = Get-Item $linkPath -Force -ErrorAction Stop
+                    $isRp = ($ex.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
+                    if ($isRp) { & cmd.exe /c "rmdir `"$linkPath`"" 2>$null }
+                    else        { Remove-Item $linkPath -Recurse -Force -ErrorAction Stop }
+                }
+                New-Item -ItemType Junction -Path $linkPath -Target $targetPath -Force | Out-Null
+                Write-OK "  $($item.Name)/ -> per-item junction"
             } catch {
-                Write-Warn "Junction also failed for: $Link"
-                return $false
+                Write-Warn "  Failed to create junction for $($item.Name)/"
             }
         } else {
-            Write-Warn "Cannot create link for: $Link (file symlink requires admin or Developer Mode)"
-            return $false
+            # File → symlink (requires Developer Mode or admin); fallback to copy
+            try {
+                if (Test-Path $linkPath) {
+                    Remove-Item $linkPath -Force -ErrorAction Stop
+                }
+                New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -Force -ErrorAction Stop | Out-Null
+                Write-OK "  $($item.Name) -> per-item symlink"
+            } catch {
+                # Symlink not available — copy as fallback
+                try {
+                    Copy-Item -Path $targetPath -Destination $linkPath -Force -ErrorAction Stop
+                    Write-Warn "  $($item.Name) (copied — symlink not available)"
+                } catch {
+                    Write-Warn "  Failed to link/copy $($item.Name)"
+                }
+            }
         }
     }
 }
@@ -63,12 +89,6 @@ function Install-CoreSymlinks {
             continue
         }
 
-        Write-Info "Linking $type/ ..."
-        $success = New-SafeSymlink -Target $srcDir -Link $destDir
-        if ($success) {
-            Write-OK "$type/ -> $srcDir"
-        } else {
-            Write-Warn "Failed to create symlink for $type/"
-        }
+        New-PerItemDirectoryLink -SourceDir $srcDir -DestDir $destDir
     }
 }
