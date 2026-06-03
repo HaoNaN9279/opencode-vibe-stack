@@ -14,6 +14,7 @@ source "$LIB_DIR/helpers.sh"
 source "$LIB_DIR/jsonc.sh"
 source "$LIB_DIR/mcp-config.sh"
 source "$LIB_DIR/mcp-binaries.sh"
+source "$SCRIPT_DIR/bin/vibe-stack/lib/path.sh"
 source "$LIB_DIR/symlinks.sh"
 
 # ---- Step 2: Update configuration files ----

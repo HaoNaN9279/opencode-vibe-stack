@@ -10,30 +10,17 @@ for type in "${SYMLINK_TYPES[@]}"; do
     src_dir="$VIBE_STACK_HOME/core/$type"
     dest_dir="$OPENCODE_CONFIG/$type"
 
-    # Check if source exists
     if [ ! -d "$src_dir" ]; then
-        echo -e "  ${YELLOW}[skip]${NC} $type/ - source not found (empty core dir - ok)"
+        echo -e "  ${YELLOW}[skip]${NC} $type/ - source not found"
         continue
     fi
 
-    # Check if already correctly linked
-    if [ -L "$dest_dir" ]; then
-        current_target="$(readlink "$dest_dir")"
-        if [ "$current_target" = "$src_dir" ]; then
-            echo -e "  ${GREEN}[OK]${NC} $type/ -> already linked"
-            continue
-        fi
+    # link_directory_contents handles: old symlink removal, dir creation, per-item linking
+    if link_directory_contents "$src_dir" "$dest_dir"; then
+        echo -e "  ${GREEN}[OK]${NC} $type/ -> per-item links created"
+    else
+        echo -e "  ${YELLOW}[warn]${NC} $type/ - some links may have failed"
     fi
-
-    # Remove existing (file, dir, or wrong symlink)
-    if [ -e "$dest_dir" ] || [ -L "$dest_dir" ]; then
-        echo -e "  ${YELLOW}[!]${NC} Removing existing $type/ ..."
-        rm -rf "$dest_dir"
-    fi
-
-    # Create symlink
-    ln -sf "$src_dir" "$dest_dir"
-    echo -e "  ${GREEN}[OK]${NC} $type/ -> $src_dir"
 done
 
 echo ""
