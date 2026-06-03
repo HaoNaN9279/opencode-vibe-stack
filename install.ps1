@@ -33,7 +33,7 @@ if (-not $isAdmin) {
     $host.UI.WriteErrorLine("")
     exit 2
 }
-Write-OK "Running with Administrator privileges."
+Write-Host "[OK] Running with Administrator privileges." -ForegroundColor Green
 Write-Host ""
 
 # ---- Dot-source library modules ----
