@@ -272,9 +272,9 @@ for domain_key, info in list(domains.items()):
         if not os.path.isdir(type_path):
             continue
 
-        prefix = f'{category}-{domain_name}'
+        prefix = f'{category}_{domain_name}'
         for item_name in os.listdir(type_path):
-            prefixed_name = f'{prefix}-{item_name}'
+            prefixed_name = f'{prefix}_{item_name}'
             dest_rel = f'{type_dir}/{prefixed_name}'
             src_rel = f'domains/{category}/{domain_name}/{type_dir}/{item_name}'
 
