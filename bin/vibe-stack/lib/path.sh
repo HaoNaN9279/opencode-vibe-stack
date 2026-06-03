@@ -66,7 +66,7 @@ create_dir_link() {
 }
 
 # Create a symlink for any item (file or directory).
-# Directories delegate to create_dir_link; files use ln -s with MSYS2 copy fallback.
+# Directories delegate to create_dir_link; files use ln -s.
 # Returns 0 on success, 1 on failure.
 create_item_link() {
     local src="$1"
@@ -82,10 +82,9 @@ create_item_link() {
         if [ -L "$dest" ]; then
             return 0
         fi
-        # MSYS2 silently copied — undo and redo as explicit copy
+        # MSYS2 silently copied — symlink capability not available (needs admin on Windows)
         rm -f "$dest" 2>/dev/null || true
-        cp "$src" "$dest" 2>/dev/null || return 1
-        return 0
+        return 1
     fi
 
     return 1

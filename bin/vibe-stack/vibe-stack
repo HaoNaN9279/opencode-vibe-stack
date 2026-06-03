@@ -39,6 +39,19 @@ source "${SCRIPT_DIR}/lib/instructions.sh"
 source "${SCRIPT_DIR}/lib/omo-config.sh"
 source "${SCRIPT_DIR}/lib/mcp.sh"
 
+# On Windows (MSYS2/Cygwin), symlink creation silently copies files
+# when run without Administrator privileges. Verify symlinks work before proceeding.
+case "$OSTYPE" in
+    msys|cygwin)
+        _vibe_test_link="$(mktemp -u 2>/dev/null || echo "/tmp/vibe-admin-check-$$")"
+        if ! ln -s /dev/null "$_vibe_test_link" 2>/dev/null || ! [ -L "$_vibe_test_link" ]; then
+            rm -f "$_vibe_test_link" 2>/dev/null || true
+            die "Symlink creation requires Administrator privileges on Windows.\n  Please run from an elevated terminal (Run as Administrator)."
+        fi
+        rm -f "$_vibe_test_link" 2>/dev/null || true
+        ;;
+esac
+
 # ---- Main ----
 
 main() {
