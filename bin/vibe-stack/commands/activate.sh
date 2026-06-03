@@ -118,14 +118,14 @@ cmd_activate() {
             mkdir -p "$dest_dir"
 
             # Create per-item links (symlink or junction on Windows — never copies)
-            if link_directory_contents "$src" "$dest_dir" "$domain"; then
+            if link_directory_contents "$src" "$dest_dir" "${category}-${domain}"; then
                 activated_types+=("$sub")
 
                 # Collect link entries for manifest AFTER successful linking
                 shopt -s nullglob
                 for item in "$src"/*; do
                     local item_name="$(basename "$item")"
-                    local prefixed="${domain}-${item_name}"
+                    local prefixed="${category}-${domain}-${item_name}"
                     manifest_args+=("${sub}/${prefixed}|domains/${category}/${domain}/${sub}/${item_name}")
                 done
                 shopt -u nullglob
