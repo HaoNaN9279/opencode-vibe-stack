@@ -1,5 +1,29 @@
 source "${SCRIPT_DIR}/lib/helpers.sh"
 
+# ---- Manifest Helpers ----
+
+# Read active domain keys from manifest as "category/domain" per line
+# Returns 0 on success, 1 if no manifest or python3 unavailable
+_manifest_read_active() {
+    local manifest=".opencode/.vibe-stack-active.json"
+    [ ! -f "$manifest" ] && return 1
+
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+try:
+    with open('$manifest') as f:
+        data = json.load(f)
+    for key in data.get('domains', {}):
+        print(key)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null
+        return 0
+    fi
+    return 1
+}
+
 # ---- Domain Scanning ----
 
 # List all domains as "category/domain"
@@ -43,6 +67,10 @@ cmd_list() {
         die "VIBE_STACK_HOME not found: $VIBE_STACK_HOME\nRun install.sh first."
     fi
 
+    # Build set of active domains from manifest (if available)
+    local active_domains
+    active_domains="$(_manifest_read_active)" || true
+
     local current_cat=""
     while IFS= read -r full_domain; do
         local category="${full_domain%%/*}"
@@ -55,10 +83,18 @@ cmd_list() {
         fi
 
         # Check if active in current project
-        # Use -d (not -L) to support Windows where ln -s may copy dirs
         local active_mark="  "
-        if [ -d ".opencode/rules/$domain" ]; then
-            active_mark=" *"
+        if [ -n "$active_domains" ]; then
+            # Manifest-based detection
+            if echo "$active_domains" | grep -q -F -x "$category/$domain"; then
+                active_mark=" *"
+            fi
+        else
+            # Fallback: old-style directory check (pre-flat-link)
+            # Use -d (not -L) to support Windows where ln -s may copy dirs
+            if [ -d ".opencode/rules/$domain" ]; then
+                active_mark=" *"
+            fi
         fi
 
         echo -e "  $active_mark $domain"
