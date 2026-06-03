@@ -64,3 +64,60 @@ create_dir_link() {
 
     return 1
 }
+
+# Create a symlink for any item (file or directory).
+# Directories delegate to create_dir_link; files use ln -s with MSYS2 copy fallback.
+# Returns 0 on success, 1 on failure.
+create_item_link() {
+    local src="$1"
+    local dest="$2"
+
+    if [ -d "$src" ]; then
+        create_dir_link "$src" "$dest"
+        return $?
+    fi
+
+    rm -f "$dest" 2>/dev/null || true
+    if ln -s "$src" "$dest" 2>/dev/null; then
+        if [ -L "$dest" ]; then
+            return 0
+        fi
+        # MSYS2 silently copied — undo and redo as explicit copy
+        rm -f "$dest" 2>/dev/null || true
+        cp "$src" "$dest" 2>/dev/null || return 1
+        return 0
+    fi
+
+    return 1
+}
+
+# Create per-item symlinks from src_dir into dest_dir.
+# Removes an old directory-level symlink at dest_dir if present.
+# Optional prefix is prepended to each item name with a hyphen.
+# Returns 0 on success, 1 on failure.
+link_directory_contents() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local prefix="${3:-}"
+
+    if [ -L "$dest_dir" ]; then
+        rm -f "$dest_dir" 2>/dev/null || true
+    fi
+
+    mkdir -p "$dest_dir" || return 1
+
+    local item item_name final_name
+    shopt -s nullglob
+    for item in "$src_dir"/*; do
+        item_name="$(basename "$item")"
+        if [ -n "$prefix" ]; then
+            final_name="${prefix}-${item_name}"
+        else
+            final_name="$item_name"
+        fi
+        create_item_link "$item" "$dest_dir/$final_name" || return 1
+    done
+    shopt -u nullglob
+
+    return 0
+}
