@@ -7,6 +7,14 @@
 # ============================================================================
 set -euo pipefail
 
+# On Windows (MSYS2/Cygwin), force creation of real NTFS symlinks.
+# Without this, ln -s silently copies files when Developer Mode is off.
+case "$OSTYPE" in
+    msys|cygwin)
+        export MSYS="${MSYS:-} winsymlinks:nativestrict"
+        ;;
+esac
+
 # ---- Auto-detect VIBE_STACK_HOME from script location ----
 # Resolves symlinks so it works whether the script is symlinked (Linux),
 # called via a wrapper (Windows .cmd/.ps1), or run directly.
@@ -39,16 +47,18 @@ source "${SCRIPT_DIR}/lib/instructions.sh"
 source "${SCRIPT_DIR}/lib/omo-config.sh"
 source "${SCRIPT_DIR}/lib/mcp.sh"
 
-# On Windows (MSYS2/Cygwin), symlink creation silently copies files
-# when run without Administrator privileges. Verify symlinks work before proceeding.
+# On Windows (MSYS2/Cygwin), verify symlinks work using a real file target.
+# /dev/null is a device file whose ln -s behavior differs from regular files.
 case "$OSTYPE" in
     msys|cygwin)
-        _vibe_test_link="$(mktemp -u 2>/dev/null || echo "/tmp/vibe-admin-check-$$")"
-        if ! ln -s /dev/null "$_vibe_test_link" 2>/dev/null || ! [ -L "$_vibe_test_link" ]; then
-            rm -f "$_vibe_test_link" 2>/dev/null || true
+        _vibe_src="$(mktemp 2>/dev/null || echo "/tmp/vibe-admin-src-$$")"
+        echo "vibe-admin-check" > "$_vibe_src"
+        _vibe_link="$(mktemp -u 2>/dev/null || echo "/tmp/vibe-admin-link-$$")"
+        if ! ln -s "$_vibe_src" "$_vibe_link" 2>/dev/null || ! [ -L "$_vibe_link" ]; then
+            rm -f "$_vibe_link" "$_vibe_src" 2>/dev/null || true
             die "Symlink creation requires Administrator privileges on Windows.\n  Please run from an elevated terminal (Run as Administrator)."
         fi
-        rm -f "$_vibe_test_link" 2>/dev/null || true
+        rm -f "$_vibe_link" "$_vibe_src" 2>/dev/null || true
         ;;
 esac
 

@@ -117,18 +117,19 @@ cmd_activate() {
             local dest_dir=".opencode/$sub"
             mkdir -p "$dest_dir"
 
-            # Collect link entries for manifest BEFORE creating links
-            shopt -s nullglob
-            for item in "$src"/*; do
-                local item_name="$(basename "$item")"
-                local prefixed="${domain}-${item_name}"
-                manifest_args+=("${sub}/${prefixed}|domains/${category}/${domain}/${sub}/${item_name}")
-            done
-            shopt -u nullglob
-
             # Create per-item links (symlink or junction on Windows — never copies)
             if link_directory_contents "$src" "$dest_dir" "$domain"; then
                 activated_types+=("$sub")
+
+                # Collect link entries for manifest AFTER successful linking
+                shopt -s nullglob
+                for item in "$src"/*; do
+                    local item_name="$(basename "$item")"
+                    local prefixed="${domain}-${item_name}"
+                    manifest_args+=("${sub}/${prefixed}|domains/${category}/${domain}/${sub}/${item_name}")
+                done
+                shopt -u nullglob
+
                 # Merge MCP configs into .opencode/opencode.json (OpenCode native)
                 if [ "$sub" = "mcp" ]; then
                     activate_mcp "$src" "$domain" "$VIBE_STACK_HOME" "$PROJECT_ROOT"
