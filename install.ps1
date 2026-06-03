@@ -22,6 +22,20 @@
 
 $ErrorActionPreference = "Stop"
 
+# ---- Check Administrator privileges ----
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    $host.UI.WriteErrorLine("ERROR: This installer requires Administrator privileges to create symlinks.")
+    $host.UI.WriteErrorLine("")
+    $host.UI.WriteErrorLine("Please re-run PowerShell as Administrator:")
+    $host.UI.WriteErrorLine("  Right-click PowerShell -> 'Run as Administrator'")
+    $host.UI.WriteErrorLine("  Then navigate to this directory and run: .\install.ps1")
+    $host.UI.WriteErrorLine("")
+    exit 2
+}
+Write-OK "Running with Administrator privileges."
+Write-Host ""
+
 # ---- Dot-source library modules ----
 $libDir = Join-Path $PSScriptRoot "bin\install\lib"
 . "$libDir\helpers.ps1"

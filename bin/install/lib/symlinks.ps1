@@ -60,13 +60,7 @@ function New-PerItemDirectoryLink {
                 New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -Force -ErrorAction Stop | Out-Null
                 Write-OK "  $($item.Name) -> per-item symlink"
             } catch {
-                # Symlink not available — copy as fallback
-                try {
-                    Copy-Item -Path $targetPath -Destination $linkPath -Force -ErrorAction Stop
-                    Write-Warn "  $($item.Name) (copied — symlink not available)"
-                } catch {
-                    Write-Warn "  Failed to link/copy $($item.Name)"
-                }
+                Write-Warn "  Failed to create symlink for $($item.Name)"
             }
         }
     }
