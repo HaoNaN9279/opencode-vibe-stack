@@ -110,7 +110,7 @@ link_directory_contents() {
     for item in "$src_dir"/*; do
         item_name="$(basename "$item")"
         if [ -n "$prefix" ]; then
-            final_name="${prefix}-${item_name}"
+            final_name="${prefix}_${item_name}"
         else
             final_name="$item_name"
         fi
