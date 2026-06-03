@@ -33,7 +33,7 @@ cmd_core_update() {
     # Update ~/.config/opencode/opencode.json instructions
     local opencode_json="$config_dir/opencode.json"
     info "Updating core rules in $opencode_json ..."
-    sync_opencode_instructions "$opencode_json" "rules/*.md"
+    sync_opencode_instructions "$opencode_json" "rules/**/*.md"
 
     # Register core skills path in user config
     if ! grep -q '"skills"' "$opencode_json" 2>/dev/null; then

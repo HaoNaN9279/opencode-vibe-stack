@@ -21,7 +21,7 @@ source "$LIB_DIR/symlinks.sh"
 echo -e "${BOLD}[2/4] Updating configuration files...${NC}"
 
 OPENCODE_JSON="$OPENCODE_CONFIG/opencode.json"
-RULES_GLOB="rules/*.md"
+RULES_GLOB="~/.config/opencode/rules/*.md"
 
 if [ ! -f "$OPENCODE_JSON" ]; then
     printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$RULES_GLOB" > "$OPENCODE_JSON"
