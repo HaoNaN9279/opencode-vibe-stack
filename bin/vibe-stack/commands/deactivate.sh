@@ -93,7 +93,7 @@ cmd_deactivate() {
             links_output="$(_manifest_get_links "$domain_key")"
             if [ -n "$links_output" ]; then
                 while IFS='|' read -r link_dest link_src; do
-                    [ -n "$link_dest" ] && rm -f "$link_dest"
+                    [ -n "$link_dest" ] && rm -f ".opencode/$link_dest"
                     removed=true
                 done <<< "$links_output"
 
