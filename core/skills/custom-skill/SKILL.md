@@ -18,23 +18,13 @@ metadata:
 
 技能是封装在 `SKILL.md` 中的可复用指令集。与规则（自动加载）不同，技能通过 `skill` 工具**按需加载**——智能体可以查看可用技能列表，识别匹配的技能，并在需要时加载完整内容。
 
-### 技能 vs 规则
-
-| 维度 | 规则 (Rule) | 技能 (Skill) |
-|------|-------------|-------------|
-| 加载方式 | 自动注入到上下文 | 按需通过 `skill` 工具加载 |
-| 作用范围 | 全局/项目级 | 全局/项目级 |
-| 内容特点 | 通用行为约束 | 特定领域的详细工作流 |
-| 触发机制 | 始终存在 | 智能体识别到匹配时加载 |
-| 上下文影响 | 始终占用 | 仅在需要时占用 |
-
 ---
 
 ## 2. 在 vibe-stack 中的部署位置
 
 ### 2.1 核心技能（全局可用）
 
-放置在 `core/skills/` 目录下。安装时通过符号链接部署到 `~/.config/opencode/skills/`。
+放置在 `core/skills/` 目录下。
 
 ```
 core/skills/
@@ -44,7 +34,7 @@ core/skills/
 
 ### 2.2 领域技能（领域专属）
 
-放置在 `domains/<category>/<domain>/skills/` 目录下。通过 `vibe-stack activate` 激活后部署。
+放置在 `domains/<category>/<domain>/skills/` 目录下。
 
 ```
 domains/<category>/<domain>/
@@ -52,21 +42,6 @@ domains/<category>/<domain>/
     └── <skill-name>/
         └── SKILL.md
 ```
-
-### 2.3 技能发现路径
-
-OpenCode 按以下顺序搜索技能：
-
-| 优先级 | 路径 | 说明 |
-|--------|------|------|
-| 1 | `.opencode/skills/<name>/SKILL.md` | 项目级技能 |
-| 2 | `~/.config/opencode/skills/<name>/SKILL.md` | 全局技能 |
-| 3 | `.claude/skills/<name>/SKILL.md` | Claude Code 兼容（项目） |
-| 4 | `~/.claude/skills/<name>/SKILL.md` | Claude Code 兼容（全局） |
-| 5 | `.agents/skills/<name>/SKILL.md` | 代理兼容（项目） |
-| 6 | `~/.agents/skills/<name>/SKILL.md` | 代理兼容（全局） |
-
-项目级路径会从当前工作目录向上遍历直到 git 工作树根目录。
 
 ---
 
@@ -174,162 +149,6 @@ A skill for releases
 | **错误处理** | 包含常见错误场景的处理指引 |
 | **示例驱动** | 使用具体示例说明预期行为 |
 
-### 4.3 现有技能参考
-
-**vibe-stack 技能**（`core/skills/vibe-stack/SKILL.md`）- 领域配置管理技能：
-
-```markdown
-# Vibe Stack - 领域配置管理器
-
-管理 AI 智能体工具链的领域特定配置。
-
-## 概述
-Vibe Stack 为 OpenCode + OhMyOpenAgent (OMO) 提供分层配置系统。
-
-## 关键位置
-| 路径 | 用途 |
-|------|---------|
-| `~/.opencode-vibe-stack/core/` | 始终加载的常驻配置 |
-
-## 使用命令
-当你需要管理领域配置时，使用 `vibe-stack` CLI：
-
-## 配置分层
-## MCP 服务器管理
-```
-
-**data-forge 技能**（`domains/ai/data_forge/skills/data-forge/SKILL.md`）- 领域数据处理技能：
-
-```markdown
-# AI 训练数据流水线 (Data Forge)
-
-使用 Data Forge MCP 工具包进行图像预处理、描述管理的专家级 AI 训练数据工程。
-
-## 模板
-你是一位专家级 AI 训练数据工程师...
-
-在从事 AI 数据集项目时，你应：
-
-- 使用 MCP 工具调用...
-- 优先使用批量操作...
-- ...
-
-## 参数
-- **topic**: 需要处理的特定数据集流水线任务
-- **context**: 数据集大小、目标训练框架等
-```
-
----
-
-## 5. 技能的权限管理
-
-### 5.1 全局权限
-
-在 `opencode.json` 中控制技能访问权限：
-
-```json
-{
-  "permission": {
-    "skill": {
-      "*": "allow",
-      "pr-review": "allow",
-      "internal-*": "deny",
-      "experimental-*": "ask"
-    }
-  }
-}
-```
-
-| 权限 | 行为 |
-|------|------|
-| `allow` | 技能立即加载 |
-| `deny` | 对代理隐藏技能，拒绝访问 |
-| `ask` | 加载前提示用户确认 |
-
-### 5.2 按代理覆盖
-
-**在自定义代理 frontmatter 中**：
-```yaml
-permission:
-  skill:
-    "documents-*": "allow"
-```
-
-**在内置代理配置中**：
-```json
-{
-  "agent": {
-    "plan": {
-      "permission": {
-        "skill": {
-          "internal-*": "allow"
-        }
-      }
-    }
-  }
-}
-```
-
-### 5.3 禁用技能工具
-
-为不需要技能的代理完全禁用：
-
-**自定义代理**：
-```yaml
-tools:
-  skill: false
-```
-
-**内置代理**：
-```json
-{
-  "agent": {
-    "plan": {
-      "tools": {
-        "skill": false
-      }
-    }
-  }
-}
-```
-
-禁用后，`<available_skills>` 部分被完全省略。
-
----
-
-## 6. 技能加载流程
-
-### 6.1 发现阶段
-
-OpenCode 启动时，扫描所有技能路径，在 `skill` 工具描述中列出可用技能：
-
-```xml
-<available_skills>
-  <skill>
-    <name>custom-rule</name>
-    <description>在 vibe-stack 项目中创建 OpenCode 规则</description>
-  </skill>
-</available_skills>
-```
-
-### 6.2 加载阶段
-
-AI 智能体通过调用 `skill` 工具加载技能：
-
-```markdown
-Invoke via: skill(name="skill-name")
-```
-
-### 6.3 排除加载问题
-
-如果技能没有显示，检查：
-
-1. 确认 `SKILL.md` 文件名全部为大写字母（S-K-I-L-L-.-m-d）
-2. frontmatter 是否包含 `name` 和 `description`
-3. 技能名称在所有位置中唯一
-4. 权限设置是否正确（`deny` 的技能对代理隐藏）
-5. 目录名与 `name` 字段一致
-
 ---
 
 ## 7. 创建技能的标准流程
@@ -353,17 +172,6 @@ touch core/skills/my-skill/SKILL.md
 # - 核心工作流
 # - 参数说明
 # - 使用时机
-
-# 5. 确保被技能路径发现
-# 在 opencode.json 中配置 skills.paths
-# 默认 core/skills/ 和 domains/*/*/skills/ 会被 OMO 自动发现
-
-# 6. 测试技能加载
-# 在会话中观察 AI 是否识别并加载该技能
-
-# 7. 提交
-git add core/skills/my-skill/
-git commit -m "feat: add my-skill skill"
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: custom-mcp
-description: 在 vibe-stack 项目中创建 OpenCode MCP 服务器配置的制作规范和完整指南
+description: 创建 OpenCode MCP 服务器配置的制作规范和完整指南
 license: MIT
 compatibility: opencode
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Custom MCP — MCP 服务器制作指南
 
-指导你在 **opencode-vibe-stack** 项目中创建和管理 MCP (Model Context Protocol) 服务器配置。MCP 为 OpenCode 添加外部工具，支持本地和远程两种连接方式。
+指导你创建和管理 MCP (Model Context Protocol) 服务器配置。MCP 为 OpenCode 添加外部工具，支持本地和远程两种连接方式。
 
 ---
 
@@ -27,35 +27,42 @@ OpenCode 支持两种 MCP 服务器类型：
 | **本地 (local)** | 通过本地命令启动 | 本地运行的工具、脚本 |
 | **远程 (remote)** | 通过 URL 连接 | SaaS 服务、API 网关 |
 
+本地 MCP 服务器一律使用二进制文件，且需要同时考虑windows和linux平台，避免运行时依赖问题。
+
 ---
 
-## 2. 在 vibe-stack 中的部署位置
+## 2. 部署位置
 
-### 2.1 领域 MCP（推荐）
+### 2.1 全局 MCP（全局可用）
+全局 MCP 服务器配置放置在项目根目录的 `.opencode/mcp/` 目录下。
 
-所有 MCP 服务器配置放置在所属领域的 `mcp/` 目录下。通过 `vibe-stack activate` 激活时，CLI 工具自动将 MCP 配置合并到项目 `.opencode/opencode.json` 中。
+```
+.opencode/mcp/
+  ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
+  ├── <server-name>-win.exe        # windows预构建二进制文件
+  ├── <server-name>-linux          # linux预构建二进制文件
+```
+
+### 2.2 领域 MCP（领域专用）
+
+领域 MCP 服务器配置放置在所属领域的 `mcp/` 目录下。
 
 ```
 domains/<category>/<domain>/
   mcp/
-    ├── <domain>.json           # MCP 注册配置文件（OpenCode 原生格式）
-    ├── <domain>.exe            # 预构建二进制文件（可选）
-    └── <server-name>/          # MCP 服务器源码（可选）
-        ├── pyproject.toml
-        ├── package.json
-        └── src/
-            └── server.py
+    ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
+    ├── <server-name>-win.exe        # windows预构建二进制文件
+    ├── <server-name>-linux          # linux预构建二进制文件
 ```
 
-### 2.2 领域 MCP 目录结构规范
-
+### 2.3 项目 MCP（项目专用）
+项目 MCP 服务器配置放置在 `.opencode/mcp/` 目录下。
 ```
-domains/ai/data_forge/
-  mcp/
-    ├── data-forge.json         # MCP 定义文件
-    └── data-forge.exe          # 预构建的 Windows 二进制
+.opencode/mcp/
+  ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
+  ├── <server-name>-win.exe        # windows预构建二进制文件
+  ├── <server-name>-linux          # linux预构建二进制文件
 ```
-
 ---
 
 ## 3. MCP 定义格式
@@ -286,13 +293,15 @@ MCP 服务器推荐使用预构建二进制文件，避免项目中需要 Python
 ## 7. 创建 MCP 服务器的完整流程
 
 ```bash
-# 1. 确定领域
-# MCP 属于特定领域，放置在 domains/<category>/<domain>/mcp/
+# 1. 确定 MCP 类型和作用范围
+# 全局 MCP → .opencode/mcp/
+# 领域 MCP → domains/<category>/<domain>/mcp/
+# 项目 MCP → .opencode/mcp/
 
 # 2. 创建 MCP 定义 JSON 文件
 # 使用 OpenCode 原生 mcp 格式
 
-# 3. 构建 MCP 服务器二进制文件（可选但推荐）
+# 3. 构建或下载 MCP 服务器二进制文件
 # 放置在 mcp/ 目录下
 
 # 4. 测试激活
@@ -301,10 +310,6 @@ vibe-stack status
 
 # 5. 在 OpenCode 中测试
 # 输入提示词使用 MCP 工具
-
-# 6. 提交
-git add domains/<category>/<domain>/mcp/
-git commit -m "feat: add mcp server for <domain>"
 ```
 
 ---

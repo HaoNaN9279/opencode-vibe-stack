@@ -1,6 +1,6 @@
 ---
 name: custom-agent
-description: 在 vibe-stack 项目中创建 OpenCode 智能体（Agent）的制作规范和完整指南
+description: 创建 OpenCode 智能体（Agent）的制作规范和完整指南
 license: MIT
 compatibility: opencode
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Custom Agent — 智能体制作指南
 
-指导你在 **opencode-vibe-stack** 项目中创建和管理 OpenCode 智能体（Agent）。智能体是针对特定任务配置的专门 AI 助手，拥有自定义提示词、模型和工具访问权限。
+指导你创建和管理 OpenCode 智能体（Agent）。智能体是针对特定任务配置的专门 AI 助手，拥有自定义提示词、模型和工具访问权限。
 
 ---
 
@@ -23,23 +23,13 @@ OpenCode 中有两种智能体类型：
 | **主代理 (Primary)** | 用户直接交互的主要助手 | Tab 键或 `switch_agent` 快捷键 |
 | **子代理 (Subagent)** | 主代理调用或通过 `@` 提及的专业助手 | 自动调用或 `@agent-name` 手动调用 |
 
-### 内置智能体
-
-| 名称 | 模式 | 用途 |
-|------|------|------|
-| Build | primary | 默认主代理，启用所有工具 |
-| Plan | primary | 规划和分析，受限代理（编辑/bash 需确认） |
-| General | subagent | 通用研究及多步骤任务 |
-| Explore | subagent | 代码库探索（只读） |
-| Scout | subagent | 外部文档和依赖研究（只读） |
-
 ---
 
-## 2. 在 vibe-stack 中的部署位置
+## 2. 部署位置
 
 ### 2.1 核心智能体（全局可用）
 
-放置在 `core/agents/` 目录下。安装时通过符号链接部署到 `~/.config/opencode/agents/`。
+放置在 `core/agents/` 目录下。
 
 ```
 core/agents/
@@ -48,7 +38,7 @@ core/agents/
 
 ### 2.2 领域智能体（领域专属）
 
-放置在 `domains/<category>/<domain>/agents/` 目录下。通过 `vibe-stack activate` 激活后部署到项目 `.opencode/agents/`。
+放置在 `domains/<category>/<domain>/agents/` 目录下。
 
 ```
 domains/<category>/<domain>/
@@ -58,13 +48,16 @@ domains/<category>/<domain>/
     └── <domain>-specialist.md       # 专业技能代理
 ```
 
+### 2.3 项目智能体（项目专属）
+
+放置在 `.opencode/agents/` 目录下。
+```
+.opencode/agents/
+  └── <agent-name>.md      # 项目智能体定义
+```
 ---
 
 ## 3. 智能体定义方式
-
-智能体可通过两种方式定义：
-
-### 3.1 Markdown 文件方式（推荐用于 vibe-stack）
 
 文件名即为智能体名称。例如 `hermes.md` 创建名为 `hermes` 的智能体。
 
@@ -94,26 +87,6 @@ hidden: true|false
 
 你是 **AgentName**，...（具体系统提示词）
 ```
-
-### 3.2 JSON 方式（在 `opencode.json` 中定义）
-
-```json
-{
-  "agent": {
-    "agent-name": {
-      "description": "简短描述",
-      "mode": "subagent",
-      "model": "provider/model-id",
-      "prompt": "系统提示词",
-      "tools": {
-        "write": false,
-        "edit": false
-      }
-    }
-  }
-}
-```
-
 ---
 
 ## 4. 配置选项详解
@@ -245,24 +218,17 @@ tools:
 ## 6. 创建智能体的标准流程
 
 ```bash
-# 1. 使用 opencode 命令行创建（推荐）
-opencode agent create
+# 1. 或手动创建 Markdown 文件
+# 确定位置：core/agents/（全局）或 domains/*/*/agents/（领域） 或 .opencode/agents/（项目）
 
-# 2. 或手动创建 Markdown 文件
-# 确定位置：core/agents/（全局）或 domains/*/*/agents/（领域）
-
-# 3. 编写 frontmatter
+# 2. 编写 frontmatter
 # description 必填，mode 必填
 
-# 4. 编写系统提示词
+# 3. 编写系统提示词
 # 明确角色定位、核心原则、能力范围、禁止事项
 
-# 5. 测试
+# 4. 测试
 # 在主会话中通过 @agent-name 调用测试
-
-# 6. 提交
-git add core/agents/my-agent.md
-git commit -m "feat: add my-agent agent"
 ```
 
 ---
@@ -275,9 +241,9 @@ git commit -m "feat: add my-agent agent"
 - **描述精准**：`description` 字段是智能体被选择调用的依据，必须准确反映其能力
 - **参考现有模式**：创建新智能体前，先阅读 `core/agents/hermes.md` 了解项目风格
 - **子代理隐藏原则**：仅供程序调用的内部子代理设置 `hidden: true`
+- **使用简体中文**：智能体的提示词和描述应使用简体中文，确保与用户沟通一致
 
 ### 命名约定
 
 - 文件名使用 kebab-case：`my-special-agent.md`
 - 名称使用小写字母和连字符
-- 领域智能体以领域名为前缀：`data-forge-optimizer.md`

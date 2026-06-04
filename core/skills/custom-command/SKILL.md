@@ -1,6 +1,6 @@
 ---
 name: custom-command
-description: 在 vibe-stack 项目中创建 OpenCode 自定义命令（Command）的制作规范和完整指南
+description: 创建 OpenCode 自定义命令（Command）的制作规范和完整指南
 license: MIT
 compatibility: opencode
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Custom Command — 命令制作指南
 
-指导你在 **opencode-vibe-stack** 项目中创建和管理 OpenCode 自定义命令。自定义命令通过斜杠 `/` 触发，执行预定义的提示词模板，用于处理重复性任务。
+指导你创建和管理 OpenCode 自定义命令。自定义命令通过斜杠 `/` 触发，执行预定义的提示词模板，用于处理重复性任务。
 
 ---
 
@@ -18,25 +18,13 @@ metadata:
 
 自定义命令是内置命令（如 `/init`、`/undo`、`/redo`、`/share`、`/help`）的补充。在 TUI 中输入 `/` 后跟命令名称即可触发。
 
-### 内置命令参考
-
-| 命令 | 功能 |
-|------|------|
-| `/init` | 创建初始化 AGENTS.md |
-| `/undo` | 撤销上次更改 |
-| `/redo` | 重做上次撤销 |
-| `/share` | 分享当前会话 |
-| `/help` | 显示帮助 |
-
-> **注意**：自定义命令可以与内置命令同名，此时会覆盖内置命令。
-
 ---
 
-## 2. 在 vibe-stack 中的部署位置
+## 2. 部署位置
 
 ### 2.1 核心命令（全局可用）
 
-放置在 `core/commands/` 目录下。安装时通过符号链接部署到 `~/.config/opencode/commands/`。
+放置在 `core/commands/` 目录下。
 
 ```
 core/commands/
@@ -45,7 +33,7 @@ core/commands/
 
 ### 2.2 领域命令（领域专属）
 
-放置在 `domains/<category>/<domain>/commands/` 目录下。通过 `vibe-stack activate` 激活后部署到项目 `.opencode/commands/`。
+放置在 `domains/<category>/<domain>/commands/` 目录下。
 
 ```
 domains/<category>/<domain>/
@@ -56,13 +44,16 @@ domains/<category>/<domain>/
     └── <domain>-utils.md      # 工具命令
 ```
 
+### 2.3 项目命令（项目专属）
+放置在 `.opencode/commands/` 目录下。
+```
+.opencode/commands/
+  └── <command-name>.md      # 项目命令定义
+```
+
 ---
 
 ## 3. 命令定义方式
-
-命令可通过两种方式定义：
-
-### 3.1 Markdown 文件方式（推荐用于 vibe-stack）
 
 文件名即为命令名称。例如 `test.md` 创建 `/test` 命令。
 
@@ -79,21 +70,6 @@ subtask: true|false                 # 可选：强制作为子代理运行
 - $1, $2, $3 — 位置参数
 - !`command` — shell 命令输出注入
 - @filename — 文件引用
-```
-
-### 3.2 JSON 方式（在 `opencode.json` 中定义）
-
-```json
-{
-  "command": {
-    "test": {
-      "template": "Run the full test suite with coverage report...",
-      "description": "Run tests with coverage",
-      "agent": "build",
-      "model": "provider/model-id"
-    }
-  }
-}
 ```
 
 ---
@@ -256,6 +232,7 @@ description: 快捷别名 - data-forge process
 3. **参数说明**：列出所有参数及其说明
 4. **执行步骤**：分步指导 AI 如何执行
 5. **注意事项**：边界情况、依赖关系、错误处理
+6. **使用简体中文**：确保提示词使用简体中文，保持与用户沟通一致
 
 ### 7.3 良好实践
 
@@ -273,6 +250,7 @@ description: 快捷别名 - data-forge process
 # 1. 确定命令位置
 # 全局命令 → core/commands/<name>.md
 # 领域命令 → domains/<category>/<domain>/commands/<name>.md
+# 项目命令 → .opencode/commands/<name>.md
 
 # 2. 创建命令 Markdown 文件
 echo "---\ndescription: My new command\n---\n\nExecute my command with \$ARGUMENTS" > core/commands/my-command.md
@@ -282,7 +260,4 @@ echo "---\ndescription: My new command\n---\n\nExecute my command with \$ARGUMEN
 # 4. 测试
 # 在 TUI 中输入 /my-command 测试
 
-# 5. 提交
-git add core/commands/my-command.md
-git commit -m "feat: add my-command command"
 ```
