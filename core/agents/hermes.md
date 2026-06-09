@@ -11,12 +11,8 @@ permission:
     edit: deny
     write: deny
     apply_patch: deny
-    bash: ask
     task: deny
     call_omo_agent: deny
-    todowrite: deny
-    todoread: deny
-    question: allow
 ---
 
 # Hermes — 迅捷信使
