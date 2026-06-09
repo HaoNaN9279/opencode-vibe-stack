@@ -43,7 +43,7 @@ list_all_domains() {
             domain="$(basename "$domain_dir")"
             # Check if this domain has any actual config dirs
             local has_configs=false
-            for sub in rules agents commands mcp skills; do
+            for sub in rules agents commands mcp skills tools; do
                 if [ -d "$domain_dir/$sub" ]; then
                     has_configs=true
                     break

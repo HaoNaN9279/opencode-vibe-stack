@@ -10,7 +10,7 @@ cmd_core_update() {
 
     # ---- Part A: Core → User Config per-item link sync ----
     local config_dir="$HOME/.config/opencode"
-    local types=("rules" "agents" "commands" "skills" "mcp")
+    local types=("rules" "agents" "commands" "skills" "mcp" "tools")
 
     for type in "${types[@]}"; do
         local src="$VIBE_STACK_HOME/core/$type"
@@ -267,7 +267,7 @@ for domain_key, info in list(domains.items()):
     domain_name = '/'.join(domain_key.split('/')[1:])
     domain_root = os.path.join(vibe_home, 'domains', category, domain_name)
 
-    for type_dir in ['rules', 'agents', 'commands', 'mcp', 'skills']:
+    for type_dir in ['rules', 'agents', 'commands', 'mcp', 'skills', 'tools']:
         type_path = os.path.join(domain_root, type_dir)
         if not os.path.isdir(type_path):
             continue

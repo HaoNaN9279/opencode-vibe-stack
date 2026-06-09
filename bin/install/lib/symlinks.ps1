@@ -72,7 +72,7 @@ function Install-CoreSymlinks {
     $openCodeConfig = "$env:USERPROFILE\.config\opencode"
     New-Item -ItemType Directory -Force -Path $openCodeConfig | Out-Null
 
-    $symlinkTypes = @("rules", "agents", "commands", "skills", "mcp")
+    $symlinkTypes = @("rules", "agents", "commands", "skills", "mcp", "tools")
 
     foreach ($type in $symlinkTypes) {
         $srcDir = "$VibeHome\core\$type"

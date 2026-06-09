@@ -43,7 +43,7 @@ PYEOF
     # ---- Fallback: scan directories (legacy installs without manifest) ----
     local found=false
 
-    for type_dir in rules agents commands mcp skills; do
+    for type_dir in rules agents commands mcp skills tools; do
         local odir=".opencode/$type_dir"
         if [ ! -d "$odir" ]; then
             continue

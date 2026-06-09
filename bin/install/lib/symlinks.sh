@@ -4,7 +4,7 @@ echo -e "${BOLD}[1/4] Creating core symlinks...${NC}"
 OPENCODE_CONFIG="$HOME/.config/opencode"
 mkdir -p "$OPENCODE_CONFIG"
 
-SYMLINK_TYPES=("rules" "agents" "commands" "skills" "mcp")
+SYMLINK_TYPES=("rules" "agents" "commands" "skills" "mcp" "tools")
 
 for type in "${SYMLINK_TYPES[@]}"; do
     src_dir="$VIBE_STACK_HOME/core/$type"
