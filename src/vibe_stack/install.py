@@ -209,7 +209,25 @@ def _step_install_cli(vibe_home: Path) -> None:
     log_info("==> Installing CLI wrapper...")
 
     if is_windows():
-        log_info("  CLI installation handled by install.ps1 (vibe-stack.cmd + .ps1)")
+        cli_dest_dir = Path.home() / ".local" / "bin"
+        cli_cmd_path = cli_dest_dir / "vibe-stack.cmd"
+        ensure_dir(cli_dest_dir)
+
+        vibe_home_str = str(vibe_home.resolve()).replace("\\", "\\\\")
+        cmd_content = f"""@echo off
+setlocal
+
+set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
+if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME={vibe_home_str}"
+
+cd /d "%VIBE_STACK_HOME%"
+
+uv run python -m vibe_stack.cli %*
+
+endlocal
+"""
+        cli_cmd_path.write_text(cmd_content, encoding="ascii")
+        log_ok(f"  Installed: {cli_cmd_path}")
         return
 
     cli_src = vibe_home / "bin" / "vibe-stack" / "vibe-stack"
