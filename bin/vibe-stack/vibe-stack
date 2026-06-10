@@ -6,6 +6,7 @@ VIBE_STACK_HOME="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Allow env override
 VIBE_STACK_HOME="${VIBE_STACK_HOME:-$VIBE_STACK_HOME}"
+export VIBE_STACK_HOME
 
 if ! command -v uv &>/dev/null; then
     echo "[ERROR] uv not found. Install: https://astral.sh/uv" >&2
