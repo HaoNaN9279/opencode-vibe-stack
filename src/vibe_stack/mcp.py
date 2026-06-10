@@ -40,6 +40,32 @@ _OPENCODE_SCHEMA = "https://opencode.ai/config.json"
 _OMO_SCHEMA = "https://oh-my-openagent.com/config.json"
 
 
+# ── Error handler ──────────────────────────────────────────────────
+
+def _backup_and_fail(path: Path, error: Exception) -> None:
+    """当配置文件解析失败时，备份原文件并报错退出。
+    
+    绝不静默覆盖已有的用户配置。
+    """
+    import shutil
+    from datetime import datetime
+    
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = path.with_suffix(f"{path.suffix}.backup-{timestamp}")
+    
+    try:
+        shutil.copy2(path, backup_path)
+    except OSError:
+        backup_path = None
+    
+    log_error(f"配置文件解析失败: {path}")
+    log_error(f"  错误详情: {error}")
+    if backup_path:
+        log_error(f"  原文件已备份到: {backup_path}")
+    log_error(f"  请手动修复 JSON 语法后重试。")
+    raise SystemExit(1)
+
+
 # ── Default config builders ────────────────────────────────────────
 
 def _default_opencode_config() -> dict:
@@ -106,8 +132,8 @@ def activate_mcp_core(
         try:
             cfg = config.read_jsonc(opencode_path)
         except Exception as e:
-            log_warn(f"无法读取 {opencode_path}，将使用默认配置: {e}")
-            cfg = _default_opencode_config()
+            _backup_and_fail(opencode_path, e)
+            return  # unreachable, but safe
     else:
         cfg = _default_opencode_config()
 
@@ -180,8 +206,8 @@ def activate_mcp_domain(
         try:
             cfg = config.read_jsonc(omo_path)
         except Exception as e:
-            log_warn(f"无法读取 {omo_path}，将使用默认配置: {e}")
-            cfg = _default_omo_config()
+            _backup_and_fail(omo_path, e)
+            return  # unreachable, but safe
     else:
         cfg = _default_omo_config()
 
