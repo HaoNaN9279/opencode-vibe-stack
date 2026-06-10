@@ -1,0 +1,18 @@
+[project]
+name = "vibe-stack"
+version = "0.1.0"
+description = "分层 AI 智能体配置管理工具"
+requires-python = ">=3.11"
+authors = [
+    { name = "vibe-stack contributors" },
+]
+
+[project.scripts]
+vibe-stack = "vibe_stack.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
