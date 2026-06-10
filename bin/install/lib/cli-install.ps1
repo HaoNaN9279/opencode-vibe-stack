@@ -14,98 +14,34 @@ function Install-CliTool {
         # ---- 3a. Create vibe-stack.cmd (primary entry point for Windows) ----
         # Windows uses PATHEXT (.COM;.EXE;.BAT;.CMD) to discover executables.
         # A .cmd wrapper is the standard pattern (npm, pip, etc. all use it).
+        # Calls `uv run python -m vibe_stack.cli` — no bash dependency.
         $cliCmdPath = "$cliDestDir\vibe-stack.cmd"
 
-        $cliCmdContent = @'
+        $cliCmdContent = '@'
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
 if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME=__VIBE_STACK_HOME__"
 
-set "VIBE_SCRIPT=!VIBE_STACK_HOME!\bin\vibe-stack\vibe-stack"
+cd /d "%VIBE_STACK_HOME%"
 
-:: Find bash: Git for Windows, then MSYS2, then System
-set "BASH="
-for %%d in (
-    "C:\Program Files\Git\bin"
-    "C:\Program Files\Git\usr\bin"
-    "C:\msys64\usr\bin"
-    "%ProgramFiles%\Git\bin"
-    "%ProgramFiles%\Git\usr\bin"
-    "%LocalAppData%\Programs\Git\bin"
-) do (
-    if "!BASH!"=="" (
-        if exist "%%~d\bash.exe" set "BASH=%%~d\bash.exe"
-    )
-)
+uv run python -m vibe_stack.cli %*
 
-:: Fallback: check PATH for bash
-if "!BASH!"=="" (
-    for %%c in (bash.exe) do (
-        if "!BASH!"=="" set "BASH=%%~$PATH:c"
-    )
-)
-
-if "!BASH!"=="" (
-    echo [ERROR] bash not found. Install Git for Windows ^(https://git-scm.com^) or WSL.
-    exit /b 1
-)
-
-:: Convert backslashes to forward slashes for bash compatibility
-set "VIBE_SCRIPT=!VIBE_SCRIPT:\=/!"
-
-:: Pass arguments explicitly (up to 9) for compatibility with PowerShell invocation
-"!BASH!" "!VIBE_SCRIPT!" %*
+endlocal
 '@
         $cliCmdContent = $cliCmdContent -replace '__VIBE_STACK_HOME__', $VibeHome
         Set-Content -Path $cliCmdPath -Value $cliCmdContent -Encoding ASCII
         Write-OK "CLI .cmd wrapper installed: $cliCmdPath"
 
         # ---- 3b. Create vibe-stack.ps1 (PowerShell wrapper, for pwsh users) ----
+        # Requires: uv and Python installed and available in PATH.
         $cliPs1Path = "$cliDestDir\vibe-stack.ps1"
         $cliPs1Content = @'
-# vibe-stack CLI wrapper for Windows PowerShell
-# Requires: Git Bash or WSL bash in PATH
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$PassThruArgs)
-
-$vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { "__VIBE_STACK_HOME__" }
-$vibeScript = (Join-Path $vibeHome "bin\vibe-stack\vibe-stack") -replace '\\', '/'
-
-# Search for bash: Git for Windows -> MSYS2 -> WSL -> PATH fallback
-$bash = $null
-$searchPaths = @(
-    "C:\Program Files\Git\bin\bash.exe",
-    "C:\Program Files\Git\usr\bin\bash.exe",
-    "C:\msys64\usr\bin\bash.exe",
-    "$env:ProgramFiles\Git\bin\bash.exe",
-    "$env:ProgramFiles\Git\usr\bin\bash.exe",
-    "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
-)
-foreach ($p in $searchPaths) {
-    $resolved = $ExecutionContext.InvokeCommand.ExpandString($p)
-    if (Test-Path $resolved -PathType Leaf) {
-        $bash = $resolved
-        break
-    }
-}
-if (-not $bash) {
-    $bash = (Get-Command bash -ErrorAction SilentlyContinue).Source
-}
-
-if (-not $bash) {
-    Write-Host "[ERROR] bash not found. Install Git for Windows (https://git-scm.com) or WSL." -ForegroundColor Red
-    exit 1
-}
-
-# Ensure the bash script exists
-if (-not (Test-Path $vibeScript)) {
-    Write-Host "[ERROR] vibe-stack script not found at: $vibeScript" -ForegroundColor Red
-    Write-Host "        Run 'git pull' in $vibeHome to update." -ForegroundColor Yellow
-    exit 1
-}
-
-& $bash $vibeScript @PassThruArgs
+$vibeHome = if ($env:VIBE_STACK_HOME) { $env:VIBE_STACK_HOME } else { Join-Path $PSScriptRoot ".." }
+Set-Location $vibeHome
+uv run python -m vibe_stack.cli @PassThruArgs
 '@
         $cliPs1Content = $cliPs1Content -replace '__VIBE_STACK_HOME__', $VibeHome
         Set-Content -Path $cliPs1Path -Value $cliPs1Content -Encoding UTF8

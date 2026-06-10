@@ -1,89 +1,24 @@
 #!/usr/bin/env bash
-# install.sh - OpenCode Vibe Stack One-Click Deploy (Linux / macOS)
-# Deploys core symlinks to ~/.config/opencode/ and installs the CLI tool.
+# install.sh - Vibe Stack installer (thin Python wrapper)
 # Usage: ./install.sh
 # Env: VIBE_STACK_HOME    Override install directory (default: script dir)
-# ============================================================================
 set -euo pipefail
 
-# Determine repo root and source library modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-LIB_DIR="$SCRIPT_DIR/bin/install/lib"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VIBE_STACK_HOME="${VIBE_STACK_HOME:-$SCRIPT_DIR}"
 
-source "$LIB_DIR/helpers.sh"
-source "$LIB_DIR/jsonc.sh"
-source "$LIB_DIR/mcp-config.sh"
-source "$LIB_DIR/mcp-binaries.sh"
-source "$SCRIPT_DIR/bin/vibe-stack/lib/path.sh"
-source "$LIB_DIR/symlinks.sh"
-
-# ---- Step 2: Update configuration files ----
-echo -e "${BOLD}[2/4] Updating configuration files...${NC}"
-
-OPENCODE_JSON="$OPENCODE_CONFIG/opencode.json"
-RULES_GLOB="~/.config/opencode/rules/*.md"
-
-if [ ! -f "$OPENCODE_JSON" ]; then
-    printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "instructions": [\n    "%s"\n  ]\n}\n' "$RULES_GLOB" > "$OPENCODE_JSON"
-    echo -e "  ${GREEN}[OK]${NC} Created $OPENCODE_JSON with instructions: $RULES_GLOB"
-elif ! grep -qF "\"$RULES_GLOB\"" "$OPENCODE_JSON"; then
-    if _jsonc_array_add "$OPENCODE_JSON" "instructions" "    \"$RULES_GLOB\""; then
-        echo -e "  ${GREEN}[OK]${NC} Added instructions: $RULES_GLOB"
-    else
-        echo -e "  ${YELLOW}[!]${NC} Could not auto-update $OPENCODE_JSON — please add \"$RULES_GLOB\" to the instructions array manually"
-    fi
-else
-    echo -e "  ${GREEN}[OK]${NC} instructions already has: $RULES_GLOB"
+# Validate repo
+if [ ! -f "$VIBE_STACK_HOME/core/rules/00-global.md" ] || [ ! -d "$VIBE_STACK_HOME/domains" ]; then
+    echo "[ERROR] Invalid vibe-stack repo: $VIBE_STACK_HOME" >&2
+    exit 1
 fi
 
-# ---- Register core skills in opencode.json ----
-if grep -q '"skills"' "$OPENCODE_JSON" 2>/dev/null; then
-    _jsonc_nested_array_add "$OPENCODE_JSON" "skills" "paths" '"skills"' || true
-else
-    sed '$d' "$OPENCODE_JSON" | sed '$s/$/,/' > "${OPENCODE_JSON}.tmp"
-    {
-        echo '  "skills": {'
-        echo '    "paths": ["skills"]'
-        echo '  }'
-        echo '}'
-    } >> "${OPENCODE_JSON}.tmp"
-    mv "${OPENCODE_JSON}.tmp" "$OPENCODE_JSON"
+# Check uv
+if ! command -v uv &>/dev/null; then
+    echo "[ERROR] uv not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
+    exit 1
 fi
-echo -e "  ${GREEN}[OK]${NC} Registered core skills in skills.paths"
-echo ""
 
-# Merge core/mcp configurations
-merge_core_mcp_configs "$VIBE_STACK_HOME" "$OPENCODE_JSON"
-echo ""
-
-# ---- Step 3: Install MCP binaries ----
-echo -e "${BOLD}[3/4] Installing MCP binaries...${NC}"
-install_mcp_binaries "$VIBE_STACK_HOME"
-
-# ---- Step 4: Install CLI tool ----
-source "$LIB_DIR/cli-install.sh"
-
-# ---- Success ----
-echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║          ✓ Installation Complete!                   ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
-echo ""
-echo -e "  ${BOLD}Next Steps:${NC}"
-echo ""
-echo -e "  1. Verify installation:"
-echo -e "     ${CYAN}vibe-stack list${NC}"
-echo ""
-echo -e "  2. Activate domains in a project:"
-echo -e "     ${CYAN}cd your-project/${NC}"
-echo -e "     ${CYAN}vibe-stack activate game-dev/unity${NC}"
-echo ""
-echo -e "  3. Check active domains:"
-echo -e "     ${CYAN}vibe-stack status${NC}"
-echo ""
-echo -e "  4. Update the stack later:"
-echo -e "     ${CYAN}cd $VIBE_STACK_HOME && git pull${NC}"
-echo -e "     ${CYAN}vibe-stack core-update${NC}"
-echo ""
-echo -e "  ${BOLD}Location:${NC}    $VIBE_STACK_HOME"
-echo -e "  ${BOLD}CLI Tool:${NC}    $BIN_DIR/vibe-stack"
-echo ""
+cd "$VIBE_STACK_HOME"
+uv sync
+uv run python -m vibe_stack.install
