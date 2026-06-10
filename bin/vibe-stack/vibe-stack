@@ -12,5 +12,4 @@ if ! command -v uv &>/dev/null; then
     exit 1
 fi
 
-cd "$VIBE_STACK_HOME"
-exec uv run python -m vibe_stack.cli "$@"
+exec uv run --project "$VIBE_STACK_HOME" python -m vibe_stack.cli "$@"
