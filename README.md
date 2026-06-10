@@ -72,6 +72,7 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 | `commands/` | 自定义斜杠命令                    |
 | `mcp/`      | MCP 服务器配置 + 二进制文件       |
 | `skills/`   | 领域调优的 AI 技能                |
+| `tools/`    | AI 自定义工具定义（.ts 文件）     |
 
 > **MCP 目录** 可能包含预构建的二进制发布文件（如 `data-forge.exe`），以及用于自动 MCP 注册的 `<domain>.json` 配置文件。
 
@@ -101,7 +102,7 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 
 ```bash
 # Create the domain structure
-mkdir -p domains/my-category/my-domain/{rules,agents,commands,mcp,skills}
+mkdir -p domains/my-category/my-domain/{rules,agents,commands,mcp,skills,tools}
 
 # Add your rules, skills, etc.
 echo "## My Domain Rules" > domains/my-category/my-domain/rules/my-domain.md

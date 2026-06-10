@@ -106,7 +106,7 @@ cmd_activate() {
 
         local activated_types=()
         local manifest_args=()
-        local subdirs=("rules" "agents" "commands" "mcp" "skills")
+        local subdirs=("rules" "agents" "commands" "mcp" "skills" "tools")
 
         for sub in "${subdirs[@]}"; do
             local src="$domain_root/$sub"

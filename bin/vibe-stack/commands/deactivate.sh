@@ -84,7 +84,7 @@ cmd_deactivate() {
         domain_key="$category/$domain"
         domain_root="$VIBE_STACK_HOME/domains/$category/$domain"
         local removed=false
-        local subdirs=("rules" "agents" "commands" "mcp" "skills")
+        local subdirs=("rules" "agents" "commands" "mcp" "skills" "tools")
 
         # === Manifest-driven link removal ===
         local manifest=".opencode/.vibe-stack-active.json"
