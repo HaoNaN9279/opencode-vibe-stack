@@ -1,9 +1,9 @@
 {
   "mcp": {
-    "data-forge": {
+    "codegraph": {
       "type": "local",
       "enabled": true,
-      "timeout": 120000
+      "args": ["serve", "--mcp"]
     }
   }
 }
