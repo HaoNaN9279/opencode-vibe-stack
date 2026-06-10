@@ -73,7 +73,7 @@ def main(argv: list[str] | None = None) -> None:
     p_use_stack = subparsers.add_parser(
         "use-stack", help="使用预设堆栈激活多个领域"
     )
-    p_use_stack.add_argument("name", metavar="NAME", help="堆栈名称 (e.g. game-dev)")
+    p_use_stack.add_argument("name", nargs="?", default="", metavar="NAME", help="堆栈名称 (e.g. game-dev)")
 
     # ── core-update ──────────────────────────────────────────
     subparsers.add_parser("core-update", help="更新 core/ 配置的符号链接")
@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     elif args.command == "core-update":
-        from vibe_stack.cli.core_update import cmd_core_update
+        from vibe_stack.cli.cli_core_update import cmd_core_update
 
         cmd_core_update(
             vibe_home=vibe_home, project_root=project_root
