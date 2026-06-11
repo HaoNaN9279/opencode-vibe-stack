@@ -1,9 +1,0 @@
-{
-  "mcp": {
-    "codegraph": {
-      "type": "local",
-      "enabled": true,
-      "args": ["serve", "--mcp"]
-    }
-  }
-}

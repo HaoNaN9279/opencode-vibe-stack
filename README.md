@@ -74,7 +74,7 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 | `skills/`   | 领域调优的 AI 技能                |
 | `tools/`    | AI 自定义工具定义（.ts 文件）     |
 
-> **MCP 目录** 可能包含预构建的二进制发布文件（如 `data-forge.exe`），以及用于自动 MCP 注册的 `<domain>.json` 配置文件。
+> **MCP 目录** 包含用于自动 MCP 注册的 `<domain>.json` 配置文件。
 
 ## 可用领域
 
@@ -126,9 +126,9 @@ git add domains/my-category/ && git commit -m "feat: add my-domain configs" && g
 - **OMO 原生** — 使用 OMO 的 agent_definitions、command_definitions 和配置遍历
 - **通过 `opencode.json` 注册技能** — 使用 `skills.paths`（而非 OMO 的 `skills.sources`）
 
-## MCP 配置 (v2)
+## MCP 配置
 
-Vibe Stack v2 引入了 MCP 注册表机制，将 MCP 服务器的**声明**与**路径配置**分离：
+Vibe Stack 引入了 MCP 注册表机制，将 MCP 服务器的**声明**与**路径配置**分离：
 
 - **领域声明** — 每个 `mcp/*.json` 文件声明该领域提供的 MCP 服务器名称和参数
 - **用户注册** — 用户编辑 `~/.config/opencode/vibe-stack-mcp.jsonc`，为每个 MCP 服务器指定可执行路径
