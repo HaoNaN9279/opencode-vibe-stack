@@ -21,7 +21,6 @@
       "temperature": 0.2,
       "reasoningEffort": "medium",
       "permission": {
-        "edit": "allow"
       }
     },
 
@@ -32,7 +31,6 @@
       "reasoningEffort": "high",
       "thinking": { "type": "enabled", "budgetTokens": 16000 },
       "permission": {
-        "edit": "allow"
       }
     },
 
@@ -43,9 +41,6 @@
       "reasoningEffort": "xhigh",
       "thinking": { "type": "enabled", "budgetTokens": 32000 },
       "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "task": "deny"
       }
     },
     "metis": {
@@ -53,9 +48,6 @@
       "temperature": 0.3,
       "reasoningEffort": "medium",
       "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "task": "deny"
       }
     },
     "momus": {
@@ -63,9 +55,6 @@
       "temperature": 0.2,
       "reasoningEffort": "medium",
       "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "task": "deny"
       }
     },
 
@@ -76,8 +65,6 @@
       "reasoningEffort": "low",
       "maxTokens": 4096,
       "permission": {
-        "edit": "deny",
-        "task": "deny"
       }
     },
     "explore": {
@@ -86,9 +73,6 @@
       "reasoningEffort": "low",
       "maxTokens": 4096,
       "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "task": "deny"
       }
     },
     "multimodal-looker": {
@@ -96,10 +80,6 @@
       "temperature": 0.4,
       "maxTokens": 8192,
       "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "webfetch": "deny",
-        "task": "deny"
       }
     },
 

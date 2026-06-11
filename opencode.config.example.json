@@ -3,35 +3,12 @@
   "autoupdate": false,
   "default_agent": "hermes",
   "permission": {
-    "*": "ask",
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "task": "allow",
-    "skill": "allow",
-    "lsp": "allow",
-    "webfetch": "allow",
-    "websearch": "allow",
     "bash": {
-      "*": "ask",
-      "ls": "allow",
-      "cat": "allow",
-      "head": "allow",
-      "tail": "allow",
-      "grep": "allow",
-      "mkdir": "allow",
-      "ping": "allow",
-      "netstat": "allow",
-      "ss": "allow",
-      "uname": "allow",
-      "uptime": "allow",
-      "free": "allow",
-      "lscpu": "allow",
-      "whoami": "allow",
-      "id": "allow",
-      "hostname": "allow",
-      "git status": "allow",
-      "git diff": "allow",
+      "git commit": "ask",
+      "git add": "ask",
+      "git delete": "ask",
+      "git clone": "ask",
+      "rm -rf": "deny",
       "chmod": "deny",
       "chown": "deny",
       "netcat": "deny",
@@ -68,14 +45,26 @@
   ],
   "lsp": {
     "typescript": {
-      "command": ["typescript-language-server", "--stdio"],
-      "extensions": ["ts", "tsx", "js", "jsx", "mjs", "cjs"]
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "mjs",
+        "cjs"
+      ]
     }
   },
   "instructions": [
     "~/.config/opencode/rules/*.md"
   ],
   "skills": {
-    "paths": ["skills"]
+    "paths": [
+      "skills"
+    ]
   }
 }
