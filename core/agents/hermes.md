@@ -13,7 +13,6 @@ tools:
 permission:
     edit: allow
     write: allow
-    apply_patch: allow
     task: deny
     call_omo_agent: deny
 ---

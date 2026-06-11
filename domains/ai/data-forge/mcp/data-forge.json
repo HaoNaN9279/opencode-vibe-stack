@@ -1,9 +1,0 @@
-{
-  "mcp": {
-    "data-forge": {
-      "type": "local",
-      "enabled": true,
-      "timeout": 120000
-    }
-  }
-}
