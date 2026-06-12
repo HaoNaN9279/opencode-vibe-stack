@@ -220,9 +220,7 @@ setlocal
 set "VIBE_STACK_HOME=%VIBE_STACK_HOME%"
 if "%VIBE_STACK_HOME%"=="" set "VIBE_STACK_HOME={vibe_home_str}"
 
-cd /d "%VIBE_STACK_HOME%"
-
-uv run python -m vibe_stack.cli %*
+uv run --project "%VIBE_STACK_HOME%" python -m vibe_stack.cli %*
 
 endlocal
 """
