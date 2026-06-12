@@ -149,6 +149,37 @@ A skill for releases
 | **错误处理** | 包含常见错误场景的处理指引 |
 | **示例驱动** | 使用具体示例说明预期行为 |
 
+### 4.3 领域技能引用同域工具的命名规则
+
+> **仅适用于领域技能（`domains/<category>/<domain>/skills/`）。核心技能不受此规则约束。**
+
+当领域技能需要引用**同一领域**的自定义工具（`tools/` 目录下的 `.ts` / `.js` 文件）时，工具名称必须包含领域前缀，因为 vibe-stack 在激活时会为工具文件名添加 `{category}_{name}_` 前缀。
+
+**前缀规则**：
+
+```
+领域键:  {category}/{name}
+前缀:    {category}_{name}_
+```
+
+> **目录不参与前缀命名**：`tools/` 下的子目录保持原名链接（如 `data-forge/` → `data-forge/`）。
+> 只有 `.ts` / `.js` 文件才加前缀。
+
+**示例**（领域 `ai/data-forge`，前缀 `ai_data-forge_`）：
+
+| 工具源文件 | 链接后文件名 | 技能中引用的工具名 |
+|-----------|-------------|-------------------|
+| `tools/caption.ts` | `tools/ai_data-forge_caption.ts` | `ai_data-forge_caption` |
+| `tools/remove-bg.ts` | `tools/ai_data-forge_remove-bg.ts` | `ai_data-forge_remove-bg` |
+| `tools/data-forge/` (目录) | `tools/data-forge/` | `data-forge`（无前缀） |
+
+**编写技能时的检查清单**：
+
+- [ ] `description` 中的工具名使用了带前缀的名称
+- [ ] 正文中所有 `` `xxx` `` 格式的工具引用使用了带前缀的名称
+- [ ] 代码块中的工具调用示例使用了带前缀的名称
+- [ ] 文件路径引用（如 `tools/xxx.ts`）使用了带前缀的链接后路径
+
 ---
 
 ## 7. 创建技能的标准流程

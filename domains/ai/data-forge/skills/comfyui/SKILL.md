@@ -1,44 +1,39 @@
 ---
 name: comfyui
-description: 通过 DataForge CLI 连接 ComfyUI 服务器，支持检查运行状态、执行工作流、批量参数扫描和查看队列。
+description: 通过 ai_data-forge_comfyui 工具连接 ComfyUI 服务器，支持检查运行状态、执行工作流、批量参数扫描和查看队列。
 ---
 
 # ComfyUI
 
 ## ⚠️ 前置检查
-```
-data-forge --help
-```
-未安装：`git clone https://github.com/HaoNan9279/DataForge.git && cd DataForge && uv sync`
+确保 `ai_data-forge_comfyui` 工具已注册。该工具会自动调用 DataForge CLI。
+未安装 DataForge：`git clone https://github.com/HaoNan9279/DataForge.git && cd DataForge && uv sync`
 
 ## 命令
 
-### `comfyui status` — 检查服务器状态
-- `--server` (必填) ComfyUI URL
+### `status` — 检查服务器状态
+调用 `ai_data-forge_comfyui` 工具，`subcommand=status`，传入 `server` 参数。
 ```
-data-forge comfyui status --server http://127.0.0.1:8188
-```
-
-### `comfyui run` — 运行单个工作流
-- `--server` (必填) | `--workflow` (必填) JSON 路径 | `--output-dir` (必填)
-- `--node-override` (可选) JSON 节点覆盖 | `--timeout` (默认 30.0)
-```
-data-forge comfyui run --server http://127.0.0.1:8188 --workflow wf.json --output-dir ./output
-data-forge comfyui run --server http://127.0.0.1:8188 --workflow wf.json --output-dir ./out --node-override '{"3":{"inputs":{"seed":42}}}'
+ai_data-forge_comfyui (subcommand=status, server=http://127.0.0.1:8188)
 ```
 
-### `comfyui batch` — 批量参数扫描
-- `--server` `--workflow` `--input-dir` `--output-dir` (必填)
-- `--seed-strategy` (默认 round: round/random/sequential)
-- `--seeds-per-image` (默认 4) | `--total-rounds` (默认 4)
-- `--timeout` (默认 3600) | `--poll-interval` (默认 5.0)
-- `--no-skip` | `--node-override`
+### `run` — 运行单个工作流
+调用 `ai_data-forge_comfyui` 工具，`subcommand=run`。
+参数：`server` (必填)、`workflow` (必填)、`outputDir` (必填)、`nodeOverride` (可选 JSON 字符串)、`timeout` (可选，默认 30.0)。
 ```
-data-forge comfyui batch --server http://127.0.0.1:8188 --workflow wf.json --input-dir ./images --output-dir ./out
+ai_data-forge_comfyui (subcommand=run, server=http://127.0.0.1:8188, workflow=wf.json, outputDir=./output)
+ai_data-forge_comfyui (subcommand=run, server=http://127.0.0.1:8188, workflow=wf.json, outputDir=./out, nodeOverride={"3":{"inputs":{"seed":42}}})
 ```
 
-### `comfyui queue-size` — 查看队列
-- `--server` (必填)
+### `batch` — 批量参数扫描
+调用 `ai_data-forge_comfyui` 工具，`subcommand=batch`。
+参数：`server`、`workflow`、`outputDir` (必填)；`paramList` (可选 JSON 数组字符串)；`timeout` (可选，默认 3600)。
 ```
-data-forge comfyui queue-size --server http://127.0.0.1:8188
+ai_data-forge_comfyui (subcommand=batch, server=http://127.0.0.1:8188, workflow=wf.json, outputDir=./out)
+```
+
+### `queue-size` — 查看队列
+调用 `ai_data-forge_comfyui` 工具，`subcommand=queue-size`，传入 `server` 参数。
+```
+ai_data-forge_comfyui (subcommand=queue-size, server=http://127.0.0.1:8188)
 ```

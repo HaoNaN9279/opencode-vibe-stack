@@ -13,6 +13,7 @@ Activates one or more domains by:
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from vibe_stack import DomainNotFoundError
@@ -63,15 +64,29 @@ def _collect_links(
         src_dir = domain_root / type_name
         if not src_dir.is_dir():
             continue
-        for item in sorted(src_dir.iterdir()):
-            link_name = f"{prefix}_{item.name}" if prefix else item.name
-            key = f"{type_name}/{link_name}"
-            try:
-                rel_src = item.relative_to(vibe_home)
-            except ValueError:
-                # Item is outside vibe_home — store absolute path instead
-                rel_src = item
-            links[key] = str(rel_src).replace("\\", "/")
+        if type_name == "tools":
+            # Record per-item entries for tools.
+            # Directories keep original name; files get domain prefix.
+            for item in sorted(src_dir.iterdir()):
+                if item.is_dir():
+                    link_name = item.name
+                else:
+                    link_name = f"{prefix}_{item.name}" if prefix else item.name
+                key = f"{type_name}/{link_name}"
+                try:
+                    rel_src = item.relative_to(vibe_home)
+                except ValueError:
+                    rel_src = item
+                links[key] = str(rel_src).replace("\\", "/")
+        else:
+            for item in sorted(src_dir.iterdir()):
+                link_name = f"{prefix}_{item.name}" if prefix else item.name
+                key = f"{type_name}/{link_name}"
+                try:
+                    rel_src = item.relative_to(vibe_home)
+                except ValueError:
+                    rel_src = item
+                links[key] = str(rel_src).replace("\\", "/")
     return links
 
 
@@ -133,14 +148,34 @@ def cmd_activate(
             src_dir = domain_root / type_name
             dest_dir = dot_dir / type_name
             try:
-                symlinks.link_directory_contents(src_dir, dest_dir, prefix=prefix)
+                if type_name == "tools":
+                    symlinks.link_tools_directory(src_dir, dest_dir, prefix=prefix)
+                else:
+                    symlinks.link_directory_contents(src_dir, dest_dir, prefix=prefix)
             except Exception as exc:
                 log_warn(f"创建符号链接失败 ({type_name}): {exc} — 继续")
 
         # 4. Build links dict for manifest recording
         links = _collect_links(domain_root, vibe_home, prefix)
 
-        # 5. Activate domain MCP
+        # 5. Auto-init submodule venv (if applicable)
+        submodule_pyproject = domain_root / "tools" / name / "pyproject.toml"
+        submodule_venv = domain_root / "tools" / name / ".venv"
+        if submodule_pyproject.exists() and not submodule_venv.exists():
+            print(f"Initializing {name} virtual environment...")
+            result = subprocess.run(
+                ["uv", "sync"],
+                cwd=str(submodule_pyproject.parent),
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                log_warn(
+                    f"Warning: venv init for {name} failed. "
+                    f"Run 'uv sync' manually in {submodule_pyproject.parent}"
+                )
+
+        # 6. Activate domain MCP
         try:
             mcp.activate_mcp_domain(
                 vibe_home=vibe_home,
@@ -152,7 +187,7 @@ def cmd_activate(
         except Exception as exc:
             log_warn(f"Domain MCP 激活失败 ({domain_key}): {exc} — 继续")
 
-        # 6. Update opencode.json instructions (add domain rules glob)
+        # 7. Update opencode.json instructions (add domain rules glob)
         opencode_path = dot_dir / OPECODE_CONFIG_NAME
         rules_glob = f".opencode/rules/{prefix}_*.md"
         rc = config.array_add(opencode_path, "instructions", rules_glob)
@@ -163,7 +198,7 @@ def cmd_activate(
         else:
             log_warn(f"  无法更新 instructions (key 不存在或文件缺失)")
 
-        # 7. Register domain skills path in opencode.json
+        # 8. Register domain skills path in opencode.json
         # Use nested_array_add because opencode.json uses "skills": {"paths": [...]}
         skills_path = ".opencode/skills/"
         rc2 = config.nested_array_add(
@@ -177,13 +212,13 @@ def cmd_activate(
             # File may not exist yet; that's fine — it'll be picked up later
             pass
 
-        # 8. Ensure OMO config skeleton exists
+        # 9. Ensure OMO config skeleton exists
         try:
             mcp.activate_omo_config(project_root)
         except Exception as exc:
             log_warn(f"OMO 配置初始化失败: {exc}")
 
-        # 9. Record activation in manifest
+        # 10. Record activation in manifest
         try:
             manifest.add_domain(project_root, domain_key, links)
             log_ok(f"领域已激活: {domain_key}")

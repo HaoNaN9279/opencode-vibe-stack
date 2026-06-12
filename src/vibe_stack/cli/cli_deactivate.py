@@ -76,7 +76,7 @@ def cmd_deactivate(
 
         else:
             # ── 2. 回退：扫描符号链接目录 ───────────────────────────
-            removed_any = _fallback_remove_links(project_root, domain_key)
+            removed_any = _fallback_remove_links(project_root, domain_key, vibe_home)
 
         # ── 1c. 停用领域 MCP 配置 ──────────────────────────────────
         mcp.deactivate_mcp_domain(project_root, domain_key, domain_root)
@@ -128,17 +128,23 @@ def _remove_skills_if_empty(project_root: Path, opencode_path: Path) -> None:
         )
 
 
-def _fallback_remove_links(project_root: Path, domain_key: str) -> bool:
+def _fallback_remove_links(
+    project_root: Path, domain_key: str, vibe_home: Path
+) -> bool:
     """回退模式：扫描 ``.opencode/<type>/`` 目录，删除以领域前缀开头的链接。
 
     当激活清单中不包含该领域的链接条目时使用（旧版迁移场景）。
 
-    领域前缀格式为 ``{category}_{name}``（如 ``dcc_blender``），
-    与 ``activate`` 命令中 ``link_directory_contents`` 使用的 prefix 一致。
+    对于非 tools 类型，通过前缀 ``{category}_{name}`` 匹配；
+    对于 tools 类型，目录保持原名（无前缀），通过 target 路径归属判断。
     """
+    import os
+
     removed = False
     prefix = domain_key.replace("/", "_")
+    parts = domain_key.split("/", 1)
     dot_opencode = project_root / ".opencode"
+    domain_root = vibe_home / "domains" / parts[0] / parts[1]
 
     for sub in VIBE_STACK_DIR_TYPES:
         sub_dir = dot_opencode / sub
@@ -146,13 +152,35 @@ def _fallback_remove_links(project_root: Path, domain_key: str) -> bool:
             continue
 
         for item in list(sub_dir.iterdir()):
-            # 只处理符号链接或 junction，避免删除用户创建的真实文件
-            if item.name.startswith(prefix) and _is_link_or_junction(item):
-                try:
-                    symlinks.remove_link(item)
-                    removed = True
-                except OSError as e:
-                    log_warn(f"无法删除 {item}: {e}")
+            if not _is_link_or_junction(item):
+                continue
+
+            if sub == "tools":
+                # Files: match by prefix; dirs: match by target path
+                if item.name.startswith(prefix):
+                    pass  # Matched by prefix
+                elif item.is_dir():
+                    # Directory without prefix — resolve target to check ownership
+                    try:
+                        target_str = os.readlink(str(item))
+                    except (OSError, NotImplementedError, AttributeError):
+                        continue
+                    try:
+                        Path(target_str).relative_to(domain_root / "tools")
+                    except ValueError:
+                        continue  # Not from this domain
+                else:
+                    continue  # Non-prefixed file, not ours
+            else:
+                # Other types: prefix matching
+                if not item.name.startswith(prefix):
+                    continue
+
+            try:
+                symlinks.remove_link(item)
+                removed = True
+            except OSError as e:
+                log_warn(f"无法删除 {item}: {e}")
 
     return removed
 

@@ -19,7 +19,7 @@
 │  ├── core/          ← resident configs      │
 │  ├── domains/       ← domain-specific       │
 │  │   ├── ai/                                │
-│  │   │   └── data_forge/   (MCP, rules)     │
+│  │   │   └── data-forge/   (MCP, rules)     │
 │  │   ├── dcc/                               │
 │  │   │   ├── blender/                       │
 │  │   │   ├── houdini/                       │
@@ -40,7 +40,7 @@ git clone https://github.com/your-org/opencode-vibe-stack.git ~/.opencode-vibe-s
 cd ~/.opencode-vibe-stack && bash install.sh
 
 # 2. In any project, activate domains
-vibe-stack activate ai/data_forge
+vibe-stack activate ai/data-forge
 vibe-stack activate dcc/blender
 
 # 3. List available domains
@@ -80,7 +80,7 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 
 | 分类        | 领域       | 描述                                |
 |-------------|------------|-------------------------------------|
-| `ai/`       | data_forge | 数据转换 MCP 服务器                 |
+| `ai/`       | data-forge | 数据转换 MCP 服务器                 |
 | `dcc/`      | blender    | Blender 3D 集成                     |
 | `dcc/`      | houdini    | Houdini FX 集成                     |
 | `dcc/`      | maya       | Autodesk Maya 集成                  |
@@ -94,8 +94,8 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 |------------------|-------------------------------------------|
 | `game-dev`       | unity, unreal                             |
 | `dcc`            | blender, houdini, maya, photoshop        |
-| `ai-training`    | data_forge                                |
-| `indie-game`     | unity, blender, data_forge               |
+| `ai-training`    | data-forge                                |
+| `indie-game`     | unity, blender, data-forge               |
 | `aaa-pipeline`   | unreal, maya, houdini, photoshop         |
 
 ## 添加新领域

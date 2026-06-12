@@ -47,7 +47,10 @@ def cmd_core_update(vibe_home: Path, project_root: Path) -> None:
             continue
 
         OPENCODE_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        symlinks.link_directory_contents(src, dest)
+        if type_name == "tools":
+            symlinks.link_tools_directory(src, dest)
+        else:
+            symlinks.link_directory_contents(src, dest)
         log_ok(f"{type_name}/ -> per-item links synced")
 
     # ── Part A2: Update opencode.json instructions & skills ────────
@@ -203,6 +206,29 @@ def _sync_domain_links(vibe_home: Path, project_root: Path) -> None:
         for type_dir in VIBE_STACK_DIR_TYPES:
             type_path = domain_root / type_dir
             if not type_path.is_dir():
+                continue
+
+            if type_dir == "tools":
+                # Per-item links: directories keep original name, files get prefix
+                for item in sorted(type_path.iterdir()):
+                    item_name = item.name
+                    if item.is_dir():
+                        linked_name = item_name
+                    else:
+                        linked_name = f"{prefix}_{item_name}"
+                    dest_rel = f"{type_dir}/{linked_name}"
+                    src_rel = (
+                        f"domains/{category}/{domain_name}/{type_dir}/{item_name}"
+                    )
+
+                    if dest_rel not in updated_links:
+                        src_full = vibe_home / src_rel
+                        dest_full = dot_opencode / dest_rel
+                        dest_full.parent.mkdir(parents=True, exist_ok=True)
+                        _create_link(src_full, dest_full)
+                        updated_links[dest_rel] = src_rel
+                        changes_detected = True
+                        log_ok(f"  NEW: {dest_rel}")
                 continue
 
             for item in sorted(type_path.iterdir()):

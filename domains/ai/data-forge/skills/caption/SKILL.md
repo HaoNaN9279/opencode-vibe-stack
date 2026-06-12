@@ -1,91 +1,194 @@
 ---
 name: caption
-description: 通过 DataForge CLI 管理caption文件，支持 CRUD、搜索替换（含正则）、重命名、去重、JSON/CSV 导入导出和统计分析。
+description: 通过 ai_data-forge_caption 工具管理 caption 文件，支持 CRUD、搜索替换（含正则）、重命名、去重、JSON/CSV 导入导出和统计分析。
 ---
 
 # Caption
 
-管理 `.txt` caption文件。所有命令均支持 `--directory` (默认 `.`)。
+管理 `.txt` caption 文件。所有操作均通过 `ai_data-forge_caption` 工具完成。
+
+此工具通过 `uv run python -m data_forge.caption <subcommand>` 调用 DataForge 的 Python 模块。
 
 ## ⚠️ 前置检查
-```
-data-forge --help
-```
-未安装：`git clone https://github.com/HaoNan9279/DataForge.git && cd DataForge && uv sync`
 
-## 命令
-
-### `caption list` — 列出所有caption文件
+确保 DataForge 子模块已初始化：
 ```
-data-forge caption list --directory ./captions
+git submodule update --init --depth 1
 ```
 
-### `caption create` — 创建caption
-- `--file` (必填) | `--content` 或 `--content-file` (二选一) | `--overwrite`
+如果遇到依赖问题，在 `libs/data-forge/` 目录下执行 `uv sync`。
+
+## 工具调用
+
+使用 `ai_data-forge_caption` 工具，传入 `subcommand` 参数指定操作类型，其余参数按 snake_case 格式传入。
+
+### `list` — 列出所有 caption 文件
+
+| 参数 | 说明 |
+|------|------|
+| `directory` | 目标目录，默认 `.` |
+
 ```
-data-forge caption create --directory ./captions --file img01.txt --content "a cat"
+subcommand: "list"
+directory: "./captions"
 ```
 
-### `caption read` — 读取caption
-- `--file` (必填)
+### `create` — 创建 caption
+
+| 参数 | 说明 |
+|------|------|
+| `file` | (必填) 文件名 |
+| `content` | 文件内容（与 content_file 二选一） |
+| `content_file` | 从文件读取内容（与 content 二选一） |
+| `overwrite` | 覆盖已存在的文件 |
+
 ```
-data-forge caption read --directory ./captions --file img01.txt
+subcommand: "create"
+file: "img01.txt"
+content: "a cat"
 ```
 
-### `caption edit` — 编辑caption
-- `--file` `--content` (必填)
-- `--mode` update/append/prepend (默认 update) | `--separator` (默认空格)
+### `read` — 读取 caption
+
+| 参数 | 说明 |
+|------|------|
+| `file` | (必填) 文件名 |
+
 ```
-data-forge caption edit --dir ./captions --file img01.txt --content "new text"
-data-forge caption edit --dir ./captions --file img01.txt --content ", hi" --mode append --separator ""
+subcommand: "read"
+file: "img01.txt"
 ```
 
-### `caption delete` — 删除caption
-- `--file` 或 `--pattern` 或 `--all` (三选一) | `--regex`
+### `edit` — 编辑 caption
+
+| 参数 | 说明 |
+|------|------|
+| `file` | (必填) 文件名 |
+| `content` | (必填) 新内容 |
+| `mode` | update/append/prepend，默认 update |
+| `separator` | append/prepend 时的分隔符，默认空格 |
+
+*注意：edit 子命令使用 `--dir` 而非 `--directory`，工具内部会自动转换。*
+
 ```
-data-forge caption delete --directory ./captions --file img01.txt
-data-forge caption delete --directory ./captions --pattern "temp_*"
+subcommand: "edit"
+file: "img01.txt"
+content: "new text"
 ```
 
-### `caption search` — 搜索caption
-- `--query` (必填) | `--case-sensitive` | `--regex` | `--by-filename`
 ```
-data-forge caption search --directory ./captions --query "cat"
-```
-
-### `caption replace` — 跨文件搜索替换
-- `--old` `--new` (必填) | `--case-sensitive` | `--regex`
-```
-data-forge caption replace --directory ./captions --old "cat" --new "kitten"
+subcommand: "edit"
+file: "img01.txt"
+content: ", hi"
+mode: "append"
+separator: ""
 ```
 
-### `caption rename` — 重命名
-- `--old-name` `--new-name` (必填)
+### `delete` — 删除 caption
+
+| 参数 | 说明 |
+|------|------|
+| `file` | 指定文件名（与 pattern/all 三选一） |
+| `pattern` | 通配符模式（与 file/all 三选一） |
+| `all` | 删除所有（与 file/pattern 三选一） |
+| `regex` | pattern 使用正则表达式 |
+
 ```
-data-forge caption rename --directory ./captions --old-name img01.txt --new-name photo01.txt
+subcommand: "delete"
+file: "img01.txt"
 ```
 
-### `caption stats` — 统计/词频
-- `--word-frequency` 显示词频 | `--top-n` (默认 20)
 ```
-data-forge caption stats --directory ./captions
-data-forge caption stats --directory ./captions --word-frequency --top-n 50
+subcommand: "delete"
+pattern: "temp_*"
 ```
 
-### `caption export` — 导出 JSON/CSV
-- `--output` (必填) | `--format` json/csv (默认 json)
+### `search` — 搜索 caption
+
+| 参数 | 说明 |
+|------|------|
+| `query` | (必填) 搜索词 |
+| `case_sensitive` | 区分大小写 |
+| `regex` | 使用正则搜索 |
+| `by_filename` | 按文件名搜索 |
+
 ```
-data-forge caption export --directory ./captions --output captions.json
+subcommand: "search"
+query: "cat"
 ```
 
-### `caption import` — 导入 JSON/CSV
-- `--input` (必填) | `--format` json/csv (默认 json) | `--overwrite`
+### `replace` — 跨文件搜索替换
+
+| 参数 | 说明 |
+|------|------|
+| `old` | (必填) 被替换的文本 |
+| `new` | (必填) 替换后的文本 |
+| `case_sensitive` | 区分大小写 |
+| `regex` | 使用正则替换 |
+
 ```
-data-forge caption import --directory ./captions --input captions.json
+subcommand: "replace"
+old: "cat"
+new: "kitten"
 ```
 
-### `caption deduplicate` — 去重
-- `--keep` first/last (默认 first)
+### `rename` — 重命名
+
+| 参数 | 说明 |
+|------|------|
+| `old_name` | (必填) 原文件名 |
+| `new_name` | (必填) 新文件名 |
+
 ```
-data-forge caption deduplicate --directory ./captions
+subcommand: "rename"
+old_name: "img01.txt"
+new_name: "photo01.txt"
+```
+
+### `stats` — 统计/词频
+
+| 参数 | 说明 |
+|------|------|
+| `word_frequency` | 显示词频 |
+| `top_n` | 词频排名前 N，默认 20 |
+
+```
+subcommand: "stats"
+word_frequency: true
+top_n: 50
+```
+
+### `export` — 导出 JSON/CSV
+
+| 参数 | 说明 |
+|------|------|
+| `output` | (必填) 输出文件路径 |
+| `format` | json/csv，默认 json |
+
+```
+subcommand: "export"
+output: "captions.json"
+```
+
+### `import` — 导入 JSON/CSV
+
+| 参数 | 说明 |
+|------|------|
+| `input` | (必填) 输入文件路径 |
+| `format` | json/csv，默认 json |
+| `overwrite` | 覆盖已存在的文件 |
+
+```
+subcommand: "import"
+input: "captions.json"
+```
+
+### `deduplicate` — 去重
+
+| 参数 | 说明 |
+|------|------|
+| `keep` | first/last，默认 first |
+
+```
+subcommand: "deduplicate"
 ```

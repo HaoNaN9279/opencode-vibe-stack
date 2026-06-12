@@ -1,31 +1,45 @@
 ---
 name: convert
-description: 通过 DataForge CLI 转换图片格式，支持单张和批量处理，含透明通道填充和质量控制。
+description: 通过 ai_data-forge_convert 工具转换图片格式，支持单张和批量处理，含透明通道填充和质量控制。
 ---
 
 # Convert
 
-## ⚠️ 前置检查
-```
-data-forge --help
-```
-未安装：`git clone https://github.com/HaoNan9279/DataForge.git && cd DataForge && uv sync`
+## 前置条件
+确认 `ai_data-forge_convert` 工具可用（该工具由 domain 配置自动注册）。
 
-## 命令
+## 使用方式
 
-### `convert single` — 单张转换
-- `--input` `--output` (必填)
-- `--background-color` (hex, 默认白色) | `--fill-alpha` 填充透明通道
-- `--quality` (默认 95) | `--overwrite`
+调用 `ai_data-forge_convert` 工具完成图片格式转换。
+
+### 单张转换
+- `input` `output` (必填)
+- `background` (hex, 默认 `#FFFFFF`) — 填充透明通道的背景色
+- `quality` (默认 95)
+
+工具参数示例：
 ```
-data-forge convert single --input logo.png --output logo.jpg
-data-forge convert single --input logo.png --output logo_filled.png --fill-alpha --background-color "#0000FF"
+input: logo.png
+output: logo.jpg
+quality: 95
 ```
 
-### `convert batch` — 批量转换
-- `--input-dir` `--output-dir` (必填)
-- `--target-format` (默认 png: png/jpg/jpeg/webp/bmp)
-- `--background-color` `--fill-alpha` `--quality` (默认 95) `--overwrite`
 ```
-data-forge convert batch --input-dir ./raw --output-dir ./converted --target-format webp
+input: logo.png
+output: logo_filled.png
+background: "#0000FF"
+```
+
+### 批量转换
+- 传入 `format` 参数触发批量模式
+- `input` 视为源目录，`output` 视为输出目录
+- `format` (必填): png / jpg / jpeg / webp / bmp
+- `background` `quality` 同单张模式
+
+工具参数示例：
+```
+input: ./raw
+output: ./converted
+format: webp
+quality: 95
 ```

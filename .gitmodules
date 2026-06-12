@@ -1,0 +1,3 @@
+[submodule "domains/ai/data-forge/tools/data-forge"]
+	path = domains/ai/data-forge/tools/data-forge
+	url = https://github.com/HaoNaN9279/data_forge.git

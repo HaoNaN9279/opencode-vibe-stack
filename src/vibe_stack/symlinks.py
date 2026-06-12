@@ -136,6 +136,55 @@ def link_directory_contents(
             create_symlink(item, link_path)
 
 
+def link_tools_directory(
+    src_dir: Path, dest_dir: Path, prefix: str = ""
+) -> None:
+    """Link each item inside *src_dir* as individual links in *dest_dir*.
+
+    Unlike :func:`link_directory_contents`, this function does **not** clear
+    the destination directory — it only adds or overwrites individual item
+    links.  This allows multiple domains to contribute tools to the same
+    ``.opencode/tools/`` directory without clobbering each other.
+
+    When *prefix* is non-empty, only **files** get the prefix (e.g.
+    ``ai_data-forge_caption.ts``); **directories** are linked without prefix
+    (e.g. ``data-forge/`` → ``data-forge/``) so that their internal structure
+    remains self-contained.
+
+    If *src_dir* does not exist or is empty, this function silently skips.
+    """
+    if not src_dir.is_dir():
+        return
+
+    # Check if directory has any entries
+    try:
+        has_entries = any(True for _ in src_dir.iterdir())
+    except OSError:
+        return
+
+    if not has_entries:
+        return
+
+    # Remove old directory-level link if present (upgrade from legacy)
+    remove_link(dest_dir)
+    # Ensure dest_dir is a real directory (never a symlink/junction itself)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    for item in sorted(src_dir.iterdir()):
+        item_name = item.name
+        # Directories keep original name; files get the domain prefix
+        if item.is_dir():
+            link_name = item_name
+        else:
+            link_name = f"{prefix}_{item_name}" if prefix else item_name
+        link_path = dest_dir / link_name
+        remove_link(link_path)
+        if item.is_dir():
+            create_dir_link(item, link_path)
+        else:
+            create_symlink(item, link_path)
+
+
 def remove_link(path: Path) -> None:
     """Safely remove a symlink, junction, or directory **without following
     the target**.

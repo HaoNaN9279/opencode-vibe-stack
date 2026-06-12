@@ -105,7 +105,10 @@ def _step_core_symlinks(vibe_home: Path) -> None:
         dest_dir = OPENCODE_CONFIG_DIR / type_name
 
         if core_type_dir.is_dir():
-            symlinks.link_directory_contents(core_type_dir, dest_dir)
+            if type_name == "tools":
+                symlinks.link_tools_directory(core_type_dir, dest_dir)
+            else:
+                symlinks.link_directory_contents(core_type_dir, dest_dir)
             log_ok(f"  Linked core/{type_name}/ -> {dest_dir}")
         else:
             log_warn(f"  core/{type_name}/ not found, skipping")
