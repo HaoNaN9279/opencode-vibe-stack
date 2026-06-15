@@ -1,26 +1,30 @@
+---
+name: convert
+description: 在 PNG、JPG、WebP、BMP 格式之间转换图片，支持单张和批量模式
+---
+
 # Convert — 图片格式转换
 
 通过 DataForge 的 `convert` 模块在 PNG、JPG、JPEG、WebP、BMP 格式之间转换图片，支持单张和批量两种模式。
 
-## 用法
+## CLI 调用
 
 ```bash
 # 单张转换（格式由输出文件扩展名自动识别）
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert single \
+  python -m data_forge.tools.convert single \
   --input <源图片路径> \
   --output <目标图片路径> \
-  [--quality <质量>] \
   [--background-color <背景色>]
 
-# 批量转换（需指定 --target-format）
+# 批量转换（需指定 --output-format）
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert batch \
+  python -m data_forge.tools.convert batch \
   --input-dir <源目录> \
   --output-dir <输出目录> \
-  --target-format <目标格式> \
-  [--quality <质量>] \
-  [--background-color <背景色>]
+  --output-format <目标格式> \
+  [--background-color <背景色>] \
+  [--overwrite]
 ```
 
 ## 参数说明
@@ -31,9 +35,9 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 | `--output` | single | 是 | 输出图片文件路径，格式由扩展名自动识别 |
 | `--input-dir` | batch | 是 | 源图片目录，转换目录下所有支持的图片 |
 | `--output-dir` | batch | 是 | 输出目录，所有转换后的图片写入此目录 |
-| `--target-format` | batch | 是 | 目标格式：`png`、`jpg`、`jpeg`、`webp`、`bmp` |
-| `--quality` | 通用 | 否 | JPEG/WebP 输出质量，范围 1–100，默认 `95` |
+| `--output-format` | batch | 是 | 目标格式：`png`、`jpg`、`jpeg`、`webp`、`bmp` |
 | `--background-color` | 通用 | 否 | RGBA → RGB 转换时填充透明通道的十六进制背景色，默认 `#FFFFFF` |
+| `--overwrite` | batch | 否 | 覆盖已存在的输出文件。默认跳过已有文件 |
 
 ## 支持格式
 
@@ -46,8 +50,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 
 | | 单张模式 (single) | 批量模式 (batch) |
 |---|---|---|
-| 触发条件 | 使用 `--input` / `--output` | 提供 `--target-format` |
-| 目标格式 | 由 `--output` 文件扩展名自动识别 | 由 `--target-format` 显式指定 |
+| 触发条件 | 使用 `--input` / `--output` | 使用 `--input-dir` / `--output-dir` |
+| 目标格式 | 由 `--output` 文件扩展名自动识别 | 由 `--output-format` 显式指定 |
 | 输入 | 单个文件 | 整个目录（所有支持的格式） |
 | 输出 | 单个文件 | 整个目录，文件名保留原名、扩展名替换为目标格式 |
 
@@ -59,10 +63,9 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 
 ```bash
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert single \
+  python -m data_forge.tools.convert single \
   --input logo.png \
   --output logo.jpg \
-  --quality 90 \
   --background-color "#FFFFFF"
 ```
 
@@ -70,10 +73,9 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 
 ```bash
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert single \
+  python -m data_forge.tools.convert single \
   --input photo.jpg \
-  --output photo.webp \
-  --quality 85
+  --output photo.webp
 ```
 
 ### 3. 批量转换：整个目录转 WebP
@@ -82,11 +84,10 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 
 ```bash
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert batch \
+  python -m data_forge.tools.convert batch \
   --input-dir raw_photos \
   --output-dir webp_output \
-  --target-format webp \
-  --quality 92
+  --output-format webp
 ```
 
 ### 4. 批量转换：带透明通道填充
@@ -95,9 +96,9 @@ uv run --directory domains/ai/data-forge/skills/data-forge \
 
 ```bash
 uv run --directory domains/ai/data-forge/skills/data-forge \
-  python -m data_forge.convert batch \
+  python -m data_forge.tools.convert batch \
   --input-dir assets \
   --output-dir jpg_output \
-  --target-format jpg \
+  --output-format jpg \
   --background-color "#0000FF"
 ```
