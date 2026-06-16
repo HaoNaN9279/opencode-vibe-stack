@@ -1,25 +1,25 @@
 ---
-description: 自动查看 diff、生成 commit message 并提交（不 push）
+description: commit 当前项目变更
 model: opencode/deepseek-v4-flash-free
 ---
 
 # `/auto-git-commit` — 自动 Git 提交
 
-根据当前项目的 Git 变更，自动生成规范的 commit message 并提交到，**不推送**到远程。
+根据当前项目的 Git 变更，写出规范的 commit message 并提交到，**不推送**到远程。
 
 ## 执行步骤
 
-### Step 1: 检查 Git 状态
+### Step 1: 
 
 运行 `git status` 查看当前工作区状态，确认是否有已修改/已暂存的文件。
 
-### Step 2: 获取详细 Diff
+### Step 2:
 
 运行 `git diff --staged` 查看暂存区的变更。如果有未暂存的变更，也要运行 `git diff` 查看工作区变更。
 
 如果存在未暂存的变更，同时也要确认是否有新增的未跟踪文件（`git status` 的输出中会有提示）。
 
-### Step 3: 生成 Commit Message
+### Step 3:
 
 根据 diff 内容，遵循 Conventional Commits 规范生成简洁但描述清晰的 commit message：
 
