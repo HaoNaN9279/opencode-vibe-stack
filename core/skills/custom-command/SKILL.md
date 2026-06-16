@@ -1,6 +1,6 @@
 ---
 name: custom-command
-description: 创建 OpenCode 自定义命令（Command）的制作规范和完整指南
+description: 当用户需要创建或管理 OpenCode 自定义命令（Command）时使用
 license: MIT
 compatibility: opencode
 metadata:

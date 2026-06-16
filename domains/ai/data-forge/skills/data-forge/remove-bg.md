@@ -7,6 +7,10 @@ description: 通过 DataForge CLI 使用 BiRefNet 模型移除图片背景，支
 
 使用 DataForge 的 BiRefNet 模型移除图片背景的 CLI 参考。
 
+## 路径规则
+
+**所有文件路径参数必须使用绝对路径**（`--input`、`--output`），禁止使用相对路径。原因：AI 代理的当前工作目录不确定，相对路径会导致文件找不到或写入错误位置。示例中使用 `/path/to/` 作为占位符，实际使用时替换为真实绝对路径。
+
 ## 前置依赖
 
 安装 `rembg` 可选依赖：
@@ -18,21 +22,21 @@ uv sync --extra rembg
 ## CLI 调用
 
 ```bash
-uv run --directory <path> python -m data_forge.remove_bg single \
-  --input <源图片路径> \
-  --output <输出图片路径> \
+uv run --directory /path/to/data-forge-tools python -m data_forge.remove_bg single \
+  --input <源图片绝对路径> \
+  --output <输出图片绝对路径> \
   [--model <模型变体>] \
   [--background-color <十六进制颜色>]
 ```
 
-其中 `<path>` 为 DataForge 子模块路径（例如 `.opencode/tools/data-forge` 或项目克隆路径）。
+其中 `/path/to/data-forge-tools` 为 DataForge 子模块的**绝对路径**。
 
 ## 参数说明
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `--input` | string | 是 | — | 源图片路径 |
-| `--output` | string | 是 | — | 输出图片路径 |
+| `--input` | string | 是 | — | 源图片路径（**必须使用绝对路径**） |
+| `--output` | string | 是 | — | 输出图片路径（**必须使用绝对路径**） |
 | `--model` | string | 否 | `birefnet-general` | BiRefNet 模型变体（详见下方列表） |
 | `--background-color` | string | 否 | `#FFFFFF` | 背景填充色，hex 格式（如 `#FFFFFF`、`#000000`） |
 
@@ -53,17 +57,17 @@ uv run --directory <path> python -m data_forge.remove_bg single \
 ### 基本用法：移除背景输出透明 PNG
 
 ```bash
-uv run --directory .opencode/tools/data-forge python -m data_forge.remove_bg single \
-  --input photo.jpg \
-  --output cutout.png
+uv run --directory /path/to/data-forge-tools python -m data_forge.remove_bg single \
+  --input /path/to/photo.jpg \
+  --output /path/to/cutout.png
 ```
 
 ### 指定模型和背景色
 
 ```bash
-uv run --directory .opencode/tools/data-forge python -m data_forge.remove_bg single \
-  --input portrait.jpg \
-  --output portrait_cutout.png \
+uv run --directory /path/to/data-forge-tools python -m data_forge.remove_bg single \
+  --input /path/to/portrait.jpg \
+  --output /path/to/portrait_cutout.png \
   --model birefnet-portrait \
   --background-color "#000000"
 ```
@@ -71,9 +75,9 @@ uv run --directory .opencode/tools/data-forge python -m data_forge.remove_bg sin
 ### 使用高精度模型处理高分辨率图片
 
 ```bash
-uv run --directory .opencode/tools/data-forge python -m data_forge.remove_bg single \
-  --input large_photo.png \
-  --output result.png \
+uv run --directory /path/to/data-forge-tools python -m data_forge.remove_bg single \
+  --input /path/to/large_photo.png \
+  --output /path/to/result.png \
   --model birefnet-hrsod
 ```
 

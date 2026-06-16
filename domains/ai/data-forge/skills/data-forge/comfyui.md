@@ -2,25 +2,29 @@
 
 通过 DataForge CLI 连接本地的 ComfyUI 服务器，支持工作流提交、执行追踪和输出下载。
 
+## 路径规则
+
+**所有文件路径参数必须使用绝对路径**（`--workflow`、`--output-dir`），禁止使用相对路径。原因：AI 代理的当前工作目录不确定，相对路径会导致文件找不到或写入错误位置。示例中使用 `/path/to/` 作为占位符，实际使用时替换为真实绝对路径。
+
 ## 前置条件
 
 - **ComfyUI 服务器** 正在运行，默认地址为 `http://127.0.0.1:8188`
 - **DataForge 子模块** 依赖已安装：
 
 ```bash
-cd domains/ai/data-forge/skills/data-forge
+cd /path/to/data-forge-tools
 uv sync
 ```
 
 ## 调用方式
 
 ```bash
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui <subcommand> [参数]
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui <subcommand> [参数]
 ```
 
 | 部分 | 说明 |
 |------|------|
-| `--directory` | DataForge 子模块所在目录路径 |
+| `--directory` | DataForge 子模块**绝对路径** |
 | `python -m data_forge.comfyui` | 以模块方式运行 ComfyUI CLI |
 | `<subcommand>` | 子命令：`status`、`run`、`batch`、`queue-size` |
 
@@ -31,8 +35,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 适用子命令 | 说明 |
 |------|------|-----------|------|
 | `--server` | `str` | 全部 | ComfyUI 服务器地址，默认 `http://127.0.0.1:8188` |
-| `--workflow` | `str` | `run`, `batch` | 工作流 JSON 文件路径 |
-| `--output-dir` | `str` | `run`, `batch` | 输出目录路径 |
+| `--workflow` | `str` | `run`, `batch` | 工作流 JSON 文件路径（**必须使用绝对路径**） |
+| `--output-dir` | `str` | `run`, `batch` | 输出目录路径（**必须使用绝对路径**） |
 | `--timeout` | `float` | `run`, `batch` | 单次请求超时秒数 |
 
 ---
@@ -51,10 +55,10 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 检查默认地址的服务器状态
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui status
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui status
 
 # 指定服务器地址
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui status --server http://192.168.1.100:8188
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui status --server http://192.168.1.100:8188
 ```
 
 ### 输出说明
@@ -73,8 +77,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `--server` | `str` | 否 | 服务器地址，默认 `http://127.0.0.1:8188` |
-| `--workflow` | `str` | 是 | 工作流 JSON 文件路径 |
-| `--output-dir` | `str` | 是 | 输出文件保存目录 |
+| `--workflow` | `str` | 是 | 工作流 JSON 文件路径（**必须使用绝对路径**） |
+| `--output-dir` | `str` | 是 | 输出文件保存目录（**必须使用绝对路径**） |
 | `--node-override` | `str` | 否 | JSON 字符串，节点覆盖参数（合并到工作流的指定节点） |
 | `--timeout` | `float` | 否 | 单次请求超时秒数，默认 `30.0` |
 
@@ -82,23 +86,23 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 执行默认工作流
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui run \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui run \
   --server http://127.0.0.1:8188 \
-  --workflow ./workflows/txt2img.json \
-  --output-dir ./output
+  --workflow /path/to/workflows/txt2img.json \
+  --output-dir /path/to/output
 
 # 覆盖节点参数（将节点 3 的 seed 设为 42）
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui run \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui run \
   --server http://127.0.0.1:8188 \
-  --workflow ./workflows/txt2img.json \
-  --output-dir ./output \
+  --workflow /path/to/workflows/txt2img.json \
+  --output-dir /path/to/output \
   --node-override '{"3":{"inputs":{"seed":42}}}'
 
 # 指定超时时间
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui run \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui run \
   --server http://127.0.0.1:8188 \
-  --workflow ./workflows/img2img.json \
-  --output-dir ./output \
+  --workflow /path/to/workflows/img2img.json \
+  --output-dir /path/to/output \
   --timeout 60.0
 ```
 
@@ -117,8 +121,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `--server` | `str` | 否 | 服务器地址，默认 `http://127.0.0.1:8188` |
-| `--workflow` | `str` | 是 | 工作流 JSON 文件路径 |
-| `--output-dir` | `str` | 是 | 输出根目录（每个批次创建 `batch_N` 子目录） |
+| `--workflow` | `str` | 是 | 工作流 JSON 文件路径（**必须使用绝对路径**） |
+| `--output-dir` | `str` | 是 | 输出根目录，每个批次创建 `batch_N` 子目录（**必须使用绝对路径**）
 | `--param-list` | `str` | 否 | JSON 数组字符串，每项为节点覆盖字典 |
 | `--timeout` | `float` | 否 | 单次请求超时秒数，默认 `3600.0` |
 
@@ -126,17 +130,17 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 使用多组参数批量执行
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui batch \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui batch \
   --server http://127.0.0.1:8188 \
-  --workflow ./workflows/txt2img.json \
-  --output-dir ./batch-output \
+  --workflow /path/to/workflows/txt2img.json \
+  --output-dir /path/to/batch-output \
   --param-list '[{"3":{"inputs":{"seed":1}}},{"3":{"inputs":{"seed":2}}},{"3":{"inputs":{"seed":3}}}]'
 
 # 无参数列表时仅使用原始工作流执行一次
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui batch \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui batch \
   --server http://127.0.0.1:8188 \
-  --workflow ./workflows/txt2img.json \
-  --output-dir ./batch-output
+  --workflow /path/to/workflows/txt2img.json \
+  --output-dir /path/to/batch-output
 ```
 
 ### 输出目录结构
@@ -164,10 +168,10 @@ batch-output/
 
 ```bash
 # 查看队列大小
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui queue-size
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui queue-size
 
 # 指定服务器
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.comfyui queue-size \
+uv run --directory /path/to/data-forge-tools python -m data_forge.comfyui queue-size \
   --server http://127.0.0.1:8188
 ```
 

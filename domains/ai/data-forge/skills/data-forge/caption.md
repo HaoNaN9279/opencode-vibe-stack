@@ -2,13 +2,17 @@
 
 管理 AI 训练数据集的 `.txt` 标注（caption）文件。每个标注文件与对应图片文件名相同（仅后缀不同），存放在同一目录中。
 
+## 路径规则
+
+**所有文件路径参数必须使用绝对路径**（`--directory`、`--file`、`--dir`、`--content-file`、`--output`、`--input` 等），禁止使用相对路径。原因：AI 代理的当前工作目录不确定，相对路径会导致文件找不到或写入错误位置。示例中使用 `/path/to/` 作为占位符，实际使用时替换为真实绝对路径。
+
 ## 调用方式
 
 ```bash
-uv run --directory <path> python -m data_forge.caption <subcommand> [参数]
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption <subcommand> [参数]
 ```
 
-- `<path>` — DataForge 子模块的本地路径
+- `/path/to/data-forge-tools` — DataForge 子模块的**绝对路径**
 - `<subcommand>` — 操作类型，支持 12 个子命令
 - `[参数]` — 各子命令特有的命令行参数
 
@@ -41,14 +45,11 @@ uv run --directory <path> python -m data_forge.caption <subcommand> [参数]
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--directory` | 否 | 目标目录，默认当前目录 |
+| `--directory` | 否 | 目标目录（**必须使用绝对路径**） |
 
 ```bash
-# 列出当前目录的标注文件
-uv run --directory libs/data-forge python -m data_forge.caption list
-
 # 列出指定目录的标注文件
-uv run --directory libs/data-forge python -m data_forge.caption list --directory ./captions
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption list --directory /path/to/captions
 ```
 
 ---
@@ -59,27 +60,27 @@ uv run --directory libs/data-forge python -m data_forge.caption list --directory
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--file` | 是 | 文件名（自动补 `.txt` 后缀） |
+| `--file` | 是 | 文件名 |
 | `--content` | 否 | 标注内容（与 `--content-file` 二选一） |
-| `--content-file` | 否 | 从文件读取标注内容（与 `--content` 二选一） |
+| `--content-file` | 否 | 从文件读取标注内容，**必须使用绝对路径**（与 `--content` 二选一） |
 | `--overwrite` | 否 | 布尔标志，覆盖已存在的文件 |
 
 ```bash
 # 使用 --content 直接传入内容
-uv run --directory libs/data-forge python -m data_forge.caption create \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption create \
+  --directory /path/to/captions \
   --file img001 \
   --content "a cat sitting on a windowsill"
 
 # 使用 --content-file 从文件读取内容
-uv run --directory libs/data-forge python -m data_forge.caption create \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption create \
+  --directory /path/to/captions \
   --file img002 \
-  --content-file ./descriptions/img002.txt
+  --content-file /path/to/descriptions/img002.txt
 
 # 覆盖已存在的文件
-uv run --directory libs/data-forge python -m data_forge.caption create \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption create \
+  --directory /path/to/captions \
   --file img001 \
   --content "updated caption" \
   --overwrite
@@ -93,11 +94,11 @@ uv run --directory libs/data-forge python -m data_forge.caption create \
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--file` | 是 | 文件名（可省略 `.txt` 后缀） |
+| `--file` | 是 | 文件名 |
 
 ```bash
-uv run --directory libs/data-forge python -m data_forge.caption read \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption read \
+  --directory /path/to/captions \
   --file img001.txt
 ```
 
@@ -119,29 +120,29 @@ uv run --directory libs/data-forge python -m data_forge.caption read \
 
 ```bash
 # 替换全部内容（默认 mode=update）
-uv run --directory libs/data-forge python -m data_forge.caption edit \
-  --dir ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption edit \
+  --dir /path/to/captions \
   --file img001.txt \
   --content "a dog playing in the park"
 
 # 追加文本
-uv run --directory libs/data-forge python -m data_forge.caption edit \
-  --dir ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption edit \
+  --dir /path/to/captions \
   --file img001.txt \
   --content ", high quality photo" \
   --mode append
 
 # 前置文本
-uv run --directory libs/data-forge python -m data_forge.caption edit \
-  --dir ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption edit \
+  --dir /path/to/captions \
   --file img001.txt \
   --content "masterpiece, " \
   --mode prepend \
   --separator ""
 
 # 使用逗号作为分隔符追加
-uv run --directory libs/data-forge python -m data_forge.caption edit \
-  --dir ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption edit \
+  --dir /path/to/captions \
   --file img001.txt \
   --content "detailed" \
   --mode append \
@@ -163,24 +164,24 @@ uv run --directory libs/data-forge python -m data_forge.caption edit \
 
 ```bash
 # 模式一：按文件名删除单个文件
-uv run --directory libs/data-forge python -m data_forge.caption delete \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption delete \
+  --directory /path/to/captions \
   --file img001.txt
 
 # 模式二：按通配符模式删除
-uv run --directory libs/data-forge python -m data_forge.caption delete \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption delete \
+  --directory /path/to/captions \
   --pattern "temp_*.txt"
 
 # 模式二：按正则表达式模式删除
-uv run --directory libs/data-forge python -m data_forge.caption delete \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption delete \
+  --directory /path/to/captions \
   --pattern "^bad_\d+\.txt$" \
   --regex
 
 # 模式三：删除所有标注文件
-uv run --directory libs/data-forge python -m data_forge.caption delete \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption delete \
+  --directory /path/to/captions \
   --all
 ```
 
@@ -199,25 +200,25 @@ uv run --directory libs/data-forge python -m data_forge.caption delete \
 
 ```bash
 # 基本搜索（忽略大小写）
-uv run --directory libs/data-forge python -m data_forge.caption search \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption search \
+  --directory /path/to/captions \
   --query "cat"
 
 # 区分大小写搜索
-uv run --directory libs/data-forge python -m data_forge.caption search \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption search \
+  --directory /path/to/captions \
   --query "Cat" \
   --case-sensitive
 
 # 正则搜索
-uv run --directory libs/data-forge python -m data_forge.caption search \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption search \
+  --directory /path/to/captions \
   --query "image_\d+" \
   --regex
 
 # 按文件名搜索
-uv run --directory libs/data-forge python -m data_forge.caption search \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption search \
+  --directory /path/to/captions \
   --query "img_*.txt" \
   --by-filename
 ```
@@ -237,21 +238,21 @@ uv run --directory libs/data-forge python -m data_forge.caption search \
 
 ```bash
 # 基本替换（忽略大小写）
-uv run --directory libs/data-forge python -m data_forge.caption replace \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption replace \
+  --directory /path/to/captions \
   --old "cat" \
   --new "kitten"
 
 # 区分大小写替换
-uv run --directory libs/data-forge python -m data_forge.caption replace \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption replace \
+  --directory /path/to/captions \
   --old "Cat" \
   --new "Kitten" \
   --case-sensitive
 
 # 正则替换 + 反向引用
-uv run --directory libs/data-forge python -m data_forge.caption replace \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption replace \
+  --directory /path/to/captions \
   --old "img_(\d+)" \
   --new "photo_\1" \
   --regex
@@ -269,8 +270,8 @@ uv run --directory libs/data-forge python -m data_forge.caption replace \
 | `--new-name` | 是 | 新文件名（自动补 `.txt` 后缀） |
 
 ```bash
-uv run --directory libs/data-forge python -m data_forge.caption rename \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption rename \
+  --directory /path/to/captions \
   --old-name img001.txt \
   --new-name photo001.txt
 ```
@@ -288,18 +289,18 @@ uv run --directory libs/data-forge python -m data_forge.caption rename \
 
 ```bash
 # 基础统计
-uv run --directory libs/data-forge python -m data_forge.caption stats \
-  --directory ./captions
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption stats \
+  --directory /path/to/captions
 
 # 统计 + 词频排名 Top 50
-uv run --directory libs/data-forge python -m data_forge.caption stats \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption stats \
+  --directory /path/to/captions \
   --word-frequency \
   --top-n 50
 
 # 统计 + 默认词频排名 Top 20
-uv run --directory libs/data-forge python -m data_forge.caption stats \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption stats \
+  --directory /path/to/captions \
   --word-frequency
 ```
 
@@ -318,14 +319,14 @@ uv run --directory libs/data-forge python -m data_forge.caption stats \
 
 ```bash
 # 导出为 JSON
-uv run --directory libs/data-forge python -m data_forge.caption export \
-  --directory ./captions \
-  --output ./captions.json
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption export \
+  --directory /path/to/captions \
+  --output /path/to/captions.json
 
 # 导出为 CSV
-uv run --directory libs/data-forge python -m data_forge.caption export \
-  --directory ./captions \
-  --output ./captions.csv \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption export \
+  --directory /path/to/captions \
+  --output /path/to/captions.csv \
   --format csv
 ```
 
@@ -346,14 +347,14 @@ CSV 格式：列名为 `filename` 和 `content`。
 
 ```bash
 # 从 JSON 导入
-uv run --directory libs/data-forge python -m data_forge.caption import \
-  --directory ./captions \
-  --input ./captions.json
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption import \
+  --directory /path/to/captions \
+  --input /path/to/captions.json
 
 # 从 CSV 导入（覆盖已存在文件）
-uv run --directory libs/data-forge python -m data_forge.caption import \
-  --directory ./captions \
-  --input ./captions.csv \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption import \
+  --directory /path/to/captions \
+  --input /path/to/captions.csv \
   --format csv \
   --overwrite
 ```
@@ -370,12 +371,12 @@ uv run --directory libs/data-forge python -m data_forge.caption import \
 
 ```bash
 # 默认保留第一个
-uv run --directory libs/data-forge python -m data_forge.caption deduplicate \
-  --directory ./captions
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption deduplicate \
+  --directory /path/to/captions
 
 # 保留最后一个
-uv run --directory libs/data-forge python -m data_forge.caption deduplicate \
-  --directory ./captions \
+uv run --directory /path/to/data-forge-tools python -m data_forge.caption deduplicate \
+  --directory /path/to/captions \
   --keep last
 ```
 

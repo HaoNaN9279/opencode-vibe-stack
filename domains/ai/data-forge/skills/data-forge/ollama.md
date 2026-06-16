@@ -2,6 +2,10 @@
 
 通过 DataForge 的 Ollama 工具，在命令行中直接与本地 Ollama 服务交互，支持文本生成、视觉模型图片描述、模型管理和批量处理。
 
+## 路径规则
+
+**所有文件路径参数必须使用绝对路径**（`--image`、`--input-dir`、`--output-dir`），禁止使用相对路径。原因：AI 代理的当前工作目录不确定，相对路径会导致文件找不到或写入错误位置。示例中使用 `/path/to/` 作为占位符，实际使用时替换为真实绝对路径。
+
 ## 前置条件
 
 - **Ollama 服务正在运行**：确保已安装并启动 Ollama（`ollama serve`）
@@ -12,13 +16,13 @@
 ## CLI 调用方式
 
 ```bash
-uv run --directory <submodule-path> python -m data_forge.ollama <subcommand> [参数...]
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama <subcommand> [参数...]
 ```
 
-`<submodule-path>` 为 DataForge 子模块目录（即包含 `pyproject.toml` 的路径），例如：
+`/path/to/data-forge-tools` 为 DataForge 子模块的**绝对路径**（即包含 `pyproject.toml` 的目录），例如：
 
 ```bash
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama list
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama list
 ```
 
 ### 全局参数
@@ -49,10 +53,10 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 列出所有模型
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama list
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama list
 
 # 指定自定义地址
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama list --base-url http://192.168.1.100:11434
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama list --base-url http://192.168.1.100:11434
 ```
 
 ---
@@ -73,10 +77,10 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 拉取 llama3.2 模型
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama pull --name llama3.2
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama pull --name llama3.2
 
 # 拉取指定标签的模型
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama pull --name gemma3:12b
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama pull --name gemma3:12b
 ```
 
 ---
@@ -100,18 +104,18 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 基本文本生成
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama generate \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama generate \
   --model llama3.2 \
   --prompt "用一句话解释什么是机器学习"
 
 # 带系统提示词的生成
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama generate \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama generate \
   --model llama3.2 \
   --system "你是一位专业的 Python 开发者" \
   --prompt "写一个计算斐波那契数列的递归函数"
 
 # 调整采样温度
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama generate \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama generate \
   --model llama3.2 \
   --prompt "写一首关于秋天的短诗" \
   --temperature 0.9
@@ -128,7 +132,7 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `--model` | `string` | 是 | — | 视觉模型名称（如 `llava`、`minicpm-v`、`bakllava`） |
-| `--image` | `string` | 是 | — | 图片路径 |
+| `--image` | `string` | 是 | — | 图片路径（**必须使用绝对路径**） |
 | `--prompt` | `string` | 否 | `Describe this image in detail.` | 对图片的提问或指令 |
 | `--base-url` | `string` | 否 | `http://localhost:11434` | Ollama 服务地址 |
 | `--timeout` | `int` | 否 | `300` | 请求超时秒数 |
@@ -137,20 +141,20 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 
 ```bash
 # 默认提示描述图片
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama describe \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama describe \
   --model llava \
-  --image photo.jpg
+  --image /path/to/photo.jpg
 
 # 自定义提问
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama describe \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama describe \
   --model llava \
-  --image screenshot.png \
+  --image /path/to/screenshot.png \
   --prompt "这张截图中的主要按钮有哪些？"
 
 # 使用其他视觉模型
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama describe \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama describe \
   --model minicpm-v \
-  --image chart.png \
+  --image /path/to/chart.png \
   --prompt "描述这张图表的内容"
 ```
 
@@ -165,8 +169,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `--model` | `string` | 是 | — | 模型名称 |
-| `--input-dir` | `string` | 是 | — | 输入目录（含 `.txt` 提示词文件） |
-| `--output-dir` | `string` | 是 | — | 输出目录（生成的结果文件） |
+| `--input-dir` | `string` | 是 | — | 输入目录，含 `.txt` 提示词文件（**必须使用绝对路径**） |
+| `--output-dir` | `string` | 是 | — | 输出目录，生成的结果文件（**必须使用绝对路径**） |
 | `--system` | `string` | 否 | — | 系统提示词（应用于所有输入） |
 | `--temperature` | `float` | 否 | `0.7` | 采样温度 |
 | `--base-url` | `string` | 否 | `http://localhost:11434` | Ollama 服务地址 |
@@ -177,17 +181,17 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 **示例：**
 
 ```bash
-# 批量处理 prompts/ 目录下所有 .txt 文件
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama batch-generate \
+# 批量处理 /path/to/prompts/ 目录下所有 .txt 文件
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama batch-generate \
   --model llama3.2 \
-  --input-dir ./prompts \
-  --output-dir ./results
+  --input-dir /path/to/prompts \
+  --output-dir /path/to/results
 
 # 批量生成带系统提示词
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama batch-generate \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama batch-generate \
   --model llama3.2 \
-  --input-dir ./prompts \
-  --output-dir ./results \
+  --input-dir /path/to/prompts \
+  --output-dir /path/to/results \
   --system "用中文回答" \
   --temperature 0.5
 ```
@@ -203,8 +207,8 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `--model` | `string` | 是 | — | 视觉模型名称（如 `llava`） |
-| `--input-dir` | `string` | 是 | — | 输入目录（含图片文件） |
-| `--output-dir` | `string` | 是 | — | 输出目录（生成的描述文件） |
+| `--input-dir` | `string` | 是 | — | 输入目录，含图片文件（**必须使用绝对路径**） |
+| `--output-dir` | `string` | 是 | — | 输出目录，生成的描述文件（**必须使用绝对路径**） |
 | `--prompt` | `string` | 否 | `Describe this image in detail.` | 对每张图片的提问 |
 | `--base-url` | `string` | 否 | `http://localhost:11434` | Ollama 服务地址 |
 | `--timeout` | `int` | 否 | `300` | 请求超时秒数 |
@@ -216,17 +220,17 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 **示例：**
 
 ```bash
-# 批量描述 images/ 目录下的所有图片
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama batch-describe \
+# 批量描述 /path/to/images/ 目录下的所有图片
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama batch-describe \
   --model llava \
-  --input-dir ./images \
-  --output-dir ./captions
+  --input-dir /path/to/images \
+  --output-dir /path/to/captions
 
 # 自定义提示词
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.ollama batch-describe \
+uv run --directory /path/to/data-forge-tools python -m data_forge.ollama batch-describe \
   --model llava \
-  --input-dir ./screenshots \
-  --output-dir ./descriptions \
+  --input-dir /path/to/screenshots \
+  --output-dir /path/to/descriptions \
   --prompt "详细描述这张图片中的物体和场景"
 ```
 

@@ -2,12 +2,16 @@
 
 使用 `data_forge.resize` 模块批量缩放图片，支持精确尺寸缩放、长边适配和填充模式。
 
+## 路径规则
+
+**所有文件路径参数必须使用绝对路径**（`--input-dir`、`--output-dir`），禁止使用相对路径。原因：AI 代理的当前工作目录不确定，相对路径会导致文件找不到或写入错误位置。示例中使用 `/path/to/` 作为占位符，实际使用时替换为真实绝对路径。
+
 ## CLI 调用
 
 ```bash
-uv run --directory <data-forge-子模块路径> python -m data_forge.resize \
-    --input-dir <源目录> \
-    --output-dir <输出目录> \
+uv run --directory /path/to/data-forge-tools python -m data_forge.resize \
+    --input-dir <源目录绝对路径> \
+    --output-dir <输出目录绝对路径> \
     --width <宽度> \
     --height <高度> \
     [--fit-long-edge] \
@@ -16,14 +20,14 @@ uv run --directory <data-forge-子模块路径> python -m data_forge.resize \
 ```
 
 **路径说明：**
-- `<data-forge-子模块路径>` 指向 `domains/ai/data-forge/skills/data-forge/`
+- `/path/to/data-forge-tools` 为 DataForge 子模块的**绝对路径**
 
 ## 参数说明
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `--input-dir` | `str` | 是 | — | 源图片目录路径 |
-| `--output-dir` | `str` | 是 | — | 输出目录路径 |
+| `--input-dir` | `str` | 是 | — | 源图片目录路径（**必须使用绝对路径**） |
+| `--output-dir` | `str` | 是 | — | 输出目录路径（**必须使用绝对路径**） |
 | `--width` | `int` | 是 | — | 目标宽度（像素） |
 | `--height` | `int` | 是 | — | 目标高度（像素） |
 | `--fit-long-edge` | `bool` | 否 | `false` | 等比缩放，使长边适配 `max(width, height)`，保持原始宽高比。例如 1600×900 的图片使用 `--width 800 --height 600`，长边宽度 1600 缩放到 800，高度按比例缩放到 450。与 `--pad-to-fit` 互斥 |
@@ -34,12 +38,12 @@ uv run --directory <data-forge-子模块路径> python -m data_forge.resize \
 
 ### 示例 1：精确缩放
 
-将 `photos/` 目录下所有图片精确缩放至 1024×1024 像素：
+将 `/path/to/photos/` 目录下所有图片精确缩放至 1024×1024 像素：
 
 ```bash
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.resize \
-    --input-dir ./photos \
-    --output-dir ./resized \
+uv run --directory /path/to/data-forge-tools python -m data_forge.resize \
+    --input-dir /path/to/photos \
+    --output-dir /path/to/resized \
     --width 1024 \
     --height 1024
 ```
@@ -49,9 +53,9 @@ uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.
 将图片长边适配至 1024×1024 范围内，并用白色填充至精确尺寸，同时覆盖已有输出文件：
 
 ```bash
-uv run --directory domains/ai/data-forge/skills/data-forge python -m data_forge.resize \
-    --input-dir ./photos \
-    --output-dir ./resized \
+uv run --directory /path/to/data-forge-tools python -m data_forge.resize \
+    --input-dir /path/to/photos \
+    --output-dir /path/to/resized \
     --width 1024 \
     --height 1024 \
     --fit-long-edge \

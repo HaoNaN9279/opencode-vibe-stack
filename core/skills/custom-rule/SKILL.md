@@ -1,6 +1,6 @@
 ---
 name: custom-rule
-description: 创建 OpenCode 规则文件的制作规范和完整指南
+description: 当用户需要创建或管理 OpenCode 规则文件（rules）时使用
 license: MIT
 compatibility: opencode
 metadata:

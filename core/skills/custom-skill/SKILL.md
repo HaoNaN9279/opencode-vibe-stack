@@ -1,6 +1,6 @@
 ---
 name: custom-skill
-description: 在 vibe-stack 项目中创建 OpenCode 技能（Skill）的制作规范和完整指南
+description: 当用户需要创建或管理 OpenCode 技能（Skill）时使用
 license: MIT
 compatibility: opencode
 metadata:
@@ -86,14 +86,11 @@ metadata:                  # 可选：字符串到字符串的映射
 
 ### 3.4 描述规范
 
-`description` 必须为 1-1024 个字符。描述应足够具体，以便智能体能够正确识别和选择该技能。
+`description` 必须为 1-1024 个字符。描述句式应为“当用户需要...时使用”，不要只描述是什么。
 
 好的描述示例：
 ```
-Create consistent releases and changelogs using conventional commits
-```
-```
-Execute image processing pipelines with Data Forge MCP tools
+当用户需要执行ComfyUI任务、图片缩放、图片格式转换、图片填充背景、图片去除背景、标注管理、LLM 生成图片描述时使用
 ```
 
 差的描述示例：
@@ -101,7 +98,7 @@ Execute image processing pipelines with Data Forge MCP tools
 A skill for releases
 ```
 ```
-数据处理相关
+数据处理相关工具
 ```
 
 ---

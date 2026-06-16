@@ -1,6 +1,6 @@
 ---
 name: custom-mcp
-description: 创建 OpenCode MCP 服务器配置的制作规范和完整指南
+description: 当用户需要创建或管理 OpenCode MCP 服务器配置时使用
 license: MIT
 compatibility: opencode
 metadata:
