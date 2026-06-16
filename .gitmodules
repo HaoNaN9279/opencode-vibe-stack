@@ -1,3 +1,6 @@
 [submodule "domains/ai/data-forge/skills/data-forge/data-forge-tools"]
 	path = domains/ai/data-forge/skills/data-forge/data-forge-tools
 	url = https://github.com/HaoNaN9279/data-forge-tools.git
+[submodule "core/skills/markitdown/repo"]
+	path = core/skills/markitdown/repo
+	url = https://github.com/microsoft/markitdown.git
