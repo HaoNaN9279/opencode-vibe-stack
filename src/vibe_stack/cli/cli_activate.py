@@ -78,6 +78,18 @@ def _collect_links(
                 except ValueError:
                     rel_src = item
                 links[key] = str(rel_src).replace("\\", "/")
+        elif type_name == "mcp":
+            # Skip .json config files — only record linked items.
+            for item in sorted(src_dir.iterdir()):
+                if item.suffix == ".json":
+                    continue
+                link_name = f"{prefix}_{item.name}" if prefix else item.name
+                key = f"{type_name}/{link_name}"
+                try:
+                    rel_src = item.relative_to(vibe_home)
+                except ValueError:
+                    rel_src = item
+                links[key] = str(rel_src).replace("\\", "/")
         else:
             for item in sorted(src_dir.iterdir()):
                 link_name = f"{prefix}_{item.name}" if prefix else item.name
@@ -150,6 +162,10 @@ def cmd_activate(
             try:
                 if type_name == "tools":
                     symlinks.link_tools_directory(src_dir, dest_dir, prefix=prefix)
+                elif type_name == "mcp":
+                    symlinks.link_directory_contents(
+                        src_dir, dest_dir, prefix=prefix, exclude_pattern="*.json"
+                    )
                 else:
                     symlinks.link_directory_contents(src_dir, dest_dir, prefix=prefix)
             except Exception as exc:
