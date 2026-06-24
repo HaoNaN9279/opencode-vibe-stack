@@ -9,7 +9,7 @@ Key concepts
   written to ``~/.config/opencode/opencode.json`` with ``vibe:core-`` prefix.
 * **Domain MCPs** — per-domain MCP servers resolved from
   ``domains/{key}/mcp/*.json``, written to
-  ``.opencode/oh-my-openagent.jsonc`` with ``vibe:`` prefix.
+   ``.opencode/opencode.json`` with ``vibe:`` prefix.
 * **Registry** — user-level mapping of MCP server names to executables
   (``~/.config/opencode/vibe-stack-mcp.jsonc``).
 """
@@ -82,6 +82,15 @@ def _default_omo_config() -> dict:
         "$schema": _OMO_SCHEMA,
         "agent_definitions": ["agents/"],
     }
+
+
+def _default_project_opencode_config() -> dict:
+    """Create a minimal default project-level ``opencode.json`` config dict.
+
+    Unlike :func:`_default_opencode_config`, this does **not** include
+    ``instructions`` — that is a user-level concern only.
+    """
+    return {"$schema": _OPENCODE_SCHEMA}
 
 
 # ── Core MCP activation ───────────────────────────────────────────
@@ -157,15 +166,16 @@ def activate_mcp_domain(
     domain_root: Path,
     registry: Optional[dict] = None,
 ) -> None:
-    """Resolve and write **domain MCPs** to project-level ``oh-my-openagent.jsonc``.
+    """Resolve and write **domain MCPs** to project-level ``opencode.json``.
 
     1. Read registry.
     2. Resolve domain MCP entries via :func:`resolver.resolve_domain_mcp`.
     3. If no MCPs found for this domain, return early.
-    4. Read existing ``.opencode/oh-my-openagent.jsonc`` — create default
+    4. Read existing ``.opencode/opencode.json`` — create default
        if missing.
-    5. Merge resolved entries with ``vibe:`` prefix via
-       :func:`config.merge_mcp_block`.
+    5. Merge resolved entries with ``vibe:`` prefix via ``mcp.update()``
+       (additive — only replaces matching keys, preserving entries from
+       other domains).
     6. Write back.
 
     Parameters
@@ -200,26 +210,30 @@ def activate_mcp_domain(
     if not resolved:
         return
 
-    # 3. Read existing oh-my-openagent.jsonc or create default
-    omo_path = project_root / ".opencode" / OMO_CONFIG_NAME
-    if omo_path.is_file():
+    # 3. Read existing opencode.json or create default
+    opencode_path = project_root / ".opencode" / OPECODE_CONFIG_NAME
+    if opencode_path.is_file():
         try:
-            cfg = config.read_jsonc(omo_path)
+            cfg = config.read_jsonc(opencode_path)
         except Exception as e:
-            _backup_and_fail(omo_path, e)
+            _backup_and_fail(opencode_path, e)
             return  # unreachable, but safe
     else:
-        cfg = _default_omo_config()
+        cfg = _default_project_opencode_config()
 
-    # 4. Merge domain MCP entries (prefix "vibe:")
-    config.merge_mcp_block(cfg, resolved, prefix=MCP_DOMAIN_PREFIX)
+    # 4. Merge domain MCP entries with vibe: prefix (additive update)
+    mcp_block = cfg.setdefault("mcp", {})
+    if not isinstance(mcp_block, dict):
+        mcp_block = {}
+        cfg["mcp"] = mcp_block
+    mcp_block.update(resolved)
 
     # 5. Write back
-    config.write_jsonc(omo_path, cfg)
+    config.write_jsonc(opencode_path, cfg)
 
     for name in resolved:
         log_ok(f"  + {name}")
-    log_ok(f"Domain MCP activated -> {omo_path}")
+    log_ok(f"Domain MCP activated -> {opencode_path}")
 
 
 # ── Domain MCP deactivation ───────────────────────────────────────
@@ -227,9 +241,9 @@ def activate_mcp_domain(
 def deactivate_mcp_domain(
     project_root: Path, domain_key: str, domain_root: Path
 ) -> None:
-    """Remove domain MCP entries from project ``oh-my-openagent.jsonc``.
+    """Remove domain MCP entries from project ``opencode.json``.
 
-    1. Read ``.opencode/oh-my-openagent.jsonc``.
+    1. Read ``.opencode/opencode.json``.
     2. Scan domain's ``mcp/*.json`` to discover server names.
     3. Remove every ``vibe:{name}`` key from the config's ``mcp`` block.
     4. Write back.
@@ -243,8 +257,8 @@ def deactivate_mcp_domain(
     domain_root:
         Absolute path to the domain directory inside the vibe-stack repo.
     """
-    omo_path = project_root / ".opencode" / OMO_CONFIG_NAME
-    if not omo_path.is_file():
+    opencode_path = project_root / ".opencode" / OPECODE_CONFIG_NAME
+    if not opencode_path.is_file():
         return
 
     # Collect server names declared in the domain's MCP JSON files
@@ -267,9 +281,9 @@ def deactivate_mcp_domain(
 
     # Read the current project config
     try:
-        cfg = config.read_jsonc(omo_path)
+        cfg = config.read_jsonc(opencode_path)
     except Exception as e:
-        log_error(f"无法读取 {omo_path}: {e}")
+        log_error(f"无法读取 {opencode_path}: {e}")
         return
 
     mcp: dict = cfg.setdefault("mcp", {})
@@ -288,7 +302,7 @@ def deactivate_mcp_domain(
     if not removed_any:
         return
 
-    config.write_jsonc(omo_path, cfg)
+    config.write_jsonc(opencode_path, cfg)
     log_ok(f"Domain MCP deactivated: {domain_key}")
 
 

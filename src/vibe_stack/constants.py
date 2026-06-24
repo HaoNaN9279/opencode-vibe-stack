@@ -21,5 +21,5 @@ OPECODE_CONFIG_NAME = "opencode.json"
 # Core MCP 条目前缀（写入 opencode.json 时使用）
 MCP_CORE_PREFIX = "vibe:core-"
 
-# Domain MCP 条目前缀（写入 oh-my-openagent.jsonc 时使用）
+# Domain MCP 条目前缀（写入 opencode.json 时使用）
 MCP_DOMAIN_PREFIX = "vibe:"
