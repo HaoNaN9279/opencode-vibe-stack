@@ -155,6 +155,9 @@ def _fallback_remove_links(
             if not _is_link_or_junction(item):
                 continue
 
+            if sub == "mcp" and item.suffix == ".json":
+                continue
+
             if sub == "tools":
                 # Files: match by prefix; dirs: match by target path
                 if item.name.startswith(prefix):
