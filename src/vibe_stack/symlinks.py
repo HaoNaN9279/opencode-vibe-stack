@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
 from vibe_stack.utils import is_windows, log_warn
@@ -96,7 +97,10 @@ def create_dir_link(src: Path, dest: Path) -> None:
 
 
 def link_directory_contents(
-    src_dir: Path, dest_dir: Path, prefix: str = ""
+    src_dir: Path,
+    dest_dir: Path,
+    prefix: str = "",
+    exclude_pattern: str | None = None,
 ) -> None:
     """Link every item inside *src_dir* into *dest_dir* as individual entries.
 
@@ -105,6 +109,8 @@ def link_directory_contents(
     *   Each item gets a per-item link inside *dest_dir*.
     *   When *prefix* is non-empty, each link name is
         ``{prefix}_{basename}``.
+    *   When *exclude_pattern* is not ``None``, items whose name matches the
+        shell glob pattern (via :func:`fnmatch.fnmatch`) are skipped.
 
     Directories become junctions (Windows) or symlinks (Unix); files
     become symlinks (with copy fallback on Windows).
@@ -124,6 +130,8 @@ def link_directory_contents(
         return
 
     for item in sorted(src_dir.iterdir()):
+        if exclude_pattern is not None and fnmatch(item.name, exclude_pattern):
+            continue
         item_name = item.name
         link_name = f"{prefix}_{item_name}" if prefix else item_name
         link_path = dest_dir / link_name
