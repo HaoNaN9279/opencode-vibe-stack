@@ -4,6 +4,6 @@
 [submodule "core/skills/markitdown/repo"]
 	path = core/skills/markitdown/repo
 	url = https://github.com/microsoft/markitdown.git
-[submodule "domains/game-dev/unity/mcp/HNUnityMCP"]
-	path = domains/game-dev/unity/mcp/HNUnityMCP
+[submodule "domains/game-dev/unity/skills/hn-unity-mcp/HNUnityMCP"]
+	path = domains/game-dev/unity/skills/hn-unity-mcp/HNUnityMCP
 	url = https://github.com/HaoNaN9279/HNUnityMCP.git
