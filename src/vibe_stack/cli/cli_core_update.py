@@ -233,6 +233,8 @@ def _sync_domain_links(vibe_home: Path, project_root: Path) -> None:
 
             for item in sorted(type_path.iterdir()):
                 item_name = item.name
+                if type_dir == "mcp" and item.suffix == ".json":
+                    continue
                 prefixed_name = f"{prefix}_{item_name}"
                 dest_rel = f"{type_dir}/{prefixed_name}"
                 src_rel = (
