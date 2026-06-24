@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "hn-unity-mcp": {
+      "command": "uv",
+      "args": ["run", "hn-unity-mcp"],
+      "cwd": "HNUnityMCP/python",
+      "timeout": 30000
+    }
+  }
+}
