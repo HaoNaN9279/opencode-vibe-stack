@@ -23,3 +23,6 @@ MCP_CORE_PREFIX = "vibe:core-"
 
 # Domain MCP 条目前缀（写入 opencode.json 时使用）
 MCP_DOMAIN_PREFIX = "vibe:"
+
+# MCP 符号链接目录占位符（在 MCP JSON 配置中引用）
+MCP_LINK_DIR_PLACEHOLDER = "${MCP_LINK_DIR}"

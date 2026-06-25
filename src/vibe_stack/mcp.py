@@ -17,9 +17,7 @@ Key concepts
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
-from vibe_stack import RegistryError
 from vibe_stack import config
 from vibe_stack import resolver
 from vibe_stack.constants import (
@@ -28,9 +26,7 @@ from vibe_stack.constants import (
     OPENCODE_CONFIG_DIR,
     OMO_CONFIG_NAME,
     OPECODE_CONFIG_NAME,
-    VIBE_STACK_MCP_REGISTRY_PATH,
 )
-from vibe_stack.registry import read_registry_from_home
 from vibe_stack.utils import log_error, log_info, log_ok, log_warn
 
 
@@ -95,38 +91,24 @@ def _default_project_opencode_config() -> dict:
 
 # ── Core MCP activation ───────────────────────────────────────────
 
-def activate_mcp_core(
-    vibe_home: Path, registry: Optional[dict] = None
-) -> None:
+def activate_mcp_core(vibe_home: Path) -> None:
     """Resolve and write **Core MCPs** to user-level ``opencode.json``.
 
-    1. Read registry from ``~/.config/opencode/vibe-stack-mcp.jsonc``
-       (or use *registry* if provided).
-    2. Resolve core MCP entries via :func:`resolver.resolve_core_mcp`.
-    3. Read existing ``~/.config/opencode/opencode.json`` — create default
+    1. Resolve core MCP entries via :func:`resolver.resolve_core_mcp`.
+    2. Read existing ``~/.config/opencode/opencode.json`` — create default
        if missing.
-    4. Merge resolved entries with ``vibe:core-`` prefix via
+    3. Merge resolved entries with ``vibe:core-`` prefix via
        :func:`config.merge_mcp_block`.
-    5. Write back with :func:`config.write_jsonc`.
+    4. Write back with :func:`config.write_jsonc`.
 
     Parameters
     ----------
     vibe_home:
         vibe-stack repository root path.
-    registry:
-        Optional pre-loaded registry dict.  When ``None`` the function
-        reads the default user registry from ``VIBE_STACK_MCP_REGISTRY_PATH``.
     """
-    # 1. Read registry
-    if registry is None:
-        registry = read_registry_from_home(vibe_home)
-
-    # 2. Resolve core MCP entries
+    # 1. Resolve core MCP entries (self-contained, no registry needed)
     try:
-        resolved = resolver.resolve_core_mcp(vibe_home, registry)
-    except RegistryError as e:
-        log_error(f"Core MCP 解析失败 — 注册表异常: {e}")
-        return
+        resolved = resolver.resolve_core_mcp(vibe_home)
     except Exception as e:
         log_error(f"Core MCP 解析失败: {e}")
         return
@@ -164,19 +146,17 @@ def activate_mcp_domain(
     project_root: Path,
     domain_key: str,
     domain_root: Path,
-    registry: Optional[dict] = None,
 ) -> None:
     """Resolve and write **domain MCPs** to project-level ``opencode.json``.
 
-    1. Read registry.
-    2. Resolve domain MCP entries via :func:`resolver.resolve_domain_mcp`.
-    3. If no MCPs found for this domain, return early.
-    4. Read existing ``.opencode/opencode.json`` — create default
+    1. Resolve domain MCP entries via :func:`resolver.resolve_domain_mcp`.
+    2. If no MCPs found for this domain, return early.
+    3. Read existing ``.opencode/opencode.json`` — create default
        if missing.
-    5. Merge resolved entries with ``vibe:`` prefix via ``mcp.update()``
+    4. Merge resolved entries with ``vibe:`` prefix via ``mcp.update()``
        (additive — only replaces matching keys, preserving entries from
        other domains).
-    6. Write back.
+    5. Write back.
 
     Parameters
     ----------
@@ -189,20 +169,10 @@ def activate_mcp_domain(
     domain_root:
         Absolute path to the domain directory inside the vibe-stack repo
         (e.g. ``vibe_home / "domains" / "ai" / "data-forge"``).
-    registry:
-        Optional pre-loaded registry dict.  When ``None`` the function
-        reads the default user registry from ``VIBE_STACK_MCP_REGISTRY_PATH``.
     """
-    # 1. Read registry
-    if registry is None:
-        registry = read_registry_from_home(vibe_home)
-
-    # 2. Resolve domain MCP entries
+    # 1. Resolve domain MCP entries (self-contained, no registry needed)
     try:
-        resolved = resolver.resolve_domain_mcp(vibe_home, domain_key, registry)
-    except RegistryError as e:
-        log_error(f"Domain MCP 解析失败 ({domain_key}) — 注册表异常: {e}")
-        return
+        resolved = resolver.resolve_domain_mcp(vibe_home, domain_key, project_root)
     except Exception as e:
         log_error(f"Domain MCP 解析失败 ({domain_key}): {e}")
         return

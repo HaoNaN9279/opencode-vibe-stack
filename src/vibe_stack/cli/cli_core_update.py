@@ -49,6 +49,16 @@ def cmd_core_update(vibe_home: Path, project_root: Path) -> None:
         OPENCODE_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         if type_name == "tools":
             symlinks.link_tools_directory(src, dest)
+        elif type_name == "mcp":
+            # Only link companion folders for MCP JSON configs
+            for mcp_file in sorted(src.glob("*.json")):
+                folder_name = mcp_file.stem
+                companion_dir = src / folder_name
+                if companion_dir.is_dir():
+                    link_name = folder_name
+                    link_path = dest / link_name
+                    symlinks.remove_link(link_path)
+                    symlinks.create_dir_link(companion_dir, link_path)
         else:
             symlinks.link_directory_contents(src, dest)
         log_ok(f"{type_name}/ -> per-item links synced")
@@ -231,10 +241,30 @@ def _sync_domain_links(vibe_home: Path, project_root: Path) -> None:
                         log_ok(f"  NEW: {dest_rel}")
                 continue
 
+            if type_dir == "mcp":
+                # Only process companion folders of .json configs
+                for mcp_file in sorted(type_path.glob("*.json")):
+                    folder_name = mcp_file.stem
+                    companion_dir = type_path / folder_name
+                    if companion_dir.is_dir():
+                        prefixed_name = f"{prefix}_{folder_name}"
+                        dest_rel = f"{type_dir}/{prefixed_name}"
+                        src_rel = (
+                            f"domains/{category}/{domain_name}/{type_dir}/{folder_name}"
+                        )
+
+                        if dest_rel not in updated_links:
+                            src_full = vibe_home / src_rel
+                            dest_full = dot_opencode / dest_rel
+                            dest_full.parent.mkdir(parents=True, exist_ok=True)
+                            _create_link(src_full, dest_full)
+                            updated_links[dest_rel] = src_rel
+                            changes_detected = True
+                            log_ok(f"  NEW: {dest_rel}")
+                continue
+
             for item in sorted(type_path.iterdir()):
                 item_name = item.name
-                if type_dir == "mcp" and item.suffix == ".json":
-                    continue
                 prefixed_name = f"{prefix}_{item_name}"
                 dest_rel = f"{type_dir}/{prefixed_name}"
                 src_rel = (

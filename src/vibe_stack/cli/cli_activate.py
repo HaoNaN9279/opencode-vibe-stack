@@ -20,7 +20,6 @@ from vibe_stack import DomainNotFoundError
 from vibe_stack import config
 from vibe_stack import manifest
 from vibe_stack import mcp
-from vibe_stack import registry as registry_mod
 from vibe_stack import symlinks
 from vibe_stack.constants import OPECODE_CONFIG_NAME, VIBE_STACK_DIR_TYPES
 from vibe_stack.utils import log_error, log_info, log_ok, log_warn
@@ -79,17 +78,18 @@ def _collect_links(
                     rel_src = item
                 links[key] = str(rel_src).replace("\\", "/")
         elif type_name == "mcp":
-            # Skip .json config files — only record linked items.
-            for item in sorted(src_dir.iterdir()):
-                if item.suffix == ".json":
-                    continue
-                link_name = f"{prefix}_{item.name}" if prefix else item.name
-                key = f"{type_name}/{link_name}"
-                try:
-                    rel_src = item.relative_to(vibe_home)
-                except ValueError:
-                    rel_src = item
-                links[key] = str(rel_src).replace("\\", "/")
+            # Only record companion folders of .json config files.
+            for mcp_file in sorted(src_dir.glob("*.json")):
+                folder_name = mcp_file.stem
+                companion_dir = src_dir / folder_name
+                if companion_dir.is_dir():
+                    link_name = f"{prefix}_{folder_name}" if prefix else folder_name
+                    key = f"{type_name}/{link_name}"
+                    try:
+                        rel_src = companion_dir.relative_to(vibe_home)
+                    except ValueError:
+                        rel_src = companion_dir
+                    links[key] = str(rel_src).replace("\\", "/")
         else:
             for item in sorted(src_dir.iterdir()):
                 link_name = f"{prefix}_{item.name}" if prefix else item.name
@@ -119,14 +119,6 @@ def cmd_activate(
         List of domain identifiers in ``"category/name"`` format
         (e.g. ``["ai/data-forge", "dcc/blender"]``).
     """
-    # ── Pre-read the user MCP registry once ──────────────────────
-    reg: dict | None = None
-    try:
-        reg = registry_mod.read_registry_from_home(vibe_home)
-    except Exception as exc:
-        log_warn(f"无法读取 MCP 注册表: {exc}")
-        # Continue with reg=None — activate_mcp_domain will re-read and handle
-
     # ── Ensure .opencode/ directory exists ───────────────────────
     dot_dir = project_root / ".opencode"
     dot_dir.mkdir(parents=True, exist_ok=True)
@@ -163,9 +155,15 @@ def cmd_activate(
                 if type_name == "tools":
                     symlinks.link_tools_directory(src_dir, dest_dir, prefix=prefix)
                 elif type_name == "mcp":
-                    symlinks.link_directory_contents(
-                        src_dir, dest_dir, prefix=prefix, exclude_pattern="*.json"
-                    )
+                    # Only link folders that have a companion JSON config
+                    for mcp_file in sorted(src_dir.glob("*.json")):
+                        folder_name = mcp_file.stem
+                        companion_dir = src_dir / folder_name
+                        if companion_dir.is_dir():
+                            link_name = f"{prefix}_{folder_name}" if prefix else folder_name
+                            link_path = dest_dir / link_name
+                            symlinks.remove_link(link_path)
+                            symlinks.create_dir_link(companion_dir, link_path)
                 else:
                     symlinks.link_directory_contents(src_dir, dest_dir, prefix=prefix)
             except Exception as exc:
@@ -198,7 +196,6 @@ def cmd_activate(
                 project_root=project_root,
                 domain_key=domain_key,
                 domain_root=domain_root,
-                registry=reg,
             )
         except Exception as exc:
             log_warn(f"Domain MCP 激活失败 ({domain_key}): {exc} — 继续")
