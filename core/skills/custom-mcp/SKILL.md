@@ -27,7 +27,9 @@ OpenCode 支持两种 MCP 服务器类型：
 | **本地 (local)** | 通过本地命令启动 | 本地运行的工具、脚本 |
 | **远程 (remote)** | 通过 URL 连接 | SaaS 服务、API 网关 |
 
-本地 MCP 服务器一律使用二进制文件，且需要同时考虑windows和linux平台，避免运行时依赖问题。
+本地 MCP 服务器采用**自包含模式**：一个 JSON 声明文件加上一个同名的伴随文件夹。JSON 文件声明 MCP 的启动参数，伴随文件夹包含 MCP 项目的代码或二进制文件。使用 `${MCP_LINK_DIR}` 占位符在 JSON 中引用伴随文件夹的路径，激活时自动解析为绝对路径。
+
+远程 MCP 服务器只需要一个 JSON 声明文件，自包含 `type: "remote"` 和 `url` 信息。
 
 ---
 
@@ -44,34 +46,54 @@ OpenCode 支持两种 MCP 服务器类型：
 - **未明确指明位置** → **必须询问用户**具体的添加位置，绝对不允许擅自做决策
 
 ### 2.1 全局 MCP（全局可用）
-全局 MCP 服务器配置放置在项目根目录的 `.opencode/mcp/` 目录下。
+全局 MCP 服务器配置放置在 `core/mcp/` 目录下。
 
+远程 MCP — 仅需一个 JSON 声明文件：
 ```
-.opencode/mcp/
-  ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
-  ├── <server-name>-win.exe        # windows预构建二进制文件
-  ├── <server-name>-linux          # linux预构建二进制文件
+core/mcp/
+  └── <server-name>.json           # MCP 声明文件（type: "remote" + url）
+```
+
+本地 MCP — JSON 声明文件 + 同名伴随文件夹：
+```
+core/mcp/
+  ├── <server-name>.json           # MCP 声明文件（使用 ${MCP_LINK_DIR} 占位符）
+  └── <server-name>/               # 伴随文件夹，包含 MCP 项目代码或二进制文件
 ```
 
 ### 2.2 领域 MCP（领域专用）
 
 领域 MCP 服务器配置放置在所属领域的 `mcp/` 目录下。
 
+远程 MCP：
 ```
 domains/<category>/<domain>/
   mcp/
-    ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
-    ├── <server-name>-win.exe        # windows预构建二进制文件
-    ├── <server-name>-linux          # linux预构建二进制文件
+    └── <server-name>.json           # MCP 声明文件（type: "remote" + url）
+```
+
+本地 MCP：
+```
+domains/<category>/<domain>/
+  mcp/
+    ├── <server-name>.json           # MCP 声明文件（含 ${MCP_LINK_DIR} 占位符）
+    └── <server-name>/               # 伴随文件夹，包含 MCP 项目代码或二进制文件
 ```
 
 ### 2.3 项目 MCP（项目专用）
 项目 MCP 服务器配置放置在 `.opencode/mcp/` 目录下。
+
+远程 MCP：
 ```
 .opencode/mcp/
-  ├── <server-name>.json           # MCP 注册配置文件（OpenCode 原生格式）
-  ├── <server-name>-win.exe        # windows预构建二进制文件
-  ├── <server-name>-linux          # linux预构建二进制文件
+  └── <server-name>.json           # MCP 声明文件（type: "remote" + url）
+```
+
+本地 MCP：
+```
+.opencode/mcp/
+  ├── <server-name>.json           # MCP 声明文件（含 ${MCP_LINK_DIR} 占位符）
+  └── <server-name>/               # 伴随文件夹，包含 MCP 项目代码或二进制文件
 ```
 ---
 
@@ -242,26 +264,32 @@ opencode mcp debug <server-name>       # 调试连接和 OAuth 流程
 
 ## 6. vibe-stack 的 MCP 管理机制
 
+vibe-stack 使用**自包含模式**管理 MCP 服务器配置，不再依赖外部注册表。
+每个 MCP 服务器的 JSON 声明文件包含完整的启动信息，无需额外配置步骤。
+
 ### 6.1 激活流程
 
 当执行 `vibe-stack activate <domain>` 时：
 
-1. 读取领域中所有 `mcp/*.json` 文件
-2. 解析 `${VIBE_STACK_HOME}` 和 `${PROJECT_ROOT}` 占位符
-3. 为服务器名称添加 `vibe:` 命名空间前缀（如 `vibe:data-forge`）
-4. 将条目合并到 `.opencode/opencode.json` 的 `mcp` 键下
-5. OpenCode 启动时自动发现并连接
+1. **扫描 JSON 声明文件** — 读取领域中所有 `mcp/*.json` 文件
+2. **检测伴随文件夹** — 若 JSON 文件存在同名的伴随文件夹（`mcp/{name}/`），则为本地 MCP；否则为远程 MCP
+3. **远程 MCP** — 直接读取 JSON 中的 `type: "remote"` 和 `url`，写入目标配置文件
+4. **本地 MCP** — 将伴随文件夹链接到 `.opencode/mcp/{prefix}_{name}/`，解析 JSON 中的 `${MCP_LINK_DIR}` 占位符为链接后的绝对路径，将解析后的配置写入目标配置文件
+5. **添加命名空间前缀** — 为服务器名称添加 `vibe:` 前缀（Core MCP 使用 `vibe:core-`，Domain MCP 使用 `vibe:`）
+6. **写入配置文件** — Core MCP 写入 `~/.config/opencode/opencode.json`，Domain MCP 写入 `.opencode/opencode.json`
+7. OpenCode 启动时自动发现并连接
 
-### 6.2 占位符解析
+### 6.2 `${MCP_LINK_DIR}` 占位符
+
+本地 MCP 的 JSON 声明文件中使用 `${MCP_LINK_DIR}` 占位符引用伴随文件夹的路径：
 
 ```json
 {
   "mcp": {
-    "data-forge": {
+    "my-local-server": {
       "type": "local",
-      "command": [
-        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge.exe"
-      ],
+      "command": ["${MCP_LINK_DIR}/start.sh"],
+      "cwd": "${MCP_LINK_DIR}",
       "enabled": true,
       "timeout": 120000
     }
@@ -269,34 +297,65 @@ opencode mcp debug <server-name>       # 调试连接和 OAuth 流程
 }
 ```
 
-- `${VIBE_STACK_HOME}` — 解析为 vibe-stack 仓库根目录
-- `${PROJECT_ROOT}` — 解析为当前项目根目录
+激活时，`${MCP_LINK_DIR}` 自动解析为伴随文件夹链接后的绝对路径：
 
-### 6.3 二进制发布支持
+- **Core MCP**: `~/.config/opencode/mcp/{name}/`
+- **Domain MCP**: `.opencode/mcp/{category}_{domain}_{name}/`
 
-MCP 服务器推荐使用预构建二进制文件，避免项目中需要 Python/Node 运行时：
+### 6.3 远程 MCP 配置示例
+
+远程 MCP 无需伴随文件夹，JSON 声明文件自包含所有信息：
 
 ```json
 {
   "mcp": {
-    "data-forge": {
-      "type": "local",
-      "command": [
-        "${VIBE_STACK_HOME}/domains/ai/data_forge/mcp/data-forge.exe"
-      ],
-      "enabled": true,
-      "release": {
-        "repo": "owner/repo-name",
-        "asset": {
-          "linux": "binary-linux-x64",
-          "windows": "binary-windows-x64.exe",
-          "darwin": "binary-macos-x64"
-        }
-      }
+    "my-remote-server": {
+      "type": "remote",
+      "url": "https://mcp.example.com/mcp",
+      "enabled": true
     }
   }
 }
 ```
+
+### 6.4 本地 MCP 配置示例
+
+本地 MCP 需要 JSON 声明文件 + 同名伴随文件夹：
+
+```
+domains/<category>/<domain>/
+  mcp/
+    ├── my-local-server.json       # MCP 声明文件
+    └── my-local-server/           # 伴随文件夹
+        ├── start.sh               # 启动脚本
+        ├── my-binary.exe          # 可执行文件
+        └── config.yaml            # 配置文件
+```
+
+JSON 声明文件内容：
+
+```json
+{
+  "mcp": {
+    "my-local-server": {
+      "type": "local",
+      "command": ["${MCP_LINK_DIR}/my-binary.exe", "--serve", "--mcp"],
+      "cwd": "${MCP_LINK_DIR}",
+      "enabled": true
+    }
+  }
+}
+```
+
+### 6.5 Core MCP vs Domain MCP
+
+| 类型 | 配置文件位置 | 命名空间前缀 |
+|------|-------------|-------------|
+| **Core MCP** | `~/.config/opencode/opencode.json` | `vibe:core-` |
+| **Domain MCP** | `.opencode/opencode.json` | `vibe:` |
+
+- **Core MCP** — 影响所有项目，在 vibe-stack 安装时自动激活
+- **Domain MCP** — 仅影响激活了该领域的项目，随领域激活/停用
 
 ---
 
@@ -304,15 +363,18 @@ MCP 服务器推荐使用预构建二进制文件，避免项目中需要 Python
 
 ```bash
 # 1. 确定 MCP 类型和作用范围
-# 全局 MCP → .opencode/mcp/
+# 全局（Core）MCP → core/mcp/
 # 领域 MCP → domains/<category>/<domain>/mcp/
 # 项目 MCP → .opencode/mcp/
 
-# 2. 创建 MCP 定义 JSON 文件
+# 2. 创建 MCP 声明 JSON 文件
 # 使用 OpenCode 原生 mcp 格式
+# 远程 MCP：mcp/<name>.json（自包含 type: "remote" 和 url）
+# 本地 MCP：mcp/<name>.json + mcp/<name>/（伴随文件夹）
 
-# 3. 构建或下载 MCP 服务器二进制文件
-# 放置在 mcp/ 目录下
+# 3. 对于本地 MCP，准备伴随文件夹
+# 将 MCP 项目代码、二进制文件或脚本放在 mcp/<name>/ 下
+# 在 JSON 中使用 ${MCP_LINK_DIR} 占位符引用路径
 
 # 4. 测试激活
 vibe-stack activate <category>/<domain>
