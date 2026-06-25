@@ -46,6 +46,7 @@ OpenCode AI → hn-unity-mcp (MCP Server) → HTTP → Unity Editor (HNUnityMCP 
 | 工具名称 | 描述 |
 |---------|------|
 | `get_compile_errors` | 获取 Unity 控制台中的编译错误和警告信息 |
+| `trigger_compilation` | 触发 Unity 脚本重新编译（调用 AssetDatabase.Refresh） |
 
 ### 扩展计划
 

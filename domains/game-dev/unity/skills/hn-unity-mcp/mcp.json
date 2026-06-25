@@ -2,8 +2,12 @@
   "mcpServers": {
     "hn-unity-mcp": {
       "command": "uv",
-      "args": ["run", "hn-unity-mcp"],
-      "cwd": "HNUnityMCP/python",
+      "args": [
+        "run",
+        "--directory",
+        "D:\\Unity Project\\FrameworkTest\\.opencode\\skills\\game-dev_unity_hn-unity-mcp\\HNUnityMCP\\python",
+        "hn-unity-mcp"
+      ],
       "timeout": 30000
     }
   }
