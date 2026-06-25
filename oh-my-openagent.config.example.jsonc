@@ -159,6 +159,7 @@
     "model_fallback": true
   },
   "agent_order": ["sisyphus", "prometheus", "atlas", "hephaestus"],
-  "disabled_agents": [],
-  "disabled_skills": []
+  "disabled_agents": ["hephaestus"],
+  "disabled_skills": [],
+  "disabled_mcps": ["codegraph"]
 }

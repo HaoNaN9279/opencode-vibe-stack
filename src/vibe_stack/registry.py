@@ -101,7 +101,7 @@ def generate_template(vibe_home: Path) -> dict:
             {
                 "version": 1,
                 "mcp_registry": {
-                    "codegraph": {"command": "", "_hint": "填写 codegraph 可执行文件的路径"},
+                    "data-forge": {"command": "", "_hint": "填写 data-forge 可执行文件的路径"},
                     ...
                 }
             }

@@ -138,7 +138,7 @@ def resolve_core_mcp(vibe_home: Path) -> dict[str, dict[str, Any]]:
         vibe_home: vibe-stack 仓库根路径
 
     Returns:
-        ``{"vibe:core-codegraph": {...}, ...}``
+        ``{"vibe:core-codebase-memory": {...}, ...}``
     """
     result: dict[str, dict[str, Any]] = {}
     mcp_dir = vibe_home / "core" / "mcp"
