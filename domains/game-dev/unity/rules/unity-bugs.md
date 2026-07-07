@@ -1,3 +1,5 @@
+本文件包含Unity 2022.3 中的无法修复的bug，开发过程当中需要尽量避免。
+
 # Unity Mono Enum 泛型 Native Crash
 
 ## 概述
@@ -32,20 +34,6 @@ public static T DeserializeFromString<T>(string jsonString)
 }
 ```
 
-## 排查过程
-
-| 尝试方案 | 结果 |
-|---|---|
-| `Enum.ToObject(type, enumInt)` | ❌ native crash |
-| `Enum.Parse(type, enumStr)` | ❌ native crash |
-| `Convert.ChangeType(enumStr, underlyingType)` + unbox cast | ❌ native crash |
-| `(T)(object)intVal` 直接 int→enum unbox | ❌ native crash |
-| `return default`（不做任何转换） | ❌ native crash |
-| 完全还原 `DeserializeFromString<T>` 为原始代码 | ❌ native crash |
-| 完整跳过 scalar 路径（不进入 if 分支） | ❌ crash（只要 `typeof(T).IsEnum` 在方法体内即触发） |
-
-**关键发现**：即使完全还原到原始代码，单独运行 enum 测试也会崩溃。但首次全量 1463 测试运行时 enum 测试未崩溃（仅失败）。推测与测试运行器的执行上下文或预热有关。
-
 ## 绕过方案
 
 在 `DeserializeFromString<T>` 的标量转换路径中，**显式排除 enum 类型**：
@@ -71,11 +59,3 @@ if (!jsonString.StartsWith("{") && !jsonString.StartsWith("["))
   - `DeserializeEnum_FromInteger_ReturnsCorrectValue`
   - `SerializeEnum_OutputsIntegerNotStringName`（仅需序列化，未受影响）
 - **不受影响**：复杂对象中 enum 字段的反序列化（走 `JsonOverwrite` → `SetFieldValue` 路径，enum 为 field type 而非泛型参数 `T`，不触发此 bug）
-
-## 后续建议
-
-1. 升级 Unity 到 6.x 版本后重新验证（Mono/CoreCLR 差异）
-2. 若 IL2CPP 构建模式下无此问题，可考虑 Enum 序列化仅在后端处理
-3. 如果未来需要修复 enum 测试，可考虑将 enum 值通过 `int` 类型中转而非泛型参数直接使用
-
----
