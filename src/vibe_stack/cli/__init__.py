@@ -1,153 +1,143 @@
-"""vibe-stack CLI — command routing via argparse.
+"""CLI entry point for the vibe-stack command.
 
-Usage:
-    vibe-stack list
-    vibe-stack status
-    vibe-stack activate <domains...>
-    vibe-stack deactivate <domains...>
-    vibe-stack use-stack <name>
-    vibe-stack core-update
-    vibe-stack help
+Exposes :func:`main` as the programmatic entry point wired in
+``pyproject.toml`` via ``vibe-stack = "vibe_stack.cli:main"``.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-from vibe_stack.utils import detect_vibe_stack_home
+from vibe_stack.utils.path_util import detect_vibe_home
+
+
+def _resolve_vibe_home() -> Path:
+    """Determine the vibe-stack repository root.
+
+    Precedence:
+    1. ``VIBE_STACK_HOME`` environment variable.
+    2. Filesystem walk-up via :func:`detect_vibe_home`.
+
+    Returns:
+        Absolute path to the vibe-stack repository root.
+
+    Raises:
+        RuntimeError: Propagated from :func:`detect_vibe_home` when the
+            repository cannot be located.
+    """
+    env_val = os.environ.get("VIBE_STACK_HOME")
+    if env_val:
+        return Path(env_val).resolve()
+    return detect_vibe_home()
 
 
 def main(argv: list[str] | None = None) -> None:
-    """CLI entry point — parse arguments and delegate to subcommands."""
-    vibe_home = detect_vibe_stack_home()
+    """CLI entry point — parse args and route to subcommands.
+
+    Args:
+        argv: Command-line arguments (defaults to ``sys.argv[1:]``).
+            Useful for testing — callers can inject an explicit argument
+            list without touching ``sys.argv``.
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    parser = argparse.ArgumentParser(prog="vibe-stack")
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="vibe-stack 0.2.0",
+    )
+
+    sub = parser.add_subparsers(dest="command")
+
+    # list
+    sp_list = sub.add_parser("list", help="List available domains")
+    sp_list.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # status
+    sp_status = sub.add_parser("status", help="Show active domains")
+    sp_status.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # info
+    sp_info = sub.add_parser("info", help="Show domain details")
+    sp_info.add_argument("domain", help="Domain key (e.g. dcc/blender)")
+    sp_info.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # activate
+    sp_activate = sub.add_parser("activate", help="Activate domains")
+    sp_activate.add_argument(
+        "domains", nargs="+", help="Domains to activate",
+    )
+
+    # deactivate
+    sp_deactivate = sub.add_parser("deactivate", help="Deactivate domains")
+    sp_deactivate.add_argument(
+        "domains", nargs="+", help="Domains to deactivate",
+    )
+
+    # use-stack
+    sp_use = sub.add_parser("use-stack", help="Use a stack preset")
+    sp_use.add_argument(
+        "name", nargs="?", default="", help="Stack name (omit to list available)",
+    )
+
+    # sync
+    sub.add_parser("sync", help="Sync core and active domains")
+
+    args = parser.parse_args(argv)
+
+    if not args.command:
+        parser.print_usage()
+        return
+
+    # Resolve paths once, after parsing so --version/--help work without
+    # needing a real vibe-stack repo on disk.
+    vibe_home = _resolve_vibe_home()
     project_root = Path.cwd().resolve()
 
-    # ── Pre-validate command before argparse ─────────────────
-    known_commands = {
-        "list",
-        "status",
-        "activate",
-        "deactivate",
-        "use-stack",
-        "core-update",
-        "help",
-    }
-    raw_args = sys.argv[1:] if argv is None else argv
-
-    if not raw_args or raw_args[0] not in known_commands:
-        if raw_args:
-            print(f"未知命令: {raw_args[0]}", file=sys.stderr)
-            print(file=sys.stderr)
-        _print_usage()
-        sys.exit(1)
-
-    # ── argparse setup ───────────────────────────────────────
-    parser = argparse.ArgumentParser(
-        prog="vibe-stack",
-        description="管理 OpenCode / OMO 领域配置",
-        add_help=False,
-    )
-    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
-
-    # ── list ─────────────────────────────────────────────────
-    subparsers.add_parser("list", help="列出可用领域")
-
-    # ── status ───────────────────────────────────────────────
-    subparsers.add_parser("status", help="显示当前项目激活的领域")
-
-    # ── activate ─────────────────────────────────────────────
-    p_activate = subparsers.add_parser("activate", help="激活一个或多个领域")
-    p_activate.add_argument(
-        "domains", nargs="+", metavar="DOMAIN", help="领域名称 (e.g. dcc/blender)"
-    )
-
-    # ── deactivate ───────────────────────────────────────────
-    p_deactivate = subparsers.add_parser("deactivate", help="停用一个或多个领域")
-    p_deactivate.add_argument(
-        "domains", nargs="+", metavar="DOMAIN", help="领域名称 (e.g. dcc/blender)"
-    )
-
-    # ── use-stack ────────────────────────────────────────────
-    p_use_stack = subparsers.add_parser(
-        "use-stack", help="使用预设堆栈激活多个领域"
-    )
-    p_use_stack.add_argument("name", nargs="?", default="", metavar="NAME", help="堆栈名称 (e.g. game-dev)")
-
-    # ── core-update ──────────────────────────────────────────
-    subparsers.add_parser("core-update", help="更新 core/ 配置的符号链接")
-
-    # ── help ─────────────────────────────────────────────────
-    subparsers.add_parser("help", help="显示此帮助信息")
-
-    args = parser.parse_args(raw_args)
-
-    # ── Route to subcommand handlers (lazy imports) ──────────
+    # ------------------------------------------------------------------
+    # Route to command (lazy-imported to keep startup fast)
+    # ------------------------------------------------------------------
     if args.command == "list":
-        from vibe_stack.cli import cli_list_status
+        from vibe_stack.cli.commands.list_status import cmd_list
 
-        cli_list_status.cmd_list(vibe_home=vibe_home, project_root=project_root)
+        cmd_list(vibe_home, json_output=args.json)
 
     elif args.command == "status":
-        from vibe_stack.cli import cli_list_status
+        from vibe_stack.cli.commands.list_status import cmd_status
 
-        cli_list_status.cmd_status(vibe_home=vibe_home, project_root=project_root)
+        cmd_status(vibe_home, project_root, json_output=args.json)
+
+    elif args.command == "info":
+        from vibe_stack.cli.commands.info import cmd_info
+
+        cmd_info(vibe_home, args.domain, json_output=args.json)
 
     elif args.command == "activate":
-        from vibe_stack.cli import cli_activate
+        from vibe_stack.cli.commands.activate import cmd_activate
 
-        cli_activate.cmd_activate(
-            domains=args.domains,
-            vibe_home=vibe_home,
-            project_root=project_root,
-        )
+        cmd_activate(vibe_home, project_root, args.domains)
 
     elif args.command == "deactivate":
-        from vibe_stack.cli import cli_deactivate
+        from vibe_stack.cli.commands.deactivate import cmd_deactivate
 
-        cli_deactivate.cmd_deactivate(
-            domains=args.domains,
-            vibe_home=vibe_home,
-            project_root=project_root,
-        )
+        cmd_deactivate(vibe_home, project_root, args.domains)
 
     elif args.command == "use-stack":
-        from vibe_stack.cli import cli_use_stack
+        from vibe_stack.cli.commands.use_stack import cmd_use_stack
 
-        cli_use_stack.cmd_use_stack(
-            name=args.name,
-            vibe_home=vibe_home,
-            project_root=project_root,
-        )
+        cmd_use_stack(vibe_home, project_root, args.name)
 
-    elif args.command == "core-update":
-        from vibe_stack.cli.cli_core_update import cmd_core_update
+    elif args.command == "sync":
+        from vibe_stack.cli.commands.sync import cmd_sync
 
-        cmd_core_update(
-            vibe_home=vibe_home, project_root=project_root
-        )
-
-    elif args.command == "help":
-        from vibe_stack.cli import cli_help
-
-        cli_help.cmd_help(vibe_home=vibe_home, project_root=project_root)
-
-
-def _print_usage() -> None:
-    """Print formatted usage information."""
-    print("USAGE")
-    print("    vibe-stack COMMAND ...")
-    print()
-    print("COMMANDS")
-    print("    list         列出可用领域")
-    print("    status       显示当前项目激活的领域")
-    print("    activate     激活一个或多个领域")
-    print("    deactivate   停用一个或多个领域")
-    print("    use-stack    使用预设堆栈激活多个领域")
-    print("    core-update  更新 core/ 配置的符号链接")
-    print("    help         显示此帮助信息")
-
-
-if __name__ == "__main__":
-    main()
+        cmd_sync(vibe_home, project_root)
