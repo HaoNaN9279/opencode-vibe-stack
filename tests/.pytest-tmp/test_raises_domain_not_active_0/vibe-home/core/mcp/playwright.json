@@ -1,0 +1,1 @@
+{"mcpServers": {"playwright": {"type": "local", "command": ["playwright-server"], "enabled": true}}}

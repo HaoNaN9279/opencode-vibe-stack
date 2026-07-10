@@ -1,0 +1,24 @@
+{
+  "instructions": [
+    "my-local.md",
+    "~/.config/opencode/rules/*.md"
+  ],
+  "skills": {
+    "paths": [
+      "/my/custom/skill",
+      "skills"
+    ]
+  },
+  "mcp": {
+    "my-server": {
+      "command": "node"
+    },
+    "vibe:core-playwright": {
+      "type": "local",
+      "command": [
+        "playwright-server"
+      ],
+      "enabled": true
+    }
+  }
+}

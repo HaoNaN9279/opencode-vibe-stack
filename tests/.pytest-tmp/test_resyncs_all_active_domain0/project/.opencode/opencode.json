@@ -1,0 +1,21 @@
+{
+  "instructions": [
+    ".opencode/rules/ai_data-forge/*.md",
+    ".opencode/rules/dcc_blender/*.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills/ai_data-forge",
+      ".opencode/skills/dcc_blender"
+    ]
+  },
+  "mcp": {
+    "vibe:ai_data-forge_data-forge": {
+      "type": "local",
+      "command": [
+        "data-forge-server"
+      ],
+      "enabled": true
+    }
+  }
+}

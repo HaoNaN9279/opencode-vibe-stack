@@ -1,0 +1,20 @@
+{
+  "instructions": [
+    "user-rule.md",
+    ".opencode/rules/ai_data-forge/*.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills/ai_data-forge"
+    ]
+  },
+  "mcp": {
+    "vibe:ai_data-forge_data-forge": {
+      "type": "local",
+      "command": [
+        "data-forge-server"
+      ],
+      "enabled": true
+    }
+  }
+}

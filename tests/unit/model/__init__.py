@@ -1,0 +1,1 @@
+"""Tests for vibe_stack.model package."""

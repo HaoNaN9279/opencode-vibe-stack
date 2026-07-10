@@ -1,0 +1,15 @@
+{
+  "instructions": [
+    "user-rule.md"
+  ],
+  "skills": {
+    "paths": [
+      "/user/skill"
+    ]
+  },
+  "mcp": {
+    "my-server": {
+      "command": "node"
+    }
+  }
+}

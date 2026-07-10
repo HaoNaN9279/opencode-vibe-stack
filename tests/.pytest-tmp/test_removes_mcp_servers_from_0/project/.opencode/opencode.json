@@ -1,0 +1,11 @@
+{
+  "mcp": {
+    "my-server": {
+      "command": "node"
+    }
+  },
+  "instructions": [],
+  "skills": {
+    "paths": []
+  }
+}

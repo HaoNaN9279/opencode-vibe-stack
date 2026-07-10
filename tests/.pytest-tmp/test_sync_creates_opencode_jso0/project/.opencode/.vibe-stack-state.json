@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "domains": {
+    "ai/data-forge": {
+      "domain_key": "ai/data-forge",
+      "namespace": "ai_data-forge",
+      "activated_at": "2026-07-10T08:27:56Z",
+      "files": [
+        "agents/ai_data-forge/forge-agent.md",
+        "mcp/ai_data-forge/data-forge.json",
+        "rules/ai_data-forge/data-forge.md"
+      ],
+      "directories": [
+        "skills/ai_data-forge/data-skill"
+      ],
+      "opencode_entries": {
+        "instructions": [
+          ".opencode/rules/ai_data-forge/*.md"
+        ],
+        "skills.paths": [
+          ".opencode/skills/ai_data-forge"
+        ],
+        "mcpServers": [
+          "ai_data-forge_data-forge"
+        ]
+      }
+    }
+  }
+}

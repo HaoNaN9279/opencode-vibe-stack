@@ -1,0 +1,19 @@
+{
+  "instructions": [
+    "~/.config/opencode/rules/*.md"
+  ],
+  "skills": {
+    "paths": [
+      "skills"
+    ]
+  },
+  "mcp": {
+    "vibe:core-playwright": {
+      "type": "local",
+      "command": [
+        "playwright-server"
+      ],
+      "enabled": true
+    }
+  }
+}
