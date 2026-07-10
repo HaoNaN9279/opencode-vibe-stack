@@ -1,0 +1,7 @@
+{
+  "name": "data-forge",
+  "description": "Data transformation and AI training data pipeline tools",
+  "version": "1.0.0",
+  "tags": ["data", "ai", "training"],
+  "dependencies": []
+}

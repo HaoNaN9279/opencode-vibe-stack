@@ -1,0 +1,7 @@
+{
+  "name": "unity",
+  "description": "Unity game engine integration with C# AI-assisted development",
+  "version": "1.0.0",
+  "tags": ["gamedev", "unity", "csharp"],
+  "dependencies": []
+}

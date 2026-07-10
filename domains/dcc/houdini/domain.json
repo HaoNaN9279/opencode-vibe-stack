@@ -1,0 +1,7 @@
+{
+  "name": "houdini",
+  "description": "Houdini FX procedural 3D and VFX integration",
+  "version": "1.0.0",
+  "tags": ["dcc", "fx", "houdini"],
+  "dependencies": []
+}

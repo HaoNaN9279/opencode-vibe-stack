@@ -1,0 +1,7 @@
+{
+  "name": "maya",
+  "description": "Autodesk Maya 3D animation and modeling integration",
+  "version": "1.0.0",
+  "tags": ["dcc", "3d", "maya"],
+  "dependencies": []
+}

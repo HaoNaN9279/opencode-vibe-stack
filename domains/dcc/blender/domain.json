@@ -1,0 +1,7 @@
+{
+  "name": "blender",
+  "description": "Blender 3D creation suite integration and AI-assisted workflows",
+  "version": "1.0.0",
+  "tags": ["dcc", "3d", "blender"],
+  "dependencies": []
+}

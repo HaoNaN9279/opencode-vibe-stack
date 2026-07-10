@@ -1,0 +1,7 @@
+{
+  "name": "photoshop",
+  "description": "Adobe Photoshop image editing and design integration",
+  "version": "1.0.0",
+  "tags": ["dcc", "2d", "photoshop"],
+  "dependencies": []
+}

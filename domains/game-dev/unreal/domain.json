@@ -1,0 +1,7 @@
+{
+  "name": "unreal",
+  "description": "Unreal Engine 5 integration with C++ and Blueprint AI-assisted development",
+  "version": "1.0.0",
+  "tags": ["gamedev", "unreal", "cpp"],
+  "dependencies": []
+}

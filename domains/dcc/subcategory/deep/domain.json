@@ -1,0 +1,7 @@
+{
+  "name": "deep-nested",
+  "description": "Deeply nested domain for discovery testing (dcc/subcategory/deep)",
+  "version": "1.0.0",
+  "tags": ["test", "nested"],
+  "dependencies": []
+}
