@@ -1,80 +1,136 @@
 # Vibe Stack
 
-**面向 OpenCode + OhMyOpenAgent (OMO) 的分层 AI 智能体配置管理**
+**面向 OpenCode 的分层 AI 智能体配置管理**
 
-当你在多个领域（游戏开发、DCC 工具、AI/数据、Web、移动端）进行开发时，你的 AI 智能体需要针对每个领域使用不同的规则、技能和配置。Vibe Stack 将这些配置隔离到版本化、可组合的层级中——而不弄乱你的用户配置目录。
+当你在多个领域（游戏开发、DCC 工具、AI/数据）进行开发时，你的 AI 智能体需要针对每个领域使用不同的规则、技能和配置。Vibe Stack 将这些配置隔离到版本化、可组合的层级中——而不弄乱你的项目配置目录。
 
 ## 工作原理
 
 ```
-┌─────────────────────────────────────────────┐
-│  User Config (~/.config/opencode/)          │
-│  └─ Symlinks → core/        (always loaded) │
-├─────────────────────────────────────────────┤
-│  Project Config (.opencode/)                │
-│  ├─ Symlinks → domains/*/*  (per-project)   │
-│  └─ opencode.json ← merged MCP + skills     │
-├─────────────────────────────────────────────┤
-│  Vibe Stack Repo (this repo)                │
-│  ├── core/          ← resident configs      │
-│  ├── domains/       ← domain-specific       │
-│  │   ├── ai/                                │
-│  │   │   └── data-forge/   (MCP, rules)     │
-│  │   ├── dcc/                               │
-│  │   │   ├── blender/                       │
-│  │   │   ├── houdini/                       │
-│  │   │   ├── maya/                          │
-│  │   │   └── photoshop/   (agents, cmds)    │
-│  │   └── game-dev/                          │
-│  │       ├── unity/                         │
-│  │       └── unreal/                        │
-│  └── stacks/        ← preset combos         │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  User Config (~/.config/opencode/)              │
+│  └─ File copy ← core/          (sync 触发)      │
+├─────────────────────────────────────────────────┤
+│  Project Config (.opencode/)                    │
+│  ├─ File copy ← domains/**/*    (activate 触发) │
+│  │   └─ 命名空间子目录隔离 (rules/dcc_blender/)  │
+│  ├─ .vibe-stack-state.json  ← 所有权追踪        │
+│  └─ opencode.json ← 合并 instructions/skills/MCP│
+├─────────────────────────────────────────────────┤
+│  Vibe Stack Repo (this repo)                    │
+│  ├── core/          ← 常驻配置                  │
+│  ├── domains/       ← 领域定义（任意深度嵌套）    │
+│  │   ├── ai/                                    │
+│  │   │   └── data-forge/  (domain.json)         │
+│  │   ├── dcc/                                   │
+│  │   │   ├── blender/      (domain.json)        │
+│  │   │   ├── houdini/                           │
+│  │   │   ├── maya/                              │
+│  │   │   └── photoshop/                         │
+│  │   └── game-dev/                              │
+│  │       ├── unity/                             │
+│  │       └── unreal/                            │
+│  └── stacks/        ← 预定义领域组合             │
+│  └── tools/          ← 共享工具代码（集中管理）     │
+└─────────────────────────────────────────────────┘
 ```
 
 ## 快速开始
 
 ```bash
-# 1. Clone and install
+# 1. 克隆仓库
 git clone https://github.com/your-org/opencode-vibe-stack.git ~/.opencode-vibe-stack
-cd ~/.opencode-vibe-stack && bash install.sh
 
-# 2. In any project, activate domains
-vibe-stack activate ai/data-forge
-vibe-stack activate dcc/blender
+# 2. 安装 Python 依赖
+cd ~/.opencode-vibe-stack && uv sync
 
-# 3. List available domains
-vibe-stack list
-
-# 4. Use a preset stack
-vibe-stack use-stack game-dev
-vibe-stack use-stack ai-training
+# 3. 初次同步（Core → ~/.config/opencode/）
+uv run vibe-stack sync
 ```
 
-## 配置分层
+## 日常使用
 
-当你在 OpenCode 中使用 OMO 打开一个项目时，配置按以下顺序加载：
+```bash
+# 在项目中激活领域
+cd my-project
+vibe-stack activate dcc/blender ai/data-forge
 
-1. **Core（核心）** — 始终加载（全局规则、共享技能、通用智能体）
-2. **Project（项目）** — 你项目的 `.opencode/` 目录
-3. **Domain（领域）** — 通过 `vibe-stack activate` 激活（每个项目的领域配置）
+# 查看激活状态
+vibe-stack status
 
-OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.opencode/opencode.json` 中。
+# 查看领域详情
+vibe-stack info dcc/blender
+
+# 源配置更新后，同步到项目
+vibe-stack sync
+
+# 停用领域
+vibe-stack deactivate dcc/blender
+
+# 使用预设堆栈
+vibe-stack use-stack game-dev
+```
+
+## 核心概念
+
+### 配置分层
+
+当你在 OpenCode 中打开一个项目时，配置按以下顺序加载：
+
+1. **Core（核心）** — 全局规则和共享技能，通过 `vibe-stack sync` 同步到 `~/.config/opencode/`
+2. **Project（项目）** — 你项目的 `.opencode/` 目录，项目专有内容永不被修改
+3. **Domain（领域）** — 通过 `vibe-stack activate` 按需激活，领域文件被**拷贝**到命名空间子目录中
+
+配置变更后需显式运行 `vibe-stack sync` 才会传播到项目中。
+
+### 领域（Domain）—— 最小配置单元
+
+每个领域通过 `domain.json` 自描述，支持任意深度嵌套。通过 `domains/**/domain.json` 递归发现，不限制目录层级。
+
+```jsonc
+// domains/dcc/blender/domain.json
+{
+  "name": "blender",
+  "description": "Blender 3D creation suite integration",
+  "version": "1.0.0",
+  "tags": ["dcc", "3d", "blender"],
+  "dependencies": []
+}
+```
+
+领域键由目录相对路径自动推导：`domains/dcc/blender/domain.json` → 键: `dcc/blender`。
+
+### 命名空间（Namespace）—— 防冲突隔离
+
+每个领域激活后在 `.opencode/` 下拥有独立子目录：
+
+```
+领域键: dcc/blender → 命名空间: dcc_blender
+
+.opencode/rules/dcc_blender/           ← 独立目录
+.opencode/agents/dcc_blender/
+.opencode/commands/dcc_blender/
+.opencode/mcp/dcc_blender/
+.opencode/skills/dcc_blender/
+```
+
+文件名保持不变，删除领域时直接移除整个命名空间目录。
+
+### 所有权（Ownership）—— 项目内容保护
+
+`.opencode/.vibe-stack-state.json` 记录 vibe-stack 拥有的全部内容。停用时精确删除，项目专有内容永不被触碰。
 
 ## 每个领域包含什么
-
-每个领域目录包含：
 
 | 目录        | 用途                              |
 |-------------|-----------------------------------|
 | `rules/`    | 领域特定的编码规则                |
 | `agents/`   | 自定义智能体定义                  |
 | `commands/` | 自定义斜杠命令                    |
-| `mcp/`      | MCP 服务器配置 + 二进制文件       |
-| `skills/`   | 领域调优的 AI 技能                |
-| `tools/`    | AI 自定义工具定义（.ts 文件）     |
+| `mcp/`      | MCP 服务器配置                    |
+| `skills/`   | AI 技能（含内嵌工具代码）          |
 
-> **MCP 目录** 包含用于自动 MCP 注册的 `<domain>.json` 配置文件。
+> 工具代码不再独立为 `tools/` 目录，而是内嵌在对应的 `skills/{name}/tools/` 中。
 
 ## 可用领域
 
@@ -101,89 +157,138 @@ OMO 自动处理合并。领域 MCP 配置和技能注册会被合并到 `.openc
 ## 添加新领域
 
 ```bash
-# Create the domain structure
-mkdir -p domains/my-category/my-domain/{rules,agents,commands,mcp,skills,tools}
+# 1. 创建领域结构（需包含 domain.json）
+mkdir -p domains/my-category/my-domain/{rules,agents,commands,mcp,skills}
 
-# Add your rules, skills, etc.
+# 2. 创建领域元数据
+cat > domains/my-category/my-domain/domain.json << 'EOF'
+{
+  "name": "my-domain",
+  "description": "My custom domain configuration",
+  "version": "1.0.0",
+  "tags": ["custom"],
+  "dependencies": []
+}
+EOF
+
+# 3. 添加规则、技能等内容
 echo "## My Domain Rules" > domains/my-category/my-domain/rules/my-domain.md
 
-# If domain provides an MCP server, add config + binary
-#   mcp/my-domain.json   → MCP registration
-#   mcp/my-domain.exe    → prebuilt binary (optional)
-
-# Commit and push
+# 4. 提交
 git add domains/my-category/ && git commit -m "feat: add my-domain configs" && git push
+```
+
+## CLI 命令
+
+| 命令 | 功能 |
+|------|------|
+| `list` | 列出所有可用领域 |
+| `status` | 显示当前项目激活的领域 |
+| `info <domain>` | 显示领域元数据 |
+| `activate <d...>` | 激活一个或多个领域 |
+| `deactivate <d...>` | 停用一个或多个领域 |
+| `use-stack <name>` | 使用预设堆栈激活多个领域 |
+| `sync` | 刷新 Core + 所有激活领域 |
+
+## 工具管理
+
+所有工具集中在仓库根部的 `tools/` 目录，不在各领域 skill 中重复存放。
+
+`vibe-stack sync` 会自动扫描 `tools/` 下所有包含 `pyproject.toml` 的工具目录，生成 `~/.config/opencode/rules/vibe-stack-tools.md` 规则文件。AI 智能体启动时自动加载该文件，通过其中的绝对路径定位工具。
+
+### 添加新工具
+
+```bash
+# 放入工具代码
+cp -r my-tool tools/
+
+# 执行 sync 生成工具索引
+vibe-stack sync
+```
+
+### Skill 引用方式
+
+Skill 的 `SKILL.md` 通过引用 `vibe-stack-tools.md` 中的路径执行工具——不捆绑工具代码：
+
+```markdown
+工具位于 Vibe Stack 仓库的 `tools/my-tool/`，具体路径见
+`~/.config/opencode/rules/vibe-stack-tools.md`。
+
+使用：uv run --project <VIBE_STACK_ROOT>/tools/my-tool <command>
 ```
 
 ## 架构原则
 
-- **用户配置零内容** — `~/.config/opencode/` 只包含符号链接
-- **零重复** — 每个领域只有一个权威来源，通过符号链接共享
+- **仅依赖 OpenCode** — 不依赖 OhMyOpenAgent 或其他插件，配置目标只有 `opencode.json`
+- **文件拷贝替代符号链接** — 源文件变更后需显式 `vibe-stack sync` 才会传播，避免意外变更
+- **命名空间子目录替代文件名前缀** — 保持原始文件名，删除干净，项目内容不受影响
+- **状态文件追踪所有权** — `.vibe-stack-state.json` 记录所有 vibe-stack 管理的文件，停用时精确删除
+- **domain.json 标记领域根** — `domains/**/domain.json` 递归发现，支持任意深度嵌套
 - **一切 Git 版本化** — 所有配置都在此仓库中追踪
-- **模型无关** — 智能体/分类的模型参数不在范围之内（按机器配置）
-- **MCP v2 注册表机制** — 领域通过 `mcp/*.json` 声明 MCP 服务器，用户通过 `~/.config/opencode/vibe-stack-mcp.jsonc` 注册可执行路径，实现声明与配置分离
-- **Python/uv 驱动的 CLI** — `vibe-stack` CLI 使用 Python 编写，通过 uv 运行，取代了之前的 Shell 脚本实现
-- **OMO 原生** — 使用 OMO 的 agent_definitions、command_definitions 和配置遍历
-- **通过 `opencode.json` 注册技能** — 使用 `skills.paths`（而非 OMO 的 `skills.sources`）
+- **模型无关** — 智能体的模型参数不在本仓库范围内（由用户按机器配置）
+- **Python/uv 驱动的 CLI** — 使用 Python 3.11+ 编写，通过 uv 管理虚拟环境
 
 ## MCP 配置
 
-Vibe Stack 引入了 MCP 注册表机制，将 MCP 服务器的**声明**与**路径配置**分离：
+MCP 路径解析采用轻量级的环境变量 + 配置文件机制：
 
-- **领域声明** — 每个 `mcp/*.json` 文件声明该领域提供的 MCP 服务器名称和参数
-- **用户注册** — 用户编辑 `~/.config/opencode/vibe-stack-mcp.jsonc`，为每个 MCP 服务器指定可执行路径
-- **自动解析** — `vibe-stack activate` 时自动读取注册表，将解析后的配置写入对应的 OpenCode/OMO 配置文件
+### 解析优先级（从高到低）
 
-注册表文件格式如下：
+1. `MCP_PATH_{SERVER_NAME}` 环境变量
+2. `MCP_PATH` 环境变量（通用回退）
+3. `~/.config/opencode/vibe-mcp-paths.json` 配置文件
+4. 命令字符串原样（依赖系统 PATH）
+
+### vibe-mcp-paths.json 格式
 
 ```jsonc
+// ~/.config/opencode/vibe-mcp-paths.json
 {
-  "version": 1,
-  "mcp_registry": {
+  "data-forge": "C:\\tools\\data-forge.exe",
+  "codebase-memory": "/usr/local/bin/codebase-memory-mcp"
+}
+```
+
+### 领域 MCP 声明
+
+领域通过 `mcp/*.json` 声明 MCP 服务器，使用 `${VARNAME}` 占位符引用可执行路径：
+
+```jsonc
+// domains/ai/data-forge/mcp/data-forge.json
+{
+  "mcpServers": {
     "data-forge": {
-      "command": "/path/to/data-forge",      // 可执行文件路径
-      "args": ["--port", "8080"]             // 可选：命令行参数
-    },
-    "data-forge": {
-      "command": "C:\\tools\\data-forge.exe" // Windows 路径示例
+      "type": "local",
+      "command": ["${MCP_PATH_DATA_FORGE}", "--port=8080"],
+      "enabled": true
     }
   }
 }
 ```
 
-安装时 `vibe-stack` 会自动生成注册表模板。首次使用时编辑该文件，填写每个 MCP 服务器的实际可执行路径即可。
-
-> **为什么需要注册表？** 之前版本的 MCP 配置将可执行路径硬编码在 JSON 文件中，导致每台机器都需要修改配置。注册表将路径信息集中管理，领域配置只关心"需要哪些 MCP 服务器"，用户配置只关心"这些服务器在哪里"。
+激活领域时，`vibe-stack` 自动解析占位符，将解析后的 MCP 配置写入 `.opencode/opencode.json`（以 `vibe:` 前缀区分）。
 
 ## 环境要求
 
 - OpenCode >= 1.15.x（推荐最新版本）
-- 已安装 OhMyOpenAgent (OMO) 插件
 - Python >= 3.11
-- uv（Python 包管理器，安装方式：https://astral.sh/uv）
+- uv（Python 包管理器，安装方式：https://docs.astral.sh/uv）
 - Git
-- Bash（Linux/macOS）或 PowerShell（Windows）
 
-## 安装
-
-### Linux / macOS
+## 安装（3 步）
 
 ```bash
-bash install.sh
+# 1. 克隆仓库
+git clone https://github.com/your-org/opencode-vibe-stack.git ~/.opencode-vibe-stack
+
+# 2. 安装 Python 依赖
+cd ~/.opencode-vibe-stack && uv sync
+
+# 3. 初次同步（Core → ~/.config/opencode/）
+uv run vibe-stack sync
 ```
 
-### Windows
-
-```powershell
-.\install.ps1
-```
-
-安装程序将：
-1. 克隆/更新此仓库到 `~/.opencode-vibe-stack`
-2. 从 `~/.config/opencode/` 创建到 `core/` 的符号链接
-3. 更新项目 `.opencode/opencode.json` 中的技能路径引用
-4. 生成 MCP 注册表模板（`~/.config/opencode/vibe-stack-mcp.jsonc`），用于配置 MCP 服务器路径
-5. 安装 `vibe-stack` CLI（Python/uv 驱动）
+`sync` 命令会将 core/ 下的配置拷贝到 `~/.config/opencode/`，并写入必要的 `opencode.json` 条目。
 
 ## 许可证
 
