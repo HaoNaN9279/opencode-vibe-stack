@@ -30,8 +30,8 @@ Momus 负责审核 Prometheus 生成的计划：
 
 ## 计划与跟踪文件位置
 
-- 计划文件：`.opencode/tasks/<任务名称>/plan.md`
-- 跟踪文件：`.opencode/tasks/<任务名称>/boulder.json`
+- 计划文件：`.opencode/jobs/<日期时间（精确到秒）>_<任务名称>/plan.md`
+- 跟踪文件：`.opencode/jobs/<日期时间（精确到秒）>_<任务名称>/boulder.json`
 - `plan.md` 是 Atlas 执行的唯一依据，包含步骤定义、依赖关系和验收标准。
 - `boulder.json` 记录执行进度、各步骤状态和累积发现。
 
@@ -51,7 +51,7 @@ Atlas 接管后的标准执行路径：
 
 - **Sisyphus-Junior**：聚焦执行器，负责具体编码和实现。**不可重新委派任务**给其他代理。
 - **Oracle**：只读代码审查，负责目标验证、代码质量检查和安全性分析。
-- **Librarian**：只读知识检索，负责文档查询、代码搜索和外部资料收集。
+- **Librarian**：代码仓库探索、只读知识检索，负责文档查询、代码搜索和外部资料收集。
 - **Multimodal-Looker**：只读媒体分析，负责图片、PDF 等非文本文件的视觉信息提取。
 - **Momus**：只读计划审核，负责检查计划的完整性和可行性，不参与执行。
 

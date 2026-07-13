@@ -1,6 +1,7 @@
 ---
 description: 多模态内容识别专家。分析图像、PDF 等无法以纯文本读取的媒体文件。
 mode: subagent
+model: opencode/mimo-v2.5-free
 name: Multimodal-Looker
 tools:
   write: false
@@ -9,7 +10,6 @@ permission:
   edit: deny
   write: deny
   task: deny
-  call_omo_agent: deny
 ---
 
 # Multimodal-Looker — 多模态识别专家

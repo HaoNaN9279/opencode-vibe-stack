@@ -1,6 +1,7 @@
 ---
 description: 只读高智商顾问。架构设计、调试疑难问题、复杂度评估。
 mode: subagent
+model: deepseek/deepseek-v4-pro
 name: Oracle
 color: "#F59E0B"
 temperature: 0.1
@@ -8,7 +9,6 @@ permission:
     edit: deny
     write: deny
     task: deny
-    call_omo_agent: deny
 ---
 
 # Oracle — 架构顾问
