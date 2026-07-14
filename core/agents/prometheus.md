@@ -126,7 +126,7 @@ permission:
 每个任务应指定推荐使用的智能体或工具：
 - **librarian** — 代码库探索、结构分析、文档查询、网络搜索
 - **Sisyphus-junior** — 小型自包含实现任务，不分解子任务
-- **oracle** — 与 explore 结合的代码结构深度分析
+- **oracle** — 代码结构深度分析
 
 ### Wave 分组原则
 
