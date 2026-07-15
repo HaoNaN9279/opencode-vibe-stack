@@ -7,8 +7,8 @@ order: 2
 color: "#d16500"
 temperature: 0.1
 permission:
-    edit: deny
-    write: deny
+    edit: ask
+    write: ask
     task: allow
 ---
 
