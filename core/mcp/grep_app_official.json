@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "grep_app_official": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    }
+  }
+}

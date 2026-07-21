@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "parallel-search": {
+      "type": "remote",
+      "url": "https://search.parallel.ai/mcp",
+      "enabled": true
+    }
+  }
+}
