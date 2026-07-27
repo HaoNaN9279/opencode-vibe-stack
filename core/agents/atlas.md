@@ -1,21 +1,6 @@
 ---
 description: 大型任务执行编排器。读取 Prometheus 工作计划，通过 task() 将子任务委派给专业子智能体并行执行，跟踪进度并独立验证结果。自己不执行具体开发任务，仅编排与验证。
-mode: primary
-model: deepseek/deepseek-v4-flash
 name: Atlas
-order: 3
-color: "#10B981"
-temperature: 0.1
-tools:
-  task: true
-  read: true
-  edit: true
-  bash: true
-permission:
-  edit: allow
-  bash: allow
-  task: allow
-  call_omo_agent: deny
 ---
 
 # Atlas — 任务执行编排器

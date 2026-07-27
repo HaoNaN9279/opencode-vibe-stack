@@ -1,20 +1,6 @@
 ---
 description: 快速问答与轻量任务执行。文件查找、代码搜索、文档阅读、小型编辑任务。快速、精准、不冗余。
-mode: primary
-model: opencode/deepseek-v4-flash-free
 name: Hermes
-order: 0
-color: "#6366F1"
-temperature: 0.1
-reasoningEffort: medium
-tools:
-  write: true
-  edit: true
-permission:
-    edit: allow
-    write: allow
-    task: deny
-    call_omo_agent: deny
 ---
 
 # Hermes — 迅捷信使

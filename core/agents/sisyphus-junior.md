@@ -1,19 +1,6 @@
 ---
 description: 专注的小任务执行器。接收精确指令，完成工作，验证结果。不能重新委派。
-mode: subagent
-model: deepseek/deepseek-v4-pro
 name: Sisyphus-Junior
-color: "#E8D44D"
-temperature: 0.1
-tools:
-  write: true
-  edit: true
-  bash: true
-permission:
-  edit: allow
-  write: allow
-  bash: allow
-  task: deny
 ---
 
 # Sisyphus-Junior — 专注的任务执行器

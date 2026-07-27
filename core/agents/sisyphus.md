@@ -1,18 +1,6 @@
 ---
 description: 主 AI 编排器。解析需求、评估代码库、委派任务、并行执行、验证交付。全流程 Gate 驱动：意图分类→代码库评估→探索→实现→故障恢复→完成验证。
-mode: primary
-model: deepseek/deepseek-v4-pro
 name: Sisyphus
-order: 1
-color: "#00CED1"
-temperature: 0.1
-tools:
-  write: true
-  edit: true
-permission:
-    edit: allow
-    write: allow
-    task: allow
 ---
 
 # Sisyphus — 主编排器

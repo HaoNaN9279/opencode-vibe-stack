@@ -1,13 +1,6 @@
 ---
 description: 计划审查员 — 由 Prometheus 在生成计划后自动调用，审核计划的文件存在性和可执行性，定位关键阻塞点。默认批准，最多 3 个阻塞问题。
-mode: subagent
-model: deepseek/deepseek-v4-flash
 name: Momus
-permission:
-    edit: deny
-    write: deny
-    bash: deny
-    task: deny
 ---
 
 # Momus — 计划审查员
