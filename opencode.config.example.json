@@ -1,31 +1,118 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": false,
-  "default_agent": "Hermes",
-  "permission": {
-    "bash": {
-      "git commit": "ask",
-      "git add": "ask",
-      "git delete": "ask",
-      "git clone": "ask",
-      "rm -rf": "deny",
-      "chmod": "deny",
-      "chown": "deny",
-      "netcat": "deny",
-      "ssh": "deny",
-      "scp": "deny",
-      "telnet": "deny",
-      "dd": "deny",
-      "mkfs": "deny",
-      "mount": "deny",
-      "umount": "deny",
-      "reboot": "deny",
-      "shutdown": "deny",
-      "iptables": "deny",
-      "ufw": "deny",
-      "chroot": "deny"
+  "agent": {
+    "build": {
+      "disable": true
+    },
+    "plan": {
+      "disable": true
+    },
+    "Sisyphus": {
+      "mode": "primary",
+      "order": 1,
+      "color": "#00CED1",
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "allow",
+        "write": "allow",
+        "task": "allow"
+      }
+    },
+    "Sisyphus-Junior": {
+      "mode": "subagent",
+      "color": "#E8D44D",
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "allow",
+        "write": "allow",
+        "bash": "allow",
+        "task": "deny"
+      }
+    },
+    "Prometheus": {
+      "mode": "primary",
+      "order": 2,
+      "color": "#d16500",
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "ask",
+        "write": "ask",
+        "task": "allow"
+      }
+    },
+    "Oracle": {
+      "mode": "subagent",
+      "color": "#F59E0B",
+      "model": "deepseek/deepseek-v4-pro",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "task": "deny"
+      }
+    },
+    "Multimodal-Looker": {
+      "mode": "subagent",
+      "model": "opencode/mimo-v2.5-free",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "task": "deny"
+      }
+    },
+    "Momus": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "bash": "deny",
+        "task": "deny"
+      }
+    },
+    "Librarian": {
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "task": "deny",
+        "call_omo_agent": "deny"
+      }
+    },
+    "Hermes": {
+      "mode": "primary",
+      "order": 0,
+      "color": "#6366F1",
+      "model": "opencode/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "reasoningEffort": "medium",
+      "permission": {
+        "edit": "allow",
+        "write": "allow",
+        "task": "deny",
+        "call_omo_agent": "deny"
+      }
+    },
+    "Atlas": {
+      "mode": "primary",
+      "order": 3,
+      "color": "#10B981",
+      "model": "deepseek/deepseek-v4-flash",
+      "temperature": 0.1,
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "task": "allow",
+        "call_omo_agent": "deny"
+      }
     }
   },
+  "default_agent": "Hermes",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -40,9 +127,7 @@
       }
     }
   },
-  "plugin": [
-    "oh-my-openagent@latest"
-  ],
+  "plugin": [],
   "lsp": {
     "typescript": {
       "command": [
@@ -66,5 +151,31 @@
     "paths": [
       "skills"
     ]
+  },
+  "mcp": {
+    "vibe:core-codegraph": {
+      "type": "local",
+      "command": [
+        "codegraph",
+        "serve",
+        "--mcp"
+      ],
+      "enabled": true
+    },
+    "vibe:core-context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "vibe:core-grep_app_official": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "vibe:core-parallel-search": {
+      "type": "remote",
+      "url": "https://search.parallel.ai/mcp",
+      "enabled": true
+    }
   }
 }
