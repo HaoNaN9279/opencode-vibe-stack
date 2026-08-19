@@ -2,7 +2,7 @@
 description: 通用执行智能体。可执行大中小各种任务，使用全部工具，直接编辑文件。中大型任务先写 TODOs 再按序执行。不派发子任务。
 name: Athena
 mode: all
-model: opencode/deepseek-v4-flash
+model: deepseek/deepseek-v4-flash
 permission:
     edit: allow
     bash: allow
