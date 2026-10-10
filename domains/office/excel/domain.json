@@ -1,0 +1,7 @@
+{
+  "name": "excel",
+  "description": "Microsoft Excel integration with AI-assisted development",
+  "version": "1.0.0",
+  "tags": ["office", "excel"],
+  "dependencies": []
+}

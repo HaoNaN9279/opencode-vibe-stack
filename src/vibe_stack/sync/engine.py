@@ -278,24 +278,32 @@ def activate_domain(
     oc_path = _opencode_json_path(dot)
     current = read_opencode(oc_path)
 
-    # 5. Resolve MCP configs.
-    resolved_mcp = _resolve_domain_mcp(dc, project_root)
+    # 5. Collect MCP configs from ALL already-active domains.
+    all_mcp: dict[str, object] = {}
+    for key in state.domains:
+        dc_other = load_domain(vibe_home, key)
+        resolved_other = _resolve_domain_mcp(dc_other, project_root)
+        all_mcp.update(resolved_other)
 
-    # 6. Build add dict and merge.
+    # 6. Resolve new domain's MCP and merge into the full set.
+    resolved_mcp = _resolve_domain_mcp(dc, project_root)
+    all_mcp.update(resolved_mcp)
+
+    # 7. Build add dict and merge.
     ns = dc.namespace
     add: dict[str, object] = {
         "instructions": [f".opencode/rules/{ns}/*.md"],
         "skills.paths": [f".opencode/skills/{ns}"],
     }
-    if resolved_mcp:
-        add["mcpServers"] = _strip_vibe_prefix(resolved_mcp)
+    if all_mcp:
+        add["mcpServers"] = _strip_vibe_prefix(all_mcp)
 
     merged = merge_vibe_entries(current, add=add)
 
-    # 7. Write opencode.json.
+    # 8. Write opencode.json.
     write_opencode(oc_path, merged)
 
-    # 8. Build DomainState and persist.
+    # 9. Build DomainState and persist.
     ds = _build_domain_state(dc, resolved_mcp)
     add_domain(state, ds)
     write_state(project_root, state)

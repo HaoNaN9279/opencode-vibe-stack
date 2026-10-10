@@ -1,0 +1,9 @@
+{
+"mcp": {
+    "excelMCP": {
+      "type": "local",
+      "command": ["uvx", "excel-mcp-server", "stdio"],
+      "enabled": true
+    }
+  }
+}

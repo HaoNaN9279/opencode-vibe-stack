@@ -304,6 +304,49 @@ class TestActivateDomain:
         assert user_file.is_file()
         assert user_file.read_text(encoding="utf-8") == "# my note"
 
+    def test_activate_multiple_domains_preserves_all_mcp(
+        self, tmp_path: Path
+    ) -> None:
+        """Given two domains each with MCP config,
+        When both are activated,
+        Then both MCP servers appear in opencode.json."""
+        vh = _make_vibe_home(tmp_path)
+        pr = _make_project_root(tmp_path)
+        _make_opencode_json(pr)
+
+        # Add second domain dcc/blender with MCP config
+        blender_dir = vh / "domains" / "dcc" / "blender"
+        _touch(blender_dir / "domain.json", json.dumps({
+            "name": "blender",
+            "description": "Blender 3D integration",
+            "version": "1.0.0",
+        }))
+        _touch(blender_dir / "mcp" / "blender.json", json.dumps({
+            "mcpServers": {
+                "blender": {
+                    "type": "local",
+                    "command": ["blender-server"],
+                    "enabled": True,
+                }
+            }
+        }))
+
+        activate_domain(vh, pr, "ai/data-forge")
+        activate_domain(vh, pr, "dcc/blender")
+
+        cfg = _read_opencode(pr)
+        assert "mcp" in cfg
+
+        # data-forge MCP preserved
+        df_key = "vibe:ai_data-forge_data-forge"
+        assert df_key in cfg["mcp"]
+        assert cfg["mcp"][df_key]["type"] == "local"
+
+        # blender MCP added
+        bl_key = "vibe:dcc_blender_blender"
+        assert bl_key in cfg["mcp"]
+        assert cfg["mcp"][bl_key]["type"] == "local"
+
 
 # ============================================================================
 # deactivate_domain
@@ -491,6 +534,50 @@ class TestDeactivateDomain:
         assert ".opencode/rules/ai_data-forge/*.md" not in cfg["instructions"]
         assert ".opencode/skills/ai_data-forge" not in cfg["skills"]["paths"]
         assert "vibe:ai_data-forge_data-forge" not in cfg["mcp"]
+
+    def test_deactivate_one_domain_preserves_other_mcp(
+        self, tmp_path: Path
+    ) -> None:
+        """Given two active domains each with MCP config,
+        When one is deactivated,
+        Then its MCP is removed but the other domain's MCP remains."""
+        vh = _make_vibe_home(tmp_path)
+        pr = _make_project_root(tmp_path)
+        _make_opencode_json(pr)
+
+        # Add second domain dcc/blender with MCP config
+        blender_dir = vh / "domains" / "dcc" / "blender"
+        _touch(blender_dir / "domain.json", json.dumps({
+            "name": "blender",
+            "description": "Blender 3D integration",
+            "version": "1.0.0",
+        }))
+        _touch(blender_dir / "mcp" / "blender.json", json.dumps({
+            "mcpServers": {
+                "blender": {
+                    "type": "local",
+                    "command": ["blender-server"],
+                    "enabled": True,
+                }
+            }
+        }))
+
+        activate_domain(vh, pr, "ai/data-forge")
+        activate_domain(vh, pr, "dcc/blender")
+
+        deactivate_domain(vh, pr, "ai/data-forge")
+
+        cfg = _read_opencode(pr)
+        assert "mcp" in cfg
+
+        # data-forge MCP removed
+        df_key = "vibe:ai_data-forge_data-forge"
+        assert df_key not in cfg["mcp"]
+
+        # blender MCP still present
+        bl_key = "vibe:dcc_blender_blender"
+        assert bl_key in cfg["mcp"]
+        assert cfg["mcp"][bl_key]["type"] == "local"
 
 
 # ============================================================================
