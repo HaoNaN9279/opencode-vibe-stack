@@ -1,0 +1,7 @@
+{
+  "name": "video-transcribe",
+  "description": "视频内容提取：从视频网站下载视频、提取音频、Qwen3-ASR 转写、翻译为简体中文、按画面信息截取关键帧并生成内嵌图片的 Markdown。",
+  "version": "1.0.0",
+  "tags": ["video", "audio", "asr", "transcription", "media"],
+  "dependencies": []
+}
