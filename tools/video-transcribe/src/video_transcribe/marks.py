@@ -1,19 +1,24 @@
 """AI-produced frame marks and translations (``marks.json``).
 
-The agent inspects the transcript, decides which moments require looking at
-the screen, and writes ``marks.json``. It also provides a Simplified-Chinese
+The agent inspects the transcript **plus the probe contact sheets**, decides
+which moments require looking at the screen, and writes ``marks.json``. Each
+mark may carry a time *window* (``start``/``end``) so the capture step can pick
+the most representative frame inside it. It also provides a Simplified-Chinese
 translation for each transcript segment; because that translated text carries
 its own punctuation, it simultaneously restores punctuation that Qwen3-ASR
 sometimes omits::
 
     {
       "marks": [
-        {"time": 123.4, "alt": "节点编辑器界面", "note": "讲解节点连线"}
+        {"start": 123.4, "end": 128.0, "alt": "节点编辑器界面", "note": "讲解节点连线"}
       ],
       "translations": [
         {"index": 0, "zh": "译文，专业术语可保留原文（如 Point Deform）。"}
       ]
     }
+
+A single ``time`` field is still accepted and treated as a zero-width window
+(``start == end``).
 """
 
 from __future__ import annotations
@@ -27,27 +32,55 @@ from video_transcribe.errors import JobError
 
 @dataclass
 class Mark:
-    """A single moment that should be captured as a frame."""
+    """A time window that should be captured as a frame.
 
-    time: float
-    alt: str
+    Parameters:
+        start: Window start in seconds.
+        end: Window end in seconds (``>= start``); equal to *start* for a
+            zero-width window.
+        alt: Image alternative text.
+        note: Optional caption note.
+    """
+
+    start: float
+    end: float
+    alt: str = ""
     note: str = ""
+
+    @property
+    def time(self) -> float:
+        """The anchor timestamp (window start), used for ordering/placement."""
+        return self.start
 
     @classmethod
     def from_dict(cls, data: dict) -> "Mark":
         """Build a :class:`Mark` from a decoded mapping.
 
+        Accepts ``start``/``end`` or a single ``time`` alias.
+
         Raises:
-            JobError: If ``time`` is missing or not numeric.
+            JobError: If no usable time field is present or it is not numeric.
         """
-        if "time" not in data:
-            raise JobError("Each mark requires a 'time' field (seconds)")
+        raw_start = data.get("start", data.get("time"))
+        if raw_start is None:
+            raise JobError("Each mark requires a 'start' (or 'time') field in seconds")
         try:
-            time = float(data["time"])
+            start = float(raw_start)
         except (TypeError, ValueError) as exc:
-            raise JobError(f"Mark 'time' must be numeric: {data.get('time')!r}") from exc
+            raise JobError(f"Mark 'start' must be numeric: {raw_start!r}") from exc
+
+        raw_end = data.get("end")
+        end = start
+        if raw_end is not None:
+            try:
+                end = float(raw_end)
+            except (TypeError, ValueError) as exc:
+                raise JobError(f"Mark 'end' must be numeric: {raw_end!r}") from exc
+        end = max(end, start)
+
         return cls(
-            time=time,
+            start=start,
+            end=end,
             alt=str(data.get("alt", "") or ""),
             note=str(data.get("note", "") or ""),
         )
@@ -127,6 +160,6 @@ class Marks:
         )
 
     def sorted(self) -> list[Mark]:
-        """Return marks sorted chronologically by timestamp."""
-        return sorted(self.marks, key=lambda mark: mark.time)
+        """Return marks sorted chronologically by window start."""
+        return sorted(self.marks, key=lambda mark: mark.start)
 

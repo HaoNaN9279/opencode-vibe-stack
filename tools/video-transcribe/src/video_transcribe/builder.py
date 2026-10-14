@@ -62,15 +62,18 @@ def build_markdown(
     """
     translations = translations or {}
     ordered_frames = sorted(frames.frames, key=lambda frame: frame.time)
+    video_name = Path(job.meta.video).name if job.meta.video else job.video_path.name
     lines: list[str] = [f"# {job.meta.title}", ""]
 
     if job.meta.url:
         lines.append(f"- 来源: {job.meta.url}")
+    else:
+        lines.append(f"- 来源: 本地文件 `{video_name}`")
     if transcript.language:
         lines.append(f"- 语言: {transcript.language}")
     if translations:
         lines.append("- 译文: 简体中文")
-    lines.append(f"- 视频文件: `{job.meta.video or job.video_path.name}`")
+    lines.append(f"- 视频文件: `{video_name}`")
     lines.extend(["", "---", ""])
 
     frame_index = 0

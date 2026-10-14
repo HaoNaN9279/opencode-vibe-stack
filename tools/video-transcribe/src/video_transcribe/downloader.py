@@ -23,6 +23,34 @@ def _find_video(job_root: Path, slug: str) -> Path:
     raise DownloadError(f"Downloaded video not found in {job_root}")
 
 
+def import_video(path: Path, out_root: Path) -> Job:
+    """Create a job from a local video file (no download).
+
+    The job folder is named after the file stem. The source file is *not*
+    copied: ``job.json`` records its absolute path so the video stays in
+    place (and is untouched by ``clean``).
+
+    Args:
+        path: Path to an existing local video file.
+        out_root: Root directory that will contain the job folder.
+
+    Returns:
+        The created :class:`Job`.
+
+    Raises:
+        DownloadError: If *path* is not an existing file.
+    """
+    source = path.expanduser().resolve()
+    if not source.is_file():
+        raise DownloadError(f"Local video file not found: {path}")
+
+    slug = slugify(source.stem)
+    job_root = out_root / slug
+    job_root.mkdir(parents=True, exist_ok=True)
+    meta = JobMeta(title=source.stem, slug=slug, url="", video=str(source))
+    return Job.create(job_root, meta)
+
+
 def download(url: str, out_root: Path, *, proxy: str | None = None) -> Job:
     """Download a video and create its job directory.
 

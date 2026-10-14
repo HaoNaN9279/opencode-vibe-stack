@@ -55,6 +55,17 @@ def test_derived_paths(tmp_path: Path) -> None:
     assert job.frames_dir.name == "frames"
     assert job.frames_manifest_path.name == "manifest.json"
     assert job.markdown_path.name == "t.md"
+    assert job.scenes_path.name == "scenes.json"
+    assert job.probe_dir.name == "probe"
+    assert job.probe_thumbs_dir.name == "thumbs"
+    assert job.probe_index_path.name == "index.json"
+
+
+def test_video_path_absolute_when_meta_is_absolute(tmp_path: Path) -> None:
+    external = tmp_path / "external.mp4"
+    meta = JobMeta(title="t", slug="t", video=str(external))
+    job = Job.create(tmp_path / "t", meta)
+    assert job.video_path == external
 
 
 def test_video_path_scans_when_meta_missing(tmp_path: Path) -> None:

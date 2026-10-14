@@ -23,6 +23,14 @@ class FrameCaptureError(VideoTranscribeError):
     """Raised when frame capture via ffmpeg fails."""
 
 
+class ProbeError(VideoTranscribeError):
+    """Raised when visual pre-sampling (contact sheets) fails."""
+
+
+class SceneDetectionError(VideoTranscribeError):
+    """Raised when scene-change detection via ffmpeg fails."""
+
+
 class ModelError(VideoTranscribeError):
     """Raised when model detection or download fails."""
 

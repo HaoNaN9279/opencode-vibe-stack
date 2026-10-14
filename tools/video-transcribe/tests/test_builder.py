@@ -62,11 +62,38 @@ def test_frames_sorted_chronologically(tmp_path: Path) -> None:
     assert md.index("先") < md.index("后")
 
 
+def test_multiple_frames_embedded_after_same_segment(tmp_path: Path) -> None:
+    job = _job(tmp_path)
+    transcript = Transcript("x", "ab", [Segment(0, 30, "第一段")])
+    frames = FrameManifest(
+        frames=[
+            Frame(time=5, frame="frames/frame_0001.png", alt="甲"),
+            Frame(time=15, frame="frames/frame_0002.png", alt="乙"),
+            Frame(time=25, frame="frames/frame_0003.png", alt="丙"),
+        ]
+    )
+
+    md = build_markdown(job, transcript, frames)
+
+    assert md.index("第一段") < md.index("![甲]") < md.index("![乙]") < md.index("![丙]")
+
+
 def test_no_segments_uses_full_text(tmp_path: Path) -> None:
     job = _job(tmp_path)
     transcript = Transcript("Chinese", "完整文本", [])
     md = build_markdown(job, transcript, FrameManifest())
     assert "完整文本" in md
+
+
+def test_local_source_written_as_file(tmp_path: Path) -> None:
+    meta = JobMeta(title="cam", slug="cam", url="", video=str(tmp_path / "cam.mp4"))
+    job = Job.create(tmp_path / "cam", meta)
+    transcript = Transcript("English", "hi", [Segment(0, 5, "hi")])
+
+    md = build_markdown(job, transcript, FrameManifest())
+
+    assert "- 来源: 本地文件 `cam.mp4`" in md
+    assert "- 视频文件: `cam.mp4`" in md
 
 
 def test_translations_replace_source_text(tmp_path: Path) -> None:

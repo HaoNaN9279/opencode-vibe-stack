@@ -10,6 +10,10 @@ captured frames, and the final Markdown document::
         audio/<title>.wav
         transcript.json
         transcript.txt
+        scenes.json
+        probe/index.json
+        probe/thumbs/thumb_00001.png
+        probe/sheet_0001.png
         marks.json
         frames/manifest.json
         frames/frame_0001.png
@@ -172,6 +176,26 @@ class Job:
     def transcript_text_path(self) -> Path:
         """Path to the plain-text transcript."""
         return self.root / "transcript.txt"
+
+    @property
+    def scenes_path(self) -> Path:
+        """Path to the detected scene-boundary list (``scenes.json``)."""
+        return self.root / "scenes.json"
+
+    @property
+    def probe_dir(self) -> Path:
+        """Directory holding visual pre-sampling output."""
+        return self.root / "probe"
+
+    @property
+    def probe_thumbs_dir(self) -> Path:
+        """Directory holding individual probe thumbnails."""
+        return self.probe_dir / "thumbs"
+
+    @property
+    def probe_index_path(self) -> Path:
+        """Path to the probe index (``probe/index.json``)."""
+        return self.probe_dir / "index.json"
 
     @property
     def marks_path(self) -> Path:

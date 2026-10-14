@@ -7,9 +7,14 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from video_transcribe.errors import JobError
-from video_transcribe.ffmpeg import capture_frame
+from video_transcribe.ffmpeg import capture_frame, capture_frame_window, tile_images
 from video_transcribe.marks import Marks
 from video_transcribe.paths import Job
+
+DEFAULT_MANIFEST_COLS = 5
+DEFAULT_MANIFEST_ROWS = 4
+# Review sheets downscale each frame so full-resolution captures stay readable.
+REVIEW_SHEET_WIDTH = 480
 
 
 @dataclass
@@ -69,15 +74,29 @@ class FrameManifest:
         return cls(frames=[Frame.from_dict(item) for item in raw])
 
 
-def capture_frames(job: Job) -> FrameManifest:
+def capture_frames(
+    job: Job,
+    *,
+    cols: int = DEFAULT_MANIFEST_COLS,
+    rows: int = DEFAULT_MANIFEST_ROWS,
+    with_sheet: bool = True,
+) -> FrameManifest:
     """Capture one frame per mark in ``marks.json``.
 
-    Frames are named ``frame_0001.png`` … in chronological order and stored
-    under ``<job>/frames/``. A manifest is written to
-    ``<job>/frames/manifest.json``.
+    A mark with a non-empty window (``end > start``) is captured with the
+    ``thumbnail`` filter so the most representative frame inside the window is
+    kept; a zero-width mark falls back to a single-point capture. Frames are
+    named ``frame_0001.png`` … in chronological order under ``<job>/frames/``
+    and a manifest is written to ``<job>/frames/manifest.json``.
+
+    When *with_sheet* is set, contact sheets of the captured frames are written
+    as ``<job>/frames/contact_sheet_0001.png`` … for quick human/AI review.
 
     Args:
         job: The job to process.
+        cols: Contact-sheet columns for the review sheet.
+        rows: Contact-sheet rows for the review sheet.
+        with_sheet: Whether to render a review contact sheet.
 
     Returns:
         The resulting :class:`FrameManifest`.
@@ -98,14 +117,20 @@ def capture_frames(job: Job) -> FrameManifest:
     # Remove frames from any previous run so re-capture overwrites cleanly.
     for stale in frames_dir.glob("frame_*.png"):
         stale.unlink()
+    for stale in frames_dir.glob("contact_sheet_*.png"):
+        stale.unlink()
 
     frames: list[Frame] = []
     for index, mark in enumerate(ordered, start=1):
         filename = f"frame_{index:04d}.png"
-        capture_frame(video_path, mark.time, frames_dir / filename)
+        out_png = frames_dir / filename
+        if mark.end > mark.start:
+            capture_frame_window(video_path, mark.start, mark.end, out_png)
+        else:
+            capture_frame(video_path, mark.start, out_png)
         frames.append(
             Frame(
-                time=mark.time,
+                time=mark.start,
                 frame=f"frames/{filename}",
                 alt=mark.alt,
                 note=mark.note,
@@ -114,4 +139,14 @@ def capture_frames(job: Job) -> FrameManifest:
 
     manifest = FrameManifest(frames=frames)
     manifest.save(job.frames_manifest_path)
+
+    if with_sheet and frames:
+        tile_images(
+            str(frames_dir / "frame_%04d.png"),
+            frames_dir / "contact_sheet_%04d.png",
+            cols=cols,
+            rows=rows,
+            scale_width=REVIEW_SHEET_WIDTH,
+        )
+
     return manifest
