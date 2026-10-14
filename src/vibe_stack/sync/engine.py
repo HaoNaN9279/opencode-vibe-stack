@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import os
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,7 +32,6 @@ from vibe_stack.sync.state_manager import (
     remove_domain,
     write_state,
 )
-from vibe_stack.writer.jsonc_utils import parse_jsonc
 from vibe_stack.writer.opencode_writer import merge_vibe_entries, read_opencode, write_opencode
 
 # ---------------------------------------------------------------------------
@@ -218,8 +218,9 @@ def _sync_tools_rule(vibe_home: Path, user_config_dir: Path) -> None:
 def _read_tool_scripts(pyproject_path: Path) -> list[str]:
     """Extract entry-point script names from a pyproject.toml."""
     try:
-        raw: dict = parse_jsonc(pyproject_path)  # type: ignore[assignment]
-    except Exception:
+        with pyproject_path.open("rb") as handle:
+            raw = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
         return []
 
     project = raw.get("project")

@@ -23,6 +23,8 @@ from vibe_stack.errors import (
 from vibe_stack.model.domain import DomainConfig, DomainMeta
 from vibe_stack.model.state import ActivationState, DomainState
 from vibe_stack.sync.engine import (
+    _read_tool_scripts,
+    _sync_tools_rule,
     activate_domain,
     deactivate_domain,
     sync,
@@ -869,3 +871,93 @@ class TestSync:
         assert _opencode_path(pr).is_file()
         cfg = _read_opencode(pr)
         assert ".opencode/rules/ai_data-forge/*.md" in cfg["instructions"]
+
+
+# ============================================================================
+# _read_tool_scripts / _sync_tools_rule
+# ============================================================================
+
+
+class TestReadToolScripts:
+    """Tests for _read_tool_scripts() — parses TOML entry points."""
+
+    def test_reads_scripts_from_pyproject(self, tmp_path: Path) -> None:
+        """Given a pyproject.toml with [project.scripts],
+        When _read_tool_scripts is called,
+        Then the script names are returned, sorted."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "demo"\n\n[project.scripts]\n'
+            'demo-cli = "demo:main"\nalpha = "demo.alpha:main"\n',
+            encoding="utf-8",
+        )
+
+        assert _read_tool_scripts(pyproject) == ["alpha", "demo-cli"]
+
+    def test_returns_empty_without_scripts(self, tmp_path: Path) -> None:
+        """Given a pyproject.toml without [project.scripts],
+        When _read_tool_scripts is called,
+        Then an empty list is returned."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\n', encoding="utf-8")
+
+        assert _read_tool_scripts(pyproject) == []
+
+    def test_returns_empty_for_invalid_toml(self, tmp_path: Path) -> None:
+        """Given a malformed pyproject.toml,
+        When _read_tool_scripts is called,
+        Then an empty list is returned instead of raising."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("this is = = not toml", encoding="utf-8")
+
+        assert _read_tool_scripts(pyproject) == []
+
+    def test_returns_empty_for_missing_file(self, tmp_path: Path) -> None:
+        """Given a non-existent path,
+        When _read_tool_scripts is called,
+        Then an empty list is returned."""
+        assert _read_tool_scripts(tmp_path / "nope.toml") == []
+
+
+class TestSyncToolsRule:
+    """Tests for _sync_tools_rule() — generates the tools index rule."""
+
+    def _make_tool(self, vh: Path, name: str, body: str) -> None:
+        tool = vh / "tools" / name
+        tool.mkdir(parents=True)
+        (tool / "pyproject.toml").write_text(body, encoding="utf-8")
+
+    def test_uses_entry_point_command(self, tmp_path: Path) -> None:
+        """Given a tool with a [project.scripts] entry point,
+        When _sync_tools_rule runs,
+        Then the generated rule suggests the real command, not python -m."""
+        vh = tmp_path / "vibe-home"
+        self._make_tool(
+            vh,
+            "demo-tool",
+            '[project]\nname = "demo-tool"\n\n[project.scripts]\n'
+            'demo-tool = "demo_tool:main"\n',
+        )
+        user_config = tmp_path / "config" / "opencode"
+        user_config.mkdir(parents=True)
+
+        _sync_tools_rule(vh, user_config)
+
+        content = (user_config / "rules" / "vibe-stack-tools.md").read_text(encoding="utf-8")
+        assert "uv run --project" in content
+        assert "demo-tool" in content
+        assert "python -m demo-tool" not in content
+
+    def test_falls_back_without_scripts(self, tmp_path: Path) -> None:
+        """Given a tool without entry points,
+        When _sync_tools_rule runs,
+        Then a python -m fallback is emitted."""
+        vh = tmp_path / "vibe-home"
+        self._make_tool(vh, "plain", '[project]\nname = "plain"\n')
+        user_config = tmp_path / "config" / "opencode"
+        user_config.mkdir(parents=True)
+
+        _sync_tools_rule(vh, user_config)
+
+        content = (user_config / "rules" / "vibe-stack-tools.md").read_text(encoding="utf-8")
+        assert "python -m plain" in content
